@@ -271,6 +271,8 @@ private val HOME_TILES = listOf(
         "奇门九宫与大六壬贵神、月将、年煞、命宫同盘合参，二式互证，占断更为周全。"),
     HomeTile("太乙三式", "taiyi3shi", Glyph.TAIYI, "三 式 合 一",
         "太乙积数定局，主客算与十六神齐备，合奇门、六壬三盘为一，推演天时国运与大事格局。"),
+    HomeTile("太乙神数", "taiyi72", Glyph.TAIYI, "七 十 二 局",
+        "传统太乙神数正统排法，据《太乙金镜式经》七十二局立成，积数定局、主客大小将与十六方位，专推天时国运。"),
     HomeTile("山向奇门", "shanxiangqimen", Glyph.SHANXIANG, "二 十 四 山",
         "按罗盘度数查七十二局，以年柱代日、五鼠遁定时，布阳阴遁九宫盘，专用于立向择方。"),
     HomeTile("玄空飞星", "ninestar", Glyph.FEIXING, "洛 书 飞 泊",
