@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 低 API 无 adaptive-icon，用 foreground vector 兜底 -->
+    <item name="ic_launcher" type="mipmap">@drawable/ic_launcher_foreground</item>
+    <item name="ic_launcher_round" type="mipmap">@drawable/ic_launcher_foreground</item>
+</resources>
