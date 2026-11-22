@@ -49,11 +49,14 @@ private val FX_RED = Color(0xFFB0392E)
 private val FX_GOLD = Color(0xFFD9A441)
 private val FX_LINE = Color(0x52D9A441)
 private val FX_CARD = Color(0x14FFFFFF)
-// 飞星颜色：年绿 月红 日黄 时紫（仿原版）
-private val FX_YEAR = Color(0xFF27843B)
-private val FX_MONTH = Color(0xFFC0392B)
-private val FX_DAY = Color(0xFFC98A12)
-private val FX_HOUR = Color(0xFF7D3C98)
+// 飞星颜色（仿原版 ji.js.cn）：年绿 月蓝 日黄 时紫
+private val FX_YEAR = Color(0xFF1B9A5A)
+private val FX_MONTH = Color(0xFF2E6FD0)
+private val FX_DAY = Color(0xFFE08A1E)
+private val FX_HOUR = Color(0xFF9B3FC0)
+// 原版文字色：标题蓝灰、标签灰蓝
+private val FX_TITLE_TEXT = Color(0xFF41566E)
+private val FX_LABEL = Color(0xFF64748B)
 
 /** 玄空飞星专用起卦页：日期时间 → 仿原版九宫飞星盘（合成 + 年月日时四个单盘） */
 @Composable
@@ -133,33 +136,58 @@ private fun FeixingDetailScreen(dt: LocalDateTime, onBack: () -> Unit) {
             }
         }
 
-        // 日期 / 节气 / 大运
-        Column(Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 14.dp, vertical = 6.dp)) {
-            FxInfoRow("日期", p.dateText)
-            FxInfoRow("节气", p.jieqi)
-            FxInfoRow("大运", p.yearYun)
-            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                Text("四柱", color = Color(0xFF888888), fontSize = 12.sp, modifier = Modifier.width(40.dp))
-                for (gz in p.siZhu) Text(gz, color = Color(0xFF222222), fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+        // 日期 / 节气 / 四柱（仿原版紧凑排布）
+        Column(Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 16.dp, vertical = 8.dp)) {
+            // 日期：公历 + 农历括号
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("日期", color = FX_LABEL, fontSize = 13.sp, modifier = Modifier.width(46.dp))
+                Text(p.dateText + "(${p.lunarText})", color = Color(0xFF1A1A1A), fontSize = 14.sp)
+            }
+            // 节气：节气区间 + 右侧三元九运
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("节气", color = FX_LABEL, fontSize = 13.sp, modifier = Modifier.width(46.dp))
+                    Text(p.jieqi, color = Color(0xFF1A1A1A), fontSize = 14.sp)
+                }
+                Text(p.yearYun, color = Color(0xFF1A1A1A), fontSize = 14.sp)
+            }
+            // 四柱：竖排（每字一行），大字
+            Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("四柱", color = FX_LABEL, fontSize = 13.sp, modifier = Modifier.width(46.dp))
+                Row(Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    for (gz in p.siZhu) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            for (ch in gz) Text(ch.toString(), color = Color(0xFF1A1A1A), fontSize = 22.sp,
+                                fontFamily = FontFamily.Serif, lineHeight = 26.sp)
+                        }
+                    }
+                }
             }
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(6.dp))
 
-        // 飞星颜色图例
-        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            FxLegend("年", FX_YEAR); FxLegend("月", FX_MONTH); FxLegend("日", FX_DAY); FxLegend("时", FX_HOUR)
+        // 飞星颜色纯文字图例：飞星颜色：年、月、日、时
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp), horizontalArrangement = Arrangement.Center) {
+            Text("飞星颜色：", color = Color(0xFF333333), fontSize = 14.sp)
+            Text("年", color = FX_YEAR, fontSize = 14.sp)
+            Text("、", color = Color(0xFF333333), fontSize = 14.sp)
+            Text("月", color = FX_MONTH, fontSize = 14.sp)
+            Text("、", color = Color(0xFF333333), fontSize = 14.sp)
+            Text("日", color = FX_DAY, fontSize = 14.sp)
+            Text("、", color = Color(0xFF333333), fontSize = 14.sp)
+            Text("时", color = FX_HOUR, fontSize = 14.sp)
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(4.dp))
 
         FxSectionTitle("飞星排盘")
         FxGrid(visual, p, mode = 0, onHelp = { help = it })
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
 
         for (m in 1..4) {
             FxSectionTitle(when (m) { 1 -> "年飞星"; 2 -> "月飞星"; 3 -> "日飞星"; else -> "时飞星" })
             FxGrid(visual, p, mode = m, onHelp = { help = it })
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
         }
         Spacer(Modifier.height(16.dp))
     }
@@ -185,61 +213,63 @@ private fun FxLegend(label: String, color: Color) {
 
 @Composable
 private fun FxSectionTitle(title: String) {
-    Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp).clip(RoundedCornerShape(4.dp))
-        .background(Color(0xFFE4DED1)).padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
-        Text(title, color = Color(0xFF444444), fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(2.dp))
+        .background(Color(0xFFF2F2F4)).padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
+        Text(title, color = FX_TITLE_TEXT, fontSize = 15.sp, fontWeight = FontWeight.Normal, letterSpacing = 1.sp)
     }
-    Spacer(Modifier.height(6.dp))
+    Spacer(Modifier.height(4.dp))
 }
 
 @Composable
 private fun FxGrid(visual: Array<Array<String>>, p: NineStar.PanData, mode: Int, onHelp: (String) -> Unit) {
+    val cellH = if (mode == 0) 108.dp else 92.dp
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp)
-        .clip(RoundedCornerShape(6.dp)).border(1.dp, Color(0xFFBBBBBB), RoundedCornerShape(6.dp))
+        .clip(RoundedCornerShape(3.dp)).border(1.dp, Color(0xFF333333), RoundedCornerShape(3.dp))
         .background(Color.White)) {
         visual.forEachIndexed { ri, row ->
             Row(Modifier.fillMaxWidth()) {
                 row.forEachIndexed { ci, g ->
                     val stars = p.gongStars[g] ?: intArrayOf(0, 0, 0, 0)
-                    FxCell(g, stars, mode, Modifier.weight(1f), onHelp)
-                    if (ci < 2) Box(Modifier.width(1.dp).height(if (mode == 0) 150.dp else 76.dp).background(Color(0xFFCCCCCC)))
+                    FxCell(g, stars, mode, cellH, Modifier.weight(1f), onHelp)
+                    if (ci < 2) Box(Modifier.width(1.dp).height(cellH).background(Color(0xFF333333)))
                 }
             }
-            if (ri < 2) Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFCCCCCC)))
+            if (ri < 2) Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF333333)))
         }
     }
 }
 
 @Composable
-private fun FxCell(g: String, stars: IntArray, mode: Int, modifier: Modifier, onHelp: (String) -> Unit) {
-    val h = if (mode == 0) 150.dp else 76.dp
-    Column(modifier.height(h).padding(horizontal = 2.dp, vertical = 5.dp).clickable {
+private fun FxCell(g: String, stars: IntArray, mode: Int, cellH: androidx.compose.ui.unit.Dp,
+                   modifier: Modifier, onHelp: (String) -> Unit) {
+    Column(modifier.height(cellH).clickable {
         val s = if (mode == 0) stars else intArrayOf(stars[mode - 1])
         onHelp("${g}宫：" + s.joinToString(" ") { NineStar.START_NAMES[it - 1] })
-    }, horizontalAlignment = Alignment.CenterHorizontally) {
-        // 宫位名称（顶部，仿原版）
-        Text(g + "宫", color = Color(0xFF999999), fontSize = 11.sp)
+    }, horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center) {
         if (mode == 0) {
-            // 合成盘：4 个飞星均匀铺满整个宫（上绿 / 左红·右黄 / 下紫），不再挤成一团
+            // 合成盘：规整 2×2 —— 左上绿(年) / 右上蓝(月) / 左下黄(日) / 右下紫(时)
             Column(Modifier.fillMaxWidth().weight(1f),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceEvenly) {
-                Text(NineStar.START_CODES[stars[0] - 1], color = FX_YEAR,
-                    fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    Text(NineStar.START_CODES[stars[0] - 1], color = FX_YEAR,
+                        fontSize = 22.sp, fontWeight = FontWeight.Bold)
                     Text(NineStar.START_CODES[stars[1] - 1], color = FX_MONTH,
-                        fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    Text(NineStar.START_CODES[stars[2] - 1], color = FX_DAY,
-                        fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 }
-                Text(NineStar.START_CODES[stars[3] - 1], color = FX_HOUR,
-                    fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    Text(NineStar.START_CODES[stars[2] - 1], color = FX_DAY,
+                        fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    Text(NineStar.START_CODES[stars[3] - 1], color = FX_HOUR,
+                        fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                }
             }
         } else {
+            // 单盘：黑色星名文字（如「九紫」），仿原版
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 val s = stars[mode - 1]
-                Text(NineStar.START_CODES[s - 1], color = when (mode) { 1 -> FX_YEAR; 2 -> FX_MONTH; 3 -> FX_DAY; else -> FX_HOUR },
-                    fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                Text(NineStar.START_NAMES[s - 1], color = Color(0xFF1A1A1A), fontSize = 17.sp)
             }
         }
     }

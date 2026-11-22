@@ -206,11 +206,25 @@ object NineStar {
     /** 仿原版详情页所需的结构化飞星数据 */
     data class PanData(
         val dateText: String, val jieqi: String, val yearYun: String,
+        val lunarText: String,                   // 农历中文，如「十月十四」
         val siZhu: List<String>,
         val gongStars: Map<String, IntArray>,   // 宫名 -> [年,月,日,时] 星数
         val yearStar: Int, val monthStar: Int, val dayStar: Int, val hourStar: Int,
         val isXiazhi: Boolean
     )
+
+    private val CN_NUM = arrayOf("零", "一", "二", "三", "四", "五", "六", "七", "八", "九")
+    private fun cnMonth(m: Int): String = when (m) {
+        1 -> "正"; 11 -> "冬"; 12 -> "腊"; 10 -> "十"
+        else -> CN_NUM[m]
+    } + "月"
+    private fun cnDay(d: Int): String = when {
+        d <= 10 -> "初" + CN_NUM[d]
+        d < 20 -> "十" + CN_NUM[d - 10]
+        d == 20 -> "二十"
+        d < 30 -> "廿" + CN_NUM[d - 20]
+        else -> "三十"
+    }
 
     /** 三元九运：1~9 运，返回如「下元八运」 */
     fun yearYun(year: Int): String {
@@ -252,7 +266,8 @@ object NineStar {
 
         val dateText = "${dt.year}年${dt.monthValue}月${dt.dayOfMonth}日 ${dt.hour}时${dt.minute}分"
         val jieqi = SolarTerm.rangeAt(dt)?.let { "${it.from.name} ~ ${it.to.name}" } ?: ""
-        return PanData(dateText, jieqi, yearYun(dt.year),
+        val lunarText = cnMonth(lun.month) + cnDay(lun.day) + if (lun.isLeap) "(闰)" else ""
+        return PanData(dateText, jieqi, yearYun(dt.year), lunarText,
             listOf(yearGanZhi, lun.monthGanZhi, riZhu, lun.hourGanZhi),
             gongStars, yearStar, monthStar, dayStar, hourStar, isXiazhi)
     }
