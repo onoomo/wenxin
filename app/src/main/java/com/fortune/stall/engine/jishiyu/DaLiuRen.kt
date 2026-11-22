@@ -221,8 +221,10 @@ object DaLiuRen {
         val dongzhi = SolarTerm.termTime(t.year, "冬至")
         val isYang = !(xiazhi != null && dongzhi != null && t.isAfter(xiazhi) && t.isBefore(dongzhi))
         val mingZhiIndex = _12DIZHI.indexOf(yueJiang) + 1 + _12DIZHI.indexOf(lun.hourZhi) + 1 - 4
-        val mIdxAdj = if (mingZhiIndex > 12) mingZhiIndex - 12 else mingZhiIndex
-        val mingZhi = _12DIZHI[mIdxAdj - 1]
+        // 原版 JS 数组负索引返回 undefined 不崩；Kotlin 需按 12 循环归一化（floorMod）避免越界闪退。
+        // 例：小雪后月将寅 + 卯时 → mingZhiIndex=-1，旧代码 _12DIZHI[-2] 直接崩溃。
+        val mIdxAdj = Math.floorMod(mingZhiIndex - 1, 12)
+        val mingZhi = _12DIZHI[mIdxAdj]
         val palaces = arrayOf("命", "兄", "妻", "子", "财", "疾", "迁", "仆", "禄", "田", "德", "母")
         val gong12 = linkedMapOf<String, String>()
         val base = _12DIZHI.indexOf(mingZhi)
