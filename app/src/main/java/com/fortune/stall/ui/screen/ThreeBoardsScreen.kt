@@ -201,81 +201,63 @@ private fun CompositeDetailScreen(
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).background(QD_BG)) {
         BoardNavBar(if (threeBoard) "太乙三式" else "奇门穿壬", onBack)
 
-        // 信息表（紧凑）
-        Column(Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 14.dp, vertical = 3.dp)) {
-            QdRow("事项", question.ifEmpty { "—" })
-            QdRow("时间", q.date)
-            QdRow("节气", q.jieqi)
-            Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-                Text("阴阳", color = AppColors.Muted, fontSize = 12.sp, modifier = Modifier.width(40.dp))
-                Text("${if (q.yangDun) "阳遁" else "阴遁"}${q.jushu}局", color = BoardTheme.RED,
-                    fontSize = 13.sp, fontWeight = FontWeight.Bold)
-            }
-            Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-                for (h in listOf("值符", "值使", "旬首", "马星", "空亡")) {
-                    Text(h, color = AppColors.Muted, fontSize = 11.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+        // ===== 信息区：太乙三式用原版简洁5列表；奇门穿壬保留完整信息表 =====
+        if (threeBoard && ty != null) {
+            // 原版太乙三式顶部：一行5列表（蓝头#2e4487 + 黑值）
+            Column(Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth().background(Color(0xFFE9E9E9)).padding(vertical = 7.dp)) {
+                    for (h in listOf("积数", "主算数", "客算数", "天马", "太乙宫位")) {
+                        Text(h, color = Color(0xFF2E4487), fontSize = 13.sp,
+                            modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                    }
+                }
+                Row(Modifier.fillMaxWidth().background(Color.White).padding(vertical = 7.dp)) {
+                    for (v in listOf(ty.jishu.toString(), ty.zhusuan.toString(), ty.keshuan.toString(), ty.tianma, "${ty.tygongwei}${ty.guan}")) {
+                        Text(v, color = Color(0xFF222222), fontSize = 14.sp,
+                            modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                    }
                 }
             }
-            Row(Modifier.fillMaxWidth().padding(bottom = 2.dp)) {
-                for (v in listOf(q.zhifu, q.zhishi, q.xunhead, q.maxing, q.kongwang)) {
-                    Text(v, color = BoardTheme.MING, fontSize = 12.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+        } else {
+            Column(Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 14.dp, vertical = 3.dp)) {
+                QdRow("事项", question.ifEmpty { "—" })
+                QdRow("时间", q.date)
+                QdRow("节气", q.jieqi)
+                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                    Text("阴阳", color = AppColors.Muted, fontSize = 12.sp, modifier = Modifier.width(40.dp))
+                    Text("${if (q.yangDun) "阳遁" else "阴遁"}${q.jushu}局", color = BoardTheme.RED,
+                        fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
-            }
-            Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-                for (h in listOf("月将", "年命", "用神", "贵人", "性别")) {
-                    Text(h, color = AppColors.Muted, fontSize = 11.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                    for (h in listOf("值符", "值使", "旬首", "马星", "空亡")) {
+                        Text(h, color = AppColors.Muted, fontSize = 11.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                    }
                 }
-            }
-            Row(Modifier.fillMaxWidth().padding(bottom = 2.dp)) {
-                val guiren = lr.guiShen.values.firstOrNull { it.contains("贵") } ?: lr.yueJiang
-                for (v in listOf(lr.yueJiang, lr.yearGanzhi, yongShen, guiren, if (isMan) "男" else "女")) {
-                    Text(v, color = BoardTheme.GUI, fontSize = 12.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                Row(Modifier.fillMaxWidth().padding(bottom = 2.dp)) {
+                    for (v in listOf(q.zhifu, q.zhishi, q.xunhead, q.maxing, q.kongwang)) {
+                        Text(v, color = BoardTheme.MING, fontSize = 12.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                    }
                 }
-            }
-            Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-                Text("四柱", color = AppColors.Muted, fontSize = 12.sp, modifier = Modifier.width(40.dp))
-                for (gz in q.siZhu) Text(gz, color = QD_TEXT, fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif,
-                    modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                    for (h in listOf("月将", "年命", "用神", "贵人", "性别")) {
+                        Text(h, color = AppColors.Muted, fontSize = 11.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                    }
+                }
+                Row(Modifier.fillMaxWidth().padding(bottom = 2.dp)) {
+                    val guiren = lr.guiShen.values.firstOrNull { it.contains("贵") } ?: lr.yueJiang
+                    for (v in listOf(lr.yueJiang, lr.yearGanzhi, yongShen, guiren, if (isMan) "男" else "女")) {
+                        Text(v, color = BoardTheme.GUI, fontSize = 12.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                    }
+                }
+                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                    Text("四柱", color = AppColors.Muted, fontSize = 12.sp, modifier = Modifier.width(40.dp))
+                    for (gz in q.siZhu) Text(gz, color = QD_TEXT, fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif,
+                        modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                }
             }
         }
         Spacer(Modifier.height(4.dp))
-
-        if (threeBoard && ty != null) {
-            // ===== 太乙积数·三式之最（仿原版：米黄横条标题 + 深红数值 + 详细列表）=====
-            // 米黄横条标题：左侧橙色竖条 + 琥珀色加粗文字
-            Row(Modifier.fillMaxWidth().background(Color(0xFFF6EEDC))
-                .padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.width(3.dp).height(15.dp).background(Color(0xFFE08A34)))
-                Spacer(Modifier.width(8.dp))
-                Text("太乙积数 · 三式之最", color = Color(0xFFC0812A), fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            }
-            Column(Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 14.dp, vertical = 6.dp)) {
-                // 5列汇总表头
-                Row(Modifier.fillMaxWidth()) {
-                    for (h in listOf("积数", "主算", "客算", "天马", "太乙宫位")) {
-                        Text(h, color = Color(0xFF8A8A8A), fontSize = 12.sp,
-                            modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                    }
-                }
-                // 5列数值：深红加粗
-                Row(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
-                    for (v in listOf(ty.jishu.toString(), ty.zhusuan.toString(), ty.keshuan.toString(), ty.tianma, "${ty.tygongwei}${ty.guan}")) {
-                        Text(v, color = Color(0xFF9E1A1A), fontSize = 14.sp, fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                    }
-                }
-                Spacer(Modifier.height(3.dp))
-                // 详细列表：灰蓝标签 + 深色值
-                for ((k, v) in ty.lines) {
-                    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-                        Text(k, color = Color(0xFF4A5A8A), fontSize = 13.sp, modifier = Modifier.width(44.dp))
-                        Text(v, color = QD_TEXT, fontSize = 13.sp, modifier = Modifier.weight(1f))
-                    }
-                }
-            }
-            Spacer(Modifier.height(4.dp))
-        }
 
         // 九宫盘：太乙三式用完整回字形四层盘；奇门穿壬用奇门内+六壬外围
         Spacer(Modifier.height(6.dp))
@@ -284,32 +266,85 @@ private fun CompositeDetailScreen(
         }
         Spacer(Modifier.height(10.dp))
 
-        // 大地盘 4 列小表（仿原版）
-        val earth = listOf(
-            listOf("亥", "卯", "酉"), listOf("午", "戌", "寅"),
-            listOf("丑", "巳", "申"), listOf("庚", "子", "辰")
-        )
-        Column(Modifier.align(Alignment.CenterHorizontally)
-            .border(1.dp, Color(0xFFAAAAAA), RoundedCornerShape(2.dp)).padding(6.dp)) {
-            for (row in earth) {
-                Row {
-                    for (cell in row) Text(cell, color = Color(0xFF444444), fontSize = 14.sp,
-                        fontFamily = FontFamily.Serif, textAlign = TextAlign.Center,
-                        modifier = Modifier.width(34.dp).padding(vertical = 2.dp))
+        // ===== 底部两个小表：大六壬四课 + 三传（仿原版 view_qimen_3shi.html）=====
+        Spacer(Modifier.height(14.dp))
+        Row(Modifier.fillMaxWidth()) {
+            // 左表：四课（4列3行；天将 / 上神(粗) / 下神(粗)，列倒序 4→1）
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                Column(Modifier.border(1.dp, Color(0xFFAAAAAA), RoundedCornerShape(2.dp)).padding(6.dp)) {
+                    for (r in 0..2) {
+                        Row {
+                            for (k in 3 downTo 0) {
+                                val cell = lr.fourKe.getOrNull(k)?.getOrNull(2 - r) ?: ""
+                                Text(cell, color = Color(0xFF222222), fontSize = 15.sp,
+                                    fontWeight = if (r == 0) FontWeight.Normal else FontWeight.Bold,
+                                    fontFamily = FontFamily.Serif, textAlign = TextAlign.Center,
+                                    modifier = Modifier.width(30.dp).padding(vertical = 2.dp))
+                            }
+                        }
+                    }
+                }
+            }
+            // 右表：三传（3行4列；六亲 / 天干 / 地支(粗) / 天将(灰)）
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                Column(Modifier.border(1.dp, Color(0xFFAAAAAA), RoundedCornerShape(2.dp)).padding(6.dp)) {
+                    for (ch in lr.threeChuan.take(3)) {
+                        Row {
+                            Text(ch.getOrNull(3) ?: "", color = Color(0xFF222222), fontSize = 15.sp,
+                                fontFamily = FontFamily.Serif, textAlign = TextAlign.Center,
+                                modifier = Modifier.width(30.dp).padding(vertical = 2.dp))
+                            Text(ch.getOrNull(1) ?: "", color = Color(0xFF222222), fontSize = 15.sp,
+                                fontFamily = FontFamily.Serif, textAlign = TextAlign.Center,
+                                modifier = Modifier.width(30.dp).padding(vertical = 2.dp))
+                            Text(ch.getOrNull(0) ?: "", color = Color(0xFF222222), fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif, textAlign = TextAlign.Center,
+                                modifier = Modifier.width(30.dp).padding(vertical = 2.dp))
+                            Text(ch.getOrNull(2) ?: "", color = Color(0xFF888888), fontSize = 15.sp,
+                                fontFamily = FontFamily.Serif, textAlign = TextAlign.Center,
+                                modifier = Modifier.width(30.dp).padding(vertical = 2.dp))
+                        }
+                    }
                 }
             }
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(16.dp))
 
-        Text("奇门符号颜色：入墓、击刑、门迫、刑+墓",
-            color = Color(0xFF666666), fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-        Text("六壬符号颜色：贵神、年煞、命宫、建星",
-            color = Color(0xFF666666), fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-        if (threeBoard) {
-            Text("太乙地(人)盘：", color = Color(0xFF666666), fontSize = 12.sp,
-                modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-            Text("太乙天(神)盘：", color = Color(0xFF666666), fontSize = 12.sp,
-                modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+        // ===== 图例：逐字着色 + 地盘/天盘色块（仿原版 CSS）=====
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Row {
+                    Text("奇门符号颜色：", color = Color(0xFF555555), fontSize = 13.sp)
+                    Text("入墓", color = Color(0xFFD0AF0F), fontSize = 13.sp)
+                    Text("、", color = Color(0xFF555555), fontSize = 13.sp)
+                    Text("击刑", color = Color(0xFFBA55D3), fontSize = 13.sp)
+                    Text("、", color = Color(0xFF555555), fontSize = 13.sp)
+                    Text("门迫", color = Color(0xFFFF0000), fontSize = 13.sp)
+                    Text("、", color = Color(0xFF555555), fontSize = 13.sp)
+                    Text("刑+墓", color = Color(0xFF1E90FF), fontSize = 13.sp)
+                }
+                Row {
+                    Text("六壬符号颜色：", color = Color(0xFF555555), fontSize = 13.sp)
+                    Text("贵神", color = Color(0xFFFF7700), fontSize = 13.sp)
+                    Text("、", color = Color(0xFF555555), fontSize = 13.sp)
+                    Text("年煞", color = Color(0xFF801300), fontSize = 13.sp)
+                    Text("、", color = Color(0xFF555555), fontSize = 13.sp)
+                    Text("命宫", color = Color(0xFF0000FF), fontSize = 13.sp)
+                    Text("、", color = Color(0xFF555555), fontSize = 13.sp)
+                    Text("建星", color = Color(0xFF008000), fontSize = 13.sp)
+                }
+                if (threeBoard) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("太乙地(人)盘：", color = Color(0xFF555555), fontSize = 13.sp)
+                        Box(Modifier.width(25.dp).height(15.dp).background(Color(0xFFE3E3E3))
+                            .border(1.dp, Color(0xFFAAAAAA), RoundedCornerShape(3.dp)))
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("太乙天(神)盘：", color = Color(0xFF555555), fontSize = 13.sp)
+                        Box(Modifier.width(25.dp).height(15.dp).background(Color(0xFFF7EECD))
+                            .border(1.dp, Color(0xFF888888), RoundedCornerShape(3.dp)))
+                    }
+                }
+            }
         }
         Spacer(Modifier.height(12.dp))
     }
