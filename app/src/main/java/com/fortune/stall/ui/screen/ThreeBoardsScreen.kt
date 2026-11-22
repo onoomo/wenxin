@@ -201,9 +201,61 @@ private fun CompositeDetailScreen(
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).background(QD_BG)) {
         BoardNavBar(if (threeBoard) "太乙三式" else "奇门穿壬", onBack)
 
-        // ===== 信息区：太乙三式用原版简洁5列表；奇门穿壬保留完整信息表 =====
+        // ===== 信息区：仿原版（灰蓝标签 + 黑值 + 竖排四柱）=====
+        val infoLabel = Color(0xFF4A5A8A)
+        Column(Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 16.dp, vertical = 4.dp)) {
+            QdInfo("事项", question.ifEmpty { "输入预测事项" }, infoLabel, question.isEmpty())
+            QdInfo("时间", q.date, infoLabel)
+            // 节气行：右侧带 阴遁/阳遁局
+            Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                Text("节气", color = infoLabel, fontSize = 15.sp, modifier = Modifier.width(52.dp))
+                Text(q.jieqi, color = QD_TEXT, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                Text("${if (q.yangDun) "阳遁" else "阴遁"}${q.jushu}局", color = QD_TEXT, fontSize = 15.sp)
+            }
+            // 值符组
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                for (h in listOf("值符", "值使", "旬首", "马星", "空亡")) {
+                    Text(h, color = infoLabel, fontSize = 14.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(bottom = 2.dp)) {
+                for (v in listOf(q.zhifu, q.zhishi, q.xunhead, q.maxing, q.kongwang)) {
+                    Text(v, color = QD_TEXT, fontSize = 15.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                }
+            }
+            // 月将组
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                for (h in listOf("月将", "年命", "用神", "贵人", "性别")) {
+                    Text(h, color = infoLabel, fontSize = 14.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(bottom = 2.dp)) {
+                val guiren = lr.guiShen.values.firstOrNull { it.contains("贵") } ?: lr.yueJiang
+                for (v in listOf(lr.yueJiang, lr.yearGanzhi, yongShen, guiren, if (isMan) "男" else "女")) {
+                    Text(v, color = QD_TEXT, fontSize = 15.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                }
+            }
+            // 四柱：表头 + 竖排大字（每柱天干/地支各占一行）
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                Spacer(Modifier.width(52.dp))
+                for (h in listOf("年柱", "月柱", "日柱", "时柱")) {
+                    Text(h, color = infoLabel, fontSize = 14.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(bottom = 2.dp)) {
+                Text("四柱", color = infoLabel, fontSize = 15.sp, modifier = Modifier.width(52.dp))
+                for (gz in q.siZhu) {
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(gz.getOrNull(0)?.toString() ?: "", color = QD_TEXT, fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif)
+                        Text(gz.getOrNull(1)?.toString() ?: "", color = QD_TEXT, fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif)
+                    }
+                }
+            }
+        }
+        // 太乙三式：积数/主算数/客算数/天马/太乙宫位 5列（原版灰底蓝头 + 黑值）
         if (threeBoard && ty != null) {
-            // 原版太乙三式顶部：一行5列表（蓝头#2e4487 + 黑值）
             Column(Modifier.fillMaxWidth()) {
                 Row(Modifier.fillMaxWidth().background(Color(0xFFE9E9E9)).padding(vertical = 7.dp)) {
                     for (h in listOf("积数", "主算数", "客算数", "天马", "太乙宫位")) {
@@ -216,44 +268,6 @@ private fun CompositeDetailScreen(
                         Text(v, color = Color(0xFF222222), fontSize = 14.sp,
                             modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
                     }
-                }
-            }
-        } else {
-            Column(Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 14.dp, vertical = 3.dp)) {
-                QdRow("事项", question.ifEmpty { "—" })
-                QdRow("时间", q.date)
-                QdRow("节气", q.jieqi)
-                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-                    Text("阴阳", color = AppColors.Muted, fontSize = 12.sp, modifier = Modifier.width(40.dp))
-                    Text("${if (q.yangDun) "阳遁" else "阴遁"}${q.jushu}局", color = BoardTheme.RED,
-                        fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                }
-                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-                    for (h in listOf("值符", "值使", "旬首", "马星", "空亡")) {
-                        Text(h, color = AppColors.Muted, fontSize = 11.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                    }
-                }
-                Row(Modifier.fillMaxWidth().padding(bottom = 2.dp)) {
-                    for (v in listOf(q.zhifu, q.zhishi, q.xunhead, q.maxing, q.kongwang)) {
-                        Text(v, color = BoardTheme.MING, fontSize = 12.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                    }
-                }
-                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-                    for (h in listOf("月将", "年命", "用神", "贵人", "性别")) {
-                        Text(h, color = AppColors.Muted, fontSize = 11.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                    }
-                }
-                Row(Modifier.fillMaxWidth().padding(bottom = 2.dp)) {
-                    val guiren = lr.guiShen.values.firstOrNull { it.contains("贵") } ?: lr.yueJiang
-                    for (v in listOf(lr.yueJiang, lr.yearGanzhi, yongShen, guiren, if (isMan) "男" else "女")) {
-                        Text(v, color = BoardTheme.GUI, fontSize = 12.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                    }
-                }
-                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-                    Text("四柱", color = AppColors.Muted, fontSize = 12.sp, modifier = Modifier.width(40.dp))
-                    for (gz in q.siZhu) Text(gz, color = QD_TEXT, fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif,
-                        modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
                 }
             }
         }
@@ -396,6 +410,15 @@ private fun CompositeGrid(q: Qimen.Result, lr: DaLiuRen.Result) {
 
 private fun shortStar(s: String) = s  // 九星简称（蓬/芮/冲…）本身即原版显示
 private fun shortMen(s: String) = s  // 八门简称（休/生/伤…）本身即原版显示
+
+/** 仿原版信息行：灰蓝标签 + 值（占位值用灰色） */
+@Composable
+private fun QdInfo(label: String, value: String, labelColor: Color, placeholder: Boolean = false) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+        Text(label, color = labelColor, fontSize = 15.sp, modifier = Modifier.width(52.dp))
+        Text(value, color = if (placeholder) Color(0xFF999999) else QD_TEXT, fontSize = 15.sp)
+    }
+}
 
 @Composable
 internal fun LiuRenKeChuan(lr: DaLiuRen.Result) {
