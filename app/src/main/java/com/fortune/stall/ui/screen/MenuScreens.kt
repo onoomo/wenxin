@@ -286,7 +286,10 @@ private fun SettingCard(
     ) {
         Text(eyebrow, color = AppColors.Lantern, fontSize = 10.sp, letterSpacing = 3.sp)
         Spacer(Modifier.height(6.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth().height(48.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(title, color = AppColors.Paper, fontSize = 16.sp, fontFamily = FontFamily.Serif,
                 modifier = Modifier.weight(1f), maxLines = 1)
             trailing()
