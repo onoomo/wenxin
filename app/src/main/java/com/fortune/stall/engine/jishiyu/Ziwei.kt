@@ -64,13 +64,53 @@ object Ziwei {
         val soul: String, val body: String, val wuxingju: Int, val juName: String, val yearGan: String,
         val zodiac: String, val sign: String, val timeRange: String,
         val ebSoul: String, val ebBody: String, val palaces: List<Palace>, val rows: List<Pair<String, String>>,
-        val isMan: Boolean = true
+        val isMan: Boolean = true,
+        /** 真太阳时/夏令时校正说明（空=未校正）；对齐参考项目 file true-solar-time 的展示口径 */
+        val solarInfo: String = ""
     )
     /** 天干四化：[禄, 权, 科, 忌] 对应星名 */
     fun sihua(gan: String): List<String> = SIHUA[gan] ?: listOf("", "", "", "")
     /** 某星曜落在哪个宫（返回地支绝对字符 子=0..亥=11） */
     fun starZhi(r: Result, name: String): String? =
         r.palaces.firstOrNull { p -> (p.major + p.minor).any { it.name == name } }?.zhi
+
+    // ===== 四化叠加补强（借鉴 ziwei-ds lib/ziwei/sihua.ts）=====
+
+    /** 某宫宫干引发四化，被化星恰在本宫 → 自化。返回 (四化类型, 星名)。 */
+    fun selfSihua(p: Palace): List<Pair<String, String>> {
+        val stars = (p.major + p.minor).map { it.name }.toSet()
+        val kinds = listOf("禄", "权", "科", "忌")
+        return sihua(p.gan).mapIndexedNotNull { i, star ->
+            if (star.isNotBlank() && star in stars) kinds[i] to star else null
+        }
+    }
+
+    /** 全盘自化：地支绝对索引 -> 自化列表 */
+    fun allSelfSihua(r: Result): Map<Int, List<Pair<String, String>>> =
+        r.palaces.mapNotNull { p ->
+            val list = selfSihua(p)
+            if (list.isEmpty()) null else ZI.indexOf(p.zhi).coerceAtLeast(0) to list
+        }.toMap()
+
+    /** 来因宫：某星某种化由哪些宫的宫干引发（通常一个；多宫同干可多个）。返回宫的地支绝对索引列表。 */
+    fun incomingPalaces(r: Result, starName: String, kind: String): List<Int> {
+        val idx = listOf("禄", "权", "科", "忌").indexOf(kind)
+        if (idx !in 0..3) return emptyList()
+        return r.palaces.filter { p -> sihua(p.gan).getOrNull(idx) == starName }
+            .map { ZI.indexOf(it.zhi).coerceAtLeast(0) }
+    }
+
+    /** 大限四化：当前虚岁所处大限宫的宫干 → [禄,权,科,忌] 星名 */
+    fun daXianSihua(r: Result, nowYear: Int): List<String> {
+        val (_, gan) = currentDaXian(r, nowYear)
+        return sihua(gan)
+    }
+
+    /** 流年四化：按公历年天干 → [禄,权,科,忌] 星名 */
+    fun liuNianSihua(year: Int): List<String> = sihua(yearGan(year))
+
+    /** 天干索引(0甲..9癸)，供四化表按索引取用 */
+    fun ganIndex(gan: String) = GAN.indexOf(gan).coerceAtLeast(0)
 
     /** 十二宫名序列（自命宫起，逆时针）：命宫→兄弟→夫妻→…→父母 */
     val GONG_SEQ = listOf("命宫", "兄弟", "夫妻", "子女", "财帛", "疾厄", "迁移", "奴仆", "官禄", "田宅", "福德", "父母")
@@ -268,7 +308,32 @@ object Ziwei {
     )[ti.coerceIn(0,12)]
 
     /** timeIndex: 0早子 1丑 ... 11亥 12晚子 */
-    fun paipan(dt: LocalDateTime, isMan: Boolean, timeIndex: Int = -1): Result {
+    fun paipan(dt: LocalDateTime, isMan: Boolean, timeIndex: Int = -1): Result =
+        paipan(dt, isMan, timeIndex, null, false)
+
+    /**
+     * 带真太阳时/夏令时校正的排盘入口（对齐参考项目算法）。
+     * @param longitude 出生地经度（东经为正）；为空则用钟表时，仅做夏令时提示
+     * @param useSummerTimeOffset 用户确认出生钟表读数为夏令时读数时=true（默认只提示不自动减）
+     */
+    fun paipan(
+        dt: LocalDateTime, isMan: Boolean, timeIndex: Int = -1,
+        longitude: Double?, useSummerTimeOffset: Boolean = false
+    ): Result {
+        val solar = ZiweiAstro.calculate(dt, longitude, useSummerTimeOffset)
+        if (longitude == null) {
+            // 不做真太阳时校正，仅携带夏令时提示
+            val hint = if (solar.inChinaDST) "出生于夏令时期间（如需按夏令时读数校正，请在排盘前手动换算）" else ""
+            return paipanCore(dt, isMan, timeIndex, hint)
+        }
+        // 真太阳日 + 校正后时辰；晚子时 next-day 由 paipanCore 内部对 ti==12 的农历日+1 处理
+        val effectiveDt = dt.plusDays(solar.dayOffset.toLong())
+            .withHour(solar.hour).withMinute(solar.minute).withSecond(solar.second)
+        val effTi = if (timeIndex in 0..12) timeIndex else solar.timeIndex
+        return paipanCore(effectiveDt, isMan, effTi, solar.summary)
+    }
+
+    private fun paipanCore(dt: LocalDateTime, isMan: Boolean, timeIndex: Int, solarInfo: String): Result {
         val lun = LunarCalendar.fromDateTime(dt)
         val lunarDay = lun.day
         var effMonth = if (lun.isLeap && lunarDay > 15) lun.month + 1 else lun.month
@@ -394,7 +459,7 @@ object Ziwei {
             "${lun.yearGanZhi} ${lun.monthGanZhi} ${lun.dayGanZhi} ${lun.hourGanZhi}",
             SOUL_BY_ZHI[soulZhi]?:"", BODY_BY_ZHI[yearZhi]?:"", ju, juName, yearGan,
             zodiacOf(yearZhi), signOf(dt.monthValue,dt.dayOfMonth), timeRangeOf(ti),
-            soulZhi, bodyZhi, palaces, rows, isMan
+            soulZhi, bodyZhi, palaces, rows, isMan, solarInfo
         )
     }
 }
