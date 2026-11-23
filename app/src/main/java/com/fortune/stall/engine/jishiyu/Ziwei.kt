@@ -63,8 +63,14 @@ object Ziwei {
         val solarDate: String, val lunarDate: String, val chineseDate: String,
         val soul: String, val body: String, val wuxingju: Int, val juName: String, val yearGan: String,
         val zodiac: String, val sign: String, val timeRange: String,
-        val ebSoul: String, val ebBody: String, val palaces: List<Palace>, val rows: List<Pair<String, String>>
+        val ebSoul: String, val ebBody: String, val palaces: List<Palace>, val rows: List<Pair<String, String>>,
+        val isMan: Boolean = true
     )
+    /** 天干四化：[禄, 权, 科, 忌] 对应星名 */
+    fun sihua(gan: String): List<String> = SIHUA[gan] ?: listOf("", "", "", "")
+    /** 某星曜落在哪个宫（返回地支） */
+    fun starZhi(r: Result, name: String): String? =
+        r.palaces.firstOrNull { p -> (p.major + p.minor).any { it.name == name } }?.zhi
 
     private val WUXING_NUM = mapOf("水二局" to 2, "木三局" to 3, "金四局" to 4, "土五局" to 5, "火六局" to 6)
     private val CS_START = mapOf(2 to "shen", 3 to "hai", 4 to "si", 5 to "shen", 6 to "yin")
@@ -362,7 +368,7 @@ object Ziwei {
             "${lun.yearGanZhi} ${lun.monthGanZhi} ${lun.dayGanZhi} ${lun.hourGanZhi}",
             SOUL_BY_ZHI[soulZhi]?:"", BODY_BY_ZHI[yearZhi]?:"", ju, juName, yearGan,
             zodiacOf(yearZhi), signOf(dt.monthValue,dt.dayOfMonth), timeRangeOf(ti),
-            soulZhi, bodyZhi, palaces, rows
+            soulZhi, bodyZhi, palaces, rows, isMan
         )
     }
 }
