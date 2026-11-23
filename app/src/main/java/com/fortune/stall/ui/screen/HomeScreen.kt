@@ -114,11 +114,13 @@ fun HomeScreen(
                 color = AppColors.Paper,
                 fontSize = 46.sp, letterSpacing = 10.sp,
                 fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(top = 14.dp, bottom = 10.dp)
             )
             Text(
                 "自家夜市的算卦小摊 · 卦面即印章",
-                color = AppColors.Muted, fontSize = 12.5.sp, letterSpacing = 1.sp
+                color = AppColors.Muted, fontSize = 12.5.sp, letterSpacing = 1.sp,
+                fontWeight = FontWeight.Medium
             )
             Spacer(Modifier.height(28.dp))
 
@@ -225,6 +227,7 @@ private fun BottomCapsuleBar(
                 Text("▤", color = AppColors.Lantern, fontSize = 17.sp)
                 Text("存 档", color = AppColors.Paper, fontSize = 13.sp, letterSpacing = 3.sp,
                     fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                    fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(top = 3.dp))
             }
         }
@@ -241,6 +244,7 @@ private fun BottomCapsuleBar(
                 Text("⚙", color = AppColors.Lantern, fontSize = 17.sp)
                 Text("设 置", color = AppColors.Paper, fontSize = 13.sp, letterSpacing = 3.sp,
                     fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                    fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(top = 3.dp))
             }
         }
@@ -264,6 +268,7 @@ private fun StallCard(eyebrow: String, title: String, desc: String, onClick: () 
                 Text(eyebrow, color = AppColors.Lantern, fontSize = 10.5.sp, letterSpacing = 4.sp)
                 Text(title, color = AppColors.Paper, fontSize = 21.sp,
                     fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                    fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(top = 7.dp, bottom = 6.dp))
                 Text(desc, color = AppColors.Muted, fontSize = 12.5.sp, lineHeight = 22.sp)
             }
@@ -304,7 +309,7 @@ private fun IconTileNew(item: IconTile1, onClick: () -> Unit) {
             )
         }
         Text(item.label, color = AppColors.Paper, fontSize = labelSize,
-            fontWeight = FontWeight.Medium, textAlign = TextAlign.Center,
+            fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
             maxLines = 1, softWrap = false,
             modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
     }

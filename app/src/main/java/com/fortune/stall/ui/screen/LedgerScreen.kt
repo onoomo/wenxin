@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -84,7 +85,12 @@ private val LEDGER_CATEGORIES = listOf(
 /** 卦账页：列表（左滑收藏/复制/删除）+ 详情弹层 + 断语存档 */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun LedgerScreen(db: FortuneDb, onBack: () -> Unit, onlyFavorites: Boolean = false) {
+fun LedgerScreen(
+    db: FortuneDb,
+    onBack: () -> Unit,
+    onlyFavorites: Boolean = false,
+    onAskAi: (Session) -> Unit = {}
+) {
     val context = LocalContext.current
     var sessions by remember { mutableStateOf(if (onlyFavorites) db.favorites() else db.recent()) }
     var selected by remember { mutableStateOf<Session?>(null) }
@@ -180,11 +186,13 @@ fun LedgerScreen(db: FortuneDb, onBack: () -> Unit, onlyFavorites: Boolean = fal
         }
 
         selected?.let { session ->
-            SessionSheet(session = session, onClose = { selected = null }, onSave = { v ->
-                db.saveVerdict(session.id, v)
-                selected = db.get(session.id)
-                reload()
-            })
+            SessionSheet(session = session, onClose = { selected = null },
+                onAskAi = { onAskAi(session) },
+                onSave = { v ->
+                    db.saveVerdict(session.id, v)
+                    selected = db.get(session.id)
+                    reload()
+                })
         }
 
         if (showClearConfirm) {
@@ -327,7 +335,12 @@ private fun LedgerRowContent(s: Session) {
 }
 
 @Composable
-private fun SessionSheet(session: Session, onClose: () -> Unit, onSave: (String) -> Unit) {
+private fun SessionSheet(
+    session: Session,
+    onClose: () -> Unit,
+    onAskAi: () -> Unit,
+    onSave: (String) -> Unit
+) {
     var verdict by remember(session.id) { mutableStateOf(session.verdict) }
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().background(Color(0x88000000)).clickable(onClick = onClose))
@@ -347,7 +360,23 @@ private fun SessionSheet(session: Session, onClose: () -> Unit, onSave: (String)
                     Text("落款 · ${session.seal}", color = AppColors.Lantern, fontSize = 12.sp,
                         modifier = Modifier.padding(top = 14.dp))
                 }
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(14.dp))
+                // 问 AI 按钮：带当前卦面进入 AI 解卦对话
+                Box(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                        .background(Brush.verticalGradient(listOf(Color(0x66D9A441), Color(0x44C96442))))
+                        .border(1.dp, AppColors.Lantern.copy(alpha = 0.6f), RoundedCornerShape(10.dp))
+                        .clickable(onClick = onAskAi).padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("✦", color = AppColors.Paper, fontSize = 15.sp)
+                        Spacer(Modifier.width(8.dp))
+                        Text("问 AI 解此卦", color = AppColors.Paper, fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
                 Text("断 语 存 档", color = AppColors.Muted, fontSize = 10.5.sp, letterSpacing = 4.sp)
                 OutlinedTextField(
                     value = verdict, onValueChange = { verdict = it },

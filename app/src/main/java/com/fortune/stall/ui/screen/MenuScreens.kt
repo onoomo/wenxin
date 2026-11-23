@@ -128,7 +128,12 @@ fun ArchiveScreen(
 
 /** 设置页 —— 显示牌面开关 + 下载牌图 + 技能包（可点击条） */
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onOpenSkills: () -> Unit, onManageTiles: () -> Unit) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    onOpenSkills: () -> Unit,
+    onManageTiles: () -> Unit,
+    onOpenAi: () -> Unit
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var downloading by remember { mutableStateOf(false) }
@@ -182,6 +187,11 @@ fun SettingsScreen(onBack: () -> Unit, onOpenSkills: () -> Unit, onManageTiles: 
                     }
                 }
             }
+        )
+        MenuRow(
+            glyph = "✦", eyebrow = "智 能", title = "AI 设置",
+            desc = "配置 OpenAI 兼容接口（DeepSeek / 通义 / 智谱等）的密钥与提示词，卦账里「问 AI」即可解读排盘。",
+            onClick = onOpenAi
         )
         MenuRow(
             glyph = "法", eyebrow = "心 法", title = "技能包",

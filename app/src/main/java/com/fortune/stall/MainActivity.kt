@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.fortune.stall.data.FortuneDb
+import com.fortune.stall.data.Session
 import com.fortune.stall.data.SkillRepository
 import com.fortune.stall.engine.FortuneEngine
 import com.fortune.stall.ui.screen.LaoHuangLiScreen
@@ -24,6 +25,7 @@ import com.fortune.stall.ui.screen.ArchiveScreen
 import com.fortune.stall.ui.screen.CastScreen
 import com.fortune.stall.ui.screen.CastResultScreen
 import com.fortune.stall.ui.screen.HomeScreen
+import com.fortune.stall.ui.screen.AiChatScreen
 import com.fortune.stall.ui.screen.JiangScreen
 import com.fortune.stall.ui.screen.JishiyuCastScreen
 import com.fortune.stall.ui.screen.JishiyuHubScreen
@@ -50,6 +52,7 @@ import com.fortune.stall.ui.screen.SettingsScreen
 import com.fortune.stall.ui.screen.SkillsScreen
 import com.fortune.stall.ui.components.Starfield
 import com.fortune.stall.ui.theme.FortuneTheme
+import com.fortune.stall.util.AiSettings
 import com.fortune.stall.util.DisplaySettings
 import com.fortune.stall.util.HomeTilesSettings
 import com.fortune.stall.util.Immersive
@@ -69,6 +72,7 @@ class MainActivity : ComponentActivity() {
         TarotSettings.init(this)
         DisplaySettings.init(this)
         HomeTilesSettings.init(this)
+        AiSettings.init(this)
 
         setContent {
             FortuneTheme {
@@ -86,7 +90,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Route { HOME, LINEAGE, CAST, CAST_RESULT, JIANG, JISHUYU_HUB, JISHUYU_CAST, LIUYAO_PAI, WANNIANLI, LAOHUANGLI, SHANXIANG, FEIXING, YIZHANG, QIDUWENG, CHUANREN, TAIYI3SHI, TAIYI72, DALIUREN, MEIHUA, BAZI, HOTBUBAZI, YINPAN, MINGLI, ZIWEI, QIANXU, ARCHIVE, LEDGER, FAVORITES, SETTINGS, SKILLS }
+private enum class Route { HOME, LINEAGE, CAST, CAST_RESULT, JIANG, JISHUYU_HUB, JISHUYU_CAST, LIUYAO_PAI, WANNIANLI, LAOHUANGLI, SHANXIANG, FEIXING, YIZHANG, QIDUWENG, CHUANREN, TAIYI3SHI, TAIYI72, DALIUREN, MEIHUA, BAZI, HOTBUBAZI, YINPAN, MINGLI, ZIWEI, QIANXU, ARCHIVE, LEDGER, FAVORITES, SETTINGS, SKILLS, AI_CHAT }
 
 @Composable
 private fun AppNavigation(
@@ -101,6 +105,7 @@ private fun AppNavigation(
     var lineageName by remember { mutableStateOf<String?>(null) }
     var jishiyuKey by remember { mutableStateOf("") }
     var castResult by remember { mutableStateOf<FortuneEngine.CastOutput?>(null) }
+    var aiSession by remember { mutableStateOf<Session?>(null) }
 
     // 传承页 + 三个起卦页（小六壬/六爻/塔罗，均为 CAST）需要显示系统底部导航条，
     // 其余页面保持全屏沉浸。进入这些页 show，离开恢复隐藏；
@@ -230,16 +235,20 @@ private fun AppNavigation(
             onBack = { back() }, onOpenLedger = { go(Route.LEDGER) },
             onOpenFavorites = { go(Route.FAVORITES) }, favoriteCount = db.favoriteCount()
         )
-        Route.LEDGER -> LedgerScreen(db = db, onBack = { back() })
-        Route.FAVORITES -> LedgerScreen(db = db, onBack = { back() }, onlyFavorites = true)
+        Route.LEDGER -> LedgerScreen(db = db, onBack = { back() },
+            onAskAi = { s -> aiSession = s; go(Route.AI_CHAT) })
+        Route.FAVORITES -> LedgerScreen(db = db, onBack = { back() }, onlyFavorites = true,
+            onAskAi = { s -> aiSession = s; go(Route.AI_CHAT) })
         Route.SETTINGS -> SettingsScreen(
             onBack = { back() }, onOpenSkills = { go(Route.SKILLS) },
+            onOpenAi = { aiSession = null; go(Route.AI_CHAT) },
             onManageTiles = {
                 HomeTilesSettings.editMode.value = true
                 back()
             }
         )
         Route.SKILLS -> SkillsScreen(repo = skillRepo, onBack = { back() })
+        Route.AI_CHAT -> AiChatScreen(db = db, initialSession = aiSession, onBack = { back() })
     }
     }
 }
