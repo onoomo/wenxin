@@ -104,13 +104,17 @@ fun JiMingpanCastForm(
     var longitudeText by remember { mutableStateOf("") }
     var province by remember { mutableStateOf("") }
     var city by remember { mutableStateOf("") }
+    var district by remember { mutableStateOf("") }
     var showDate by remember { mutableStateOf(false) }
     var showProv by remember { mutableStateOf(false) }
     var showCity by remember { mutableStateOf(false) }
+    var showDist by remember { mutableStateOf(false) }
     val cityList = com.fortune.stall.util.BirthPlaces.PROVINCES.firstOrNull { it.name == province }?.cities ?: emptyList()
-    // 选中城市后自动带出经度；手填经度仍允许覆盖
+    val districtList = cityList.firstOrNull { it.name == city }?.districts ?: emptyList()
+    // 选中城市/区县后自动带出经度（优先区县）；手填经度仍允许覆盖
     val autoLon = if (province.isNotBlank() && city.isNotBlank())
-        com.fortune.stall.util.BirthPlaces.lonOf(province, city) else null
+        com.fortune.stall.util.BirthPlaces.lonOf(province, city, district) else null
+    val placeLabel = listOf(province, city, district).filter { it.isNotBlank() }.joinToString("·")
     val lon: Double? = longitudeText.trim().toDoubleOrNull() ?: autoLon
     val lonOffsetMin = lon?.let { ((it - 120.0) * 4).let { v -> if (v >= 0) "+${v.toInt()}分" else "${v.toInt()}分" } } ?: ""
     Box(Modifier.fillMaxSize()) {
@@ -201,12 +205,13 @@ fun JiMingpanCastForm(
 
                 // 出生地（真太阳时校正）—— 仅紫微等需要的模块显示
                 if (showLongitude) {
-                    PlacePicker(
-                        province = province, city = city,
-                        provinceLabel = "省份", cityLabel = "城市",
-                        cText = cText, cSub = cSub, cLine = cLine, cInputBg = cInputBg, cRed = cRed,
+                    PlacePicker3(
+                        province = province, city = city, district = district,
+                        labels = listOf("省份", "城市", "区县"),
+                        cText = cText, cSub = cSub, cLine = cLine, cInputBg = cInputBg,
                         onProvinceClick = { showProv = true },
-                        onCityClick = { if (province.isNotBlank()) showCity = true }
+                        onCityClick = { if (province.isNotBlank()) showCity = true },
+                        onDistrictClick = { if (city.isNotBlank() && districtList.isNotEmpty()) showDist = true }
                     )
                     Spacer(Modifier.height(4.dp))
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -219,9 +224,9 @@ fun JiMingpanCastForm(
                                 modifier = Modifier.fillMaxWidth(),
                                 decorationBox = { inner ->
                                     if (longitudeText.isEmpty() && autoLon == null)
-                                        Text("选城市自动带出，也可手填（如 116.4）", color = cSub, fontSize = 10.sp)
+                                        Text("选省市县自动带出，也可手填（如 116.4）", color = cSub, fontSize = 10.sp)
                                     else if (longitudeText.isEmpty() && autoLon != null)
-                                        Text("${autoLon}°E  $lonOffsetMin  $province·$city（可手填覆盖）", color = cText, fontSize = 11.sp)
+                                        Text("${autoLon}°E  $lonOffsetMin  $placeLabel（可手填覆盖）", color = cText, fontSize = 11.sp)
                                     else inner()
                                 })
                         }
@@ -259,41 +264,48 @@ fun JiMingpanCastForm(
         if (showProv) JiOptionDialog(
             title = "选择省份", options = com.fortune.stall.util.BirthPlaces.PROVINCES.map { it.name },
             dark = dark, onDismiss = { showProv = false }, onSelect = { p ->
-                province = p; city = ""; longitudeText = ""; showProv = false; showCity = true
+                province = p; city = ""; district = ""; longitudeText = ""; showProv = false; showCity = true
             })
         // 城市选择
         if (showCity) JiOptionDialog(
-            title = "选择城市", options = cityList.map { it.name },
+            title = "选择城市 / 直辖市辖区", options = cityList.map { it.name },
             dark = dark, onDismiss = { showCity = false }, onSelect = { c ->
-                city = c; longitudeText = ""; showCity = false
+                city = c; district = ""; longitudeText = ""
+                val hasDistrict = cityList.firstOrNull { it.name == c }?.districts?.isNotEmpty() == true
+                showCity = false
+                if (hasDistrict) showDist = true
+            })
+        // 区县选择（直辖市/省直管市无区县时跳过）
+        if (showDist) JiOptionDialog(
+            title = "选择区县", options = districtList.map { it.name },
+            dark = dark, onDismiss = { showDist = false }, onSelect = { g ->
+                district = g; longitudeText = ""; showDist = false
             })
     }
 }
 
-/** 省份/城市两栏选择入口 */
+/** 省/市/区县 三栏选择入口 */
 @Composable
-private fun PlacePicker(
-    province: String, city: String,
-    provinceLabel: String, cityLabel: String,
-    cText: Color, cSub: Color, cLine: Color, cInputBg: Color, cRed: Color,
-    onProvinceClick: () -> Unit, onCityClick: () -> Unit
+private fun PlacePicker3(
+    province: String, city: String, district: String,
+    labels: List<String>,
+    cText: Color, cSub: Color, cLine: Color, cInputBg: Color,
+    onProvinceClick: () -> Unit, onCityClick: () -> Unit, onDistrictClick: () -> Unit
 ) {
+    val vals = listOf(province, city, district)
+    val clicks = listOf(onProvinceClick, onCityClick, onDistrictClick)
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text("出生地", color = cText, fontSize = 14.sp, modifier = Modifier.width(72.dp))
-        Box(Modifier.weight(1f).height(38.dp).clip(RoundedCornerShape(6.dp))
-            .background(cInputBg).border(1.dp, cLine, RoundedCornerShape(6.dp))
-            .clickable(onClick = onProvinceClick)
-            .padding(horizontal = 10.dp), contentAlignment = Alignment.CenterStart) {
-            Text(if (province.isBlank()) provinceLabel else province,
-                color = if (province.isBlank()) cSub else cText, fontSize = 12.sp)
-        }
-        Spacer(Modifier.width(8.dp))
-        Box(Modifier.weight(1f).height(38.dp).clip(RoundedCornerShape(6.dp))
-            .background(cInputBg).border(1.dp, cLine, RoundedCornerShape(6.dp))
-            .clickable(onClick = onCityClick)
-            .padding(horizontal = 10.dp), contentAlignment = Alignment.CenterStart) {
-            Text(if (city.isBlank()) cityLabel else city,
-                color = if (city.isBlank()) cSub else cText, fontSize = 12.sp)
+        vals.forEachIndexed { i, v ->
+            if (i > 0) Spacer(Modifier.width(6.dp))
+            Box(Modifier.weight(1f).height(38.dp).clip(RoundedCornerShape(6.dp))
+                .background(cInputBg).border(1.dp, cLine, RoundedCornerShape(6.dp))
+                .clickable(onClick = clicks[i])
+                .padding(horizontal = 8.dp), contentAlignment = Alignment.CenterStart) {
+                Text(if (v.isBlank()) labels[i] else v,
+                    color = if (v.isBlank()) cSub else cText, fontSize = if (v.length > 6) 10.sp else 11.sp,
+                    maxLines = 1)
+            }
         }
     }
 }

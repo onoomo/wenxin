@@ -54,9 +54,11 @@ import java.time.format.DateTimeFormatter
  * 点击宫位画三方四正虚线；底部大限/流年联动表共用横向滚动。
  */
 @Composable
-fun ZiweiCastScreen(db: FortuneDb, onBack: () -> Unit) {
+fun ZiweiCastScreen(db: FortuneDb, onBack: () -> Unit, onAskAi: (String) -> Unit = {}) {
     val ctx = LocalContext.current
     var result by remember { mutableStateOf<Ziwei.Result?>(null) }
+    // 保存起卦参数，供详情页切换亮度流派时即时重排
+    var lastArgs by remember { mutableStateOf<Triple<java.time.LocalDateTime, Boolean, Double?>?>(null) }
 
     if (result == null) {
         JiMingpanCastForm(title = "紫 微 斗 数", onBack = onBack, showLongitude = true, dark = true) { f ->
@@ -64,6 +66,7 @@ fun ZiweiCastScreen(db: FortuneDb, onBack: () -> Unit) {
             val lon = if (f.trueSolar) f.longitude else null
             val r = Ziwei.paipan(f.dateTime, f.isMan, -1, lon, false)
             result = r
+            lastArgs = Triple(f.dateTime, f.isMan, lon)
             if (!f.noSave) {
                 try {
                     val id = db.insert(f.dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
@@ -74,7 +77,12 @@ fun ZiweiCastScreen(db: FortuneDb, onBack: () -> Unit) {
             }
         }
     } else {
-        ZiweiDetailScreen(result!!, onBack)
+        ZiweiDetailScreen(result!!, onBack, onAskAi, onSchoolChange = { school ->
+            com.fortune.stall.util.ZiweiSettings.setSchool(school)
+            lastArgs?.let { (dt, man, lon) ->
+                result = Ziwei.paipan(dt, man, -1, lon, false)
+            }
+        })
     }
 }
 
@@ -122,7 +130,10 @@ private data class ZwSel(val zhi: Int, val label: String, val type: ZwSelType, v
 private data class FlyAnno(val text: String, val color: Color)
 
 @Composable
-private fun ZiweiDetailScreen(r: Ziwei.Result, onBack: () -> Unit) {
+private fun ZiweiDetailScreen(
+    r: Ziwei.Result, onBack: () -> Unit, onAskAi: (String) -> Unit,
+    onSchoolChange: (String) -> Unit
+) {
     val ctx = LocalContext.current
     val scroll = rememberScrollState()
     var view by remember { mutableStateOf(ZwView.MINGPAN) }
@@ -196,6 +207,29 @@ private fun ZiweiDetailScreen(r: Ziwei.Result, onBack: () -> Unit) {
                     Text(r.solarInfo, color = ZW_T2, fontSize = 8.5.sp,
                         modifier = Modifier.fillMaxWidth().padding(top = 2.dp), textAlign = TextAlign.Center)
                 }
+                // 工具行：亮度流派切换 + 问 AI 解读（参考项目核心 13 维解读 + 流派切换）
+                Spacer(Modifier.height(6.dp))
+                val curSchool = com.fortune.stall.util.ZiweiSettings.brightnessSchool.value
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    com.fortune.stall.engine.jishiyu.ZiweiSchools.NAMES.forEach { (label, key) ->
+                        Box(Modifier.clip(RoundedCornerShape(14.dp))
+                            .background(if (curSchool == key) ZW_GOLD.copy(0.22f) else Color(0x10FFFFFF))
+                            .border(1.dp, if (curSchool == key) ZW_GOLD else GRID_LINE, RoundedCornerShape(14.dp))
+                            .clickable { if (curSchool != key) onSchoolChange(key) }
+                            .padding(horizontal = 9.dp, vertical = 5.dp)) {
+                            Text(label, color = if (curSchool == key) ZW_GOLD else ZW_FAINT, fontSize = 9.5.sp)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                Box(Modifier.clip(RoundedCornerShape(16.dp)).background(ZW_GOLD.copy(alpha = 0.16f))
+                    .border(1.dp, ZW_GOLD.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                    .clickable { onAskAi(ziweiFaceText(r)) }
+                    .padding(horizontal = 18.dp, vertical = 6.dp)) {
+                    Text("✦ 问 AI 解读命盘（13 维）", color = ZW_GOLD, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                }
+                Spacer(Modifier.height(6.dp))
 
                 // 4x4 宫格 + 覆盖连线
                 val lineW = 1.dp
@@ -308,6 +342,15 @@ private fun ZiweiDetailScreen(r: Ziwei.Result, onBack: () -> Unit) {
                                     if (selfHere.isEmpty() && incoming.isEmpty()) append("无自化 / 来因")
                                 }
                                 Text(detail, color = ZW_T1, fontSize = 9.sp, lineHeight = 14.sp)
+                                // 该宫的长生/博士/将前/岁前十二神（借鉴 ziwei-ds shier-shen.ts）
+                                val shenDetail = buildString {
+                                    append("长生 ${p.changsheng.ifBlank { "—" }}　")
+                                    append("博士 ${p.boshi.ifBlank { "—" }}")
+                                    append("\n将前 ${p.jiangqian.ifBlank { "—" }}　")
+                                    append("岁前 ${p.suiqian.ifBlank { "—" }}")
+                                }
+                                Spacer(Modifier.height(3.dp))
+                                Text(shenDetail, color = ZW_T2, fontSize = 9.sp, lineHeight = 14.sp)
                             }
                         }
                     }
@@ -410,10 +453,18 @@ private fun ZwCell(
                 Text(p.adj.take(6).joinToString(" "), color = STAR_ADJ, fontSize = 7.sp, lineHeight = 9.sp,
                     maxLines = 1)
             }
+            // 宫底神煞行：长生 + 博士十二神（参考项目金标准盘宫底第一行）
+            Spacer(Modifier.weight(1f))
+            val shenLine = listOfNotNull(
+                p.changsheng.takeIf { it.isNotBlank() },
+                p.boshi.takeIf { it.isNotBlank() }
+            ).joinToString("·")
+            if (shenLine.isNotBlank()) {
+                Text(shenLine, color = Color(0xFF8A7A5C), fontSize = 7.sp, lineHeight = 8.sp, maxLines = 1)
+            }
             // 飞星落宫标注
             val annos = fly[z]
             if (!annos.isNullOrEmpty()) {
-                Spacer(Modifier.weight(1f))
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     annos.forEach { Text(it.text, color = it.color, fontSize = 8.sp, fontWeight = FontWeight.Bold) }
                 }
@@ -658,6 +709,6 @@ private fun ziweiFaceText(r: Ziwei.Result) = buildString {
             s.name + (if (s.brightness.isNotEmpty()) "(${s.brightness})" else "") + (if (s.mutagen.isNotEmpty()) "[${s.mutagen}]" else "")
         }
         val adj = p.adj.joinToString("·")
-        appendLine("${p.name}[${p.gan}${p.zhi}]${if (p.isBody) "(身宫)" else ""} 大限${p.decadal.first}-${p.decadal.second}：${stars}${if (adj.isNotEmpty()) " | $adj" else ""} | 长生${p.changsheng} 博士${p.boshi}")
+        appendLine("${p.name}[${p.gan}${p.zhi}]${if (p.isBody) "(身宫)" else ""} 大限${p.decadal.first}-${p.decadal.second}：${stars}${if (adj.isNotEmpty()) " | $adj" else ""} | 长生${p.changsheng} 博士${p.boshi} 将前${p.jiangqian} 岁前${p.suiqian}")
     }
 }

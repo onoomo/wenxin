@@ -57,6 +57,7 @@ import com.fortune.stall.util.DisplaySettings
 import com.fortune.stall.util.HomeTilesSettings
 import com.fortune.stall.util.Immersive
 import com.fortune.stall.util.TarotSettings
+import com.fortune.stall.util.ZiweiSettings
 
 class MainActivity : ComponentActivity() {
     // 当前页面是否需要显示系统导航栏（传承页、起卦页为 true）
@@ -73,6 +74,7 @@ class MainActivity : ComponentActivity() {
         DisplaySettings.init(this)
         HomeTilesSettings.init(this)
         AiSettings.init(this)
+        ZiweiSettings.init(this)
 
         setContent {
             FortuneTheme {
@@ -106,6 +108,7 @@ private fun AppNavigation(
     var jishiyuKey by remember { mutableStateOf("") }
     var castResult by remember { mutableStateOf<FortuneEngine.CastOutput?>(null) }
     var aiSession by remember { mutableStateOf<Session?>(null) }
+    var aiDirectContext by remember { mutableStateOf<String?>(null) }
 
     // 传承页 + 三个起卦页（小六壬/六爻/塔罗，均为 CAST）需要显示系统底部导航条，
     // 其余页面保持全屏沉浸。进入这些页 show，离开恢复隐藏；
@@ -218,7 +221,8 @@ private fun AppNavigation(
         Route.HOTBUBAZI -> XunrenBaziScreen(db = db, onBack = { back() })
         Route.YINPAN -> YinpanQimenCastScreen(db = db, onBack = { back() })
         Route.MINGLI -> MingliQimenCastScreen(db = db, onBack = { back() })
-        Route.ZIWEI -> ZiweiCastScreen(db = db, onBack = { back() })
+        Route.ZIWEI -> ZiweiCastScreen(db = db, onBack = { back() },
+            onAskAi = { ctx -> aiDirectContext = ctx; aiSession = null; go(Route.AI_CHAT) })
         Route.QIANXU -> QianxuScreen(db = db, onBack = { back() })
         Route.CAST -> CastScreen(
             methodKey = castMethod, lineageName = lineageName, db = db, onBack = { back() },
@@ -236,19 +240,20 @@ private fun AppNavigation(
             onOpenFavorites = { go(Route.FAVORITES) }, favoriteCount = db.favoriteCount()
         )
         Route.LEDGER -> LedgerScreen(db = db, onBack = { back() },
-            onAskAi = { s -> aiSession = s; go(Route.AI_CHAT) })
+            onAskAi = { s -> aiSession = s; aiDirectContext = null; go(Route.AI_CHAT) })
         Route.FAVORITES -> LedgerScreen(db = db, onBack = { back() }, onlyFavorites = true,
-            onAskAi = { s -> aiSession = s; go(Route.AI_CHAT) })
+            onAskAi = { s -> aiSession = s; aiDirectContext = null; go(Route.AI_CHAT) })
         Route.SETTINGS -> SettingsScreen(
             onBack = { back() }, onOpenSkills = { go(Route.SKILLS) },
-            onOpenAi = { aiSession = null; go(Route.AI_CHAT) },
+            onOpenAi = { aiSession = null; aiDirectContext = null; go(Route.AI_CHAT) },
             onManageTiles = {
                 HomeTilesSettings.editMode.value = true
                 back()
             }
         )
         Route.SKILLS -> SkillsScreen(repo = skillRepo, onBack = { back() })
-        Route.AI_CHAT -> AiChatScreen(db = db, initialSession = aiSession, onBack = { back() })
+        Route.AI_CHAT -> AiChatScreen(db = db, initialSession = aiSession,
+            directContext = aiDirectContext, onBack = { back() })
     }
     }
 }
