@@ -59,8 +59,10 @@ fun ZiweiCastScreen(db: FortuneDb, onBack: () -> Unit) {
     var result by remember { mutableStateOf<Ziwei.Result?>(null) }
 
     if (result == null) {
-        JiMingpanCastForm(title = "紫 微 斗 数", onBack = onBack) { f ->
-            val r = Ziwei.paipan(f.dateTime, f.isMan, -1)
+        JiMingpanCastForm(title = "紫 微 斗 数", onBack = onBack, showLongitude = true) { f ->
+            // 真太阳时开关开启且填了经度才做经度+均时差校正；夏令时按主流口径只提示、不自动减 1 小时
+            val lon = if (f.trueSolar) f.longitude else null
+            val r = Ziwei.paipan(f.dateTime, f.isMan, -1, lon, false)
             result = r
             if (!f.noSave) {
                 try {
@@ -172,6 +174,9 @@ private fun ZiweiDetailScreen(r: Ziwei.Result, onBack: () -> Unit) {
 
     val sanFang = sel?.let { intArrayOf(it.zhi, (it.zhi + 6) % 12, (it.zhi + 4) % 12, (it.zhi + 8) % 12) }
 
+    // 全盘自化（宫干四化星落本宫）
+    val selfSihuaMap = remember(r) { Ziwei.allSelfSihua(r) }
+
     Box(Modifier.fillMaxSize().background(ZW_BG)) {
         Column(Modifier.fillMaxSize()) {
             ZwGoldNavBar("紫微斗数", onBack)
@@ -186,7 +191,11 @@ private fun ZiweiDetailScreen(r: Ziwei.Result, onBack: () -> Unit) {
                     letterSpacing = 3.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
                 Text("${r.solarDate.substringBefore('-')} · 紫微斗数命盘", color = ZW_GOLD,
                     fontSize = 14.sp, fontWeight = FontWeight.Medium,
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), textAlign = TextAlign.Center)
+                    modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                if (r.solarInfo.isNotBlank()) {
+                    Text(r.solarInfo, color = ZW_T2, fontSize = 8.5.sp,
+                        modifier = Modifier.fillMaxWidth().padding(top = 2.dp), textAlign = TextAlign.Center)
+                }
 
                 // 4x4 宫格 + 覆盖连线
                 val lineW = 1.dp
@@ -262,6 +271,47 @@ private fun ZiweiDetailScreen(r: Ziwei.Result, onBack: () -> Unit) {
                 Text("点击宫位看三方四正 · 切本命/大限/流年看四化叠加", color = ZW_FAINT,
                     fontSize = 8.5.sp, modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                     textAlign = TextAlign.Center)
+
+                // 自化总览 + 选中宫来因宫（借鉴 ziwei-ds sihua.ts 自化/来因宫）
+                if (selfSihuaMap.isNotEmpty() || sel != null) {
+                    Column(Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(8.dp))
+                        .background(ZW_SURFACE).border(1.dp, ZW_BORDER, RoundedCornerShape(8.dp)).padding(8.dp)) {
+                        Text("四化 · 自化与来因", color = ZW_GOLD, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                        if (selfSihuaMap.isNotEmpty()) {
+                            Spacer(Modifier.height(5.dp))
+                            val parts = mutableListOf<String>()
+                            selfSihuaMap.toSortedMap().forEach { (z, list) ->
+                                val gong = Ziwei.gongNameAt(r, z)
+                                list.forEach { (kind, star) -> parts.add("$gong·${star}自化$kind") }
+                            }
+                            Text(parts.chunked(3).joinToString("　") { it.joinToString("  ") },
+                                color = ZW_T2, fontSize = 9.sp, lineHeight = 15.sp)
+                        }
+                        if (sel != null) {
+                            val p = byZhi(r)[sel!!.zhi]
+                            if (p != null) {
+                                val selfHere = Ziwei.selfSihua(p)
+                                val incoming = (p.major + p.minor).flatMap { st ->
+                                    listOf("禄", "权", "科", "忌").mapNotNull { k ->
+                                        val from = Ziwei.incomingPalaces(r, st.name, k)
+                                        if (from.isNotEmpty()) "${st.name}化$k←${Ziwei.gongNameAt(r, from[0])}" else null
+                                    }
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                val detail = buildString {
+                                    append("${Ziwei.gongNameAt(r, sel!!.zhi)}${p.gan}${p.zhi}：")
+                                    if (selfHere.isNotEmpty()) append("自化${selfHere.joinToString("、") { "${it.second}${it.first}" }}")
+                                    if (incoming.isNotEmpty()) {
+                                        if (selfHere.isNotEmpty()) append("；")
+                                        append("来因 ${incoming.take(3).joinToString("、")}")
+                                    }
+                                    if (selfHere.isEmpty() && incoming.isEmpty()) append("无自化 / 来因")
+                                }
+                                Text(detail, color = ZW_T1, fontSize = 9.sp, lineHeight = 14.sp)
+                            }
+                        }
+                    }
+                }
 
                 Spacer(Modifier.height(12.dp))
                 // 底部：大限 + 流年联动表（深色）
@@ -478,52 +528,70 @@ private fun ZwTab(text: String, active: Boolean, modifier: Modifier, onClick: ()
             .clickable(onClick = onClick).padding(vertical = 5.dp))
 }
 
-// ===== 底部大限/流年联动表（深色）=====
+// ===== 底部大限/流年联动表（深色）—— 流年按每格大限分段 =====
 @Composable
 private fun ZwBottomTable(r: Ziwei.Result, sel: ZwSel?, onSelect: (ZwSel) -> Unit) {
     val birthYear = r.solarDate.substringBefore("-").toIntOrNull() ?: 2000
     val sharedScroll = rememberScrollState()
-    val cellW = 52.dp
+    val yearCellW = 26.dp              // 单个流年格宽
+    val decadeW = yearCellW * 10       // 一格大限 = 10 个流年格宽（大限十年一宫）
+    val dxH = 40.dp
+    val yrH = 44.dp
+    // 12 个大限宫，按起运岁排序
+    val dxList = r.palaces.sortedBy { it.decadal.first }
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
         .border(1.dp, ZW_BORDER, RoundedCornerShape(8.dp)).background(ZW_SURFACE)) {
         Row(Modifier.fillMaxWidth()) {
-            Column(Modifier.width(34.dp)) {
-                Box(Modifier.fillMaxWidth().height(46.dp).background(ZW_CARD).border(0.5.dp, ZW_BORDER),
+            // 左侧固定标签列
+            Column(Modifier.width(30.dp)) {
+                Box(Modifier.fillMaxWidth().height(dxH).background(ZW_CARD).border(0.5.dp, ZW_BORDER),
                     contentAlignment = Alignment.Center) {
                     Text("大\n限", color = ZW_GOLD, fontSize = 10.sp, textAlign = TextAlign.Center, lineHeight = 12.sp)
                 }
-                Box(Modifier.fillMaxWidth().height(46.dp).background(ZW_CARD).border(0.5.dp, ZW_BORDER),
+                Box(Modifier.fillMaxWidth().height(yrH).background(ZW_CARD).border(0.5.dp, ZW_BORDER),
                     contentAlignment = Alignment.Center) {
                     Text("流\n年", color = ZW_GOLD, fontSize = 10.sp, textAlign = TextAlign.Center, lineHeight = 12.sp)
                 }
             }
+            // 大限 / 流年按段对齐，共用横向滚动：滑动大限，其下流年同步跟动
             Column(Modifier.weight(1f).horizontalScroll(sharedScroll)) {
-                Row(Modifier.height(46.dp)) {
-                    r.palaces.sortedBy { it.decadal.first }.forEach { p ->
+                // 大限行：12 宫，每宫占 decadeW，与下方 10 个流年对齐
+                Row(Modifier.height(dxH)) {
+                    dxList.forEach { p ->
                         val z = ziToIdx(p.zhi)
                         val active = sel?.type == ZwSelType.DECADAL && sel.zhi == z
-                        Column(Modifier.width(cellW).border(0.5.dp, ZW_BORDER)
-                            .background(if (active) Color(0x2E933EA) else Color.Transparent)
-                            .clickable { onSelect(ZwSel(z, "大限 ${p.decadal.first}-${p.decadal.second} · ${p.name}${p.gan}${p.zhi}", ZwSelType.DECADAL, p.gan)) }
-                            .padding(2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("${p.decadal.first}-${p.decadal.second}", color = ZW_FAINT, fontSize = 8.sp)
-                            Text(p.gan + p.zhi, color = ganWuXingColor(p.gan), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Box(Modifier.width(decadeW).border(0.5.dp, ZW_BORDER)
+                            .background(if (active) Color(0x3A933EA) else Color(0x0A933EA))
+                            .clickable { onSelect(ZwSel(z, "大限 ${p.decadal.first}-${p.decadal.second} · ${Ziwei.gongNameAt(r, z)}${p.gan}${p.zhi}", ZwSelType.DECADAL, p.gan)) }
+                            .padding(2.dp), contentAlignment = Alignment.Center) {
+                            Text("大限 ${p.decadal.first}-${p.decadal.second}岁 · ${p.gan}${p.zhi} ${Ziwei.gongNameAt(r, z)}",
+                                color = if (active) Color(0xFFD8B4FE) else ZW_GOLD, fontSize = 9.sp, maxLines = 1)
                         }
                     }
                 }
-                Row(Modifier.height(46.dp)) {
-                    for (k in 0 until 90) {
-                        val year = birthYear + k
-                        val age = k + 1
-                        val gz = ganZhiOfYear(year)
-                        val z = ziToIdx(gz[1].toString())
-                        val active = sel?.type == ZwSelType.YEARLY && sel.zhi == z
-                        Column(Modifier.width(cellW).border(0.5.dp, ZW_BORDER)
-                            .background(if (active) Color(0x2ED4A843) else Color.Transparent)
-                            .clickable { onSelect(ZwSel(z, "流年 $year · $gz（${age}岁）", ZwSelType.YEARLY, gz[0].toString())) }
-                            .padding(2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("${year}年 ${age}岁", color = ZW_FAINT, fontSize = 7.sp)
-                            Text(gz, color = ganWuXingColor(gz[0].toString()), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                // 流年行：每个大限宫下挂它管辖的 10 个流年（最长 = 每格大限）
+                Row(Modifier.height(yrH)) {
+                    dxList.forEach { p ->
+                        val zDx = ziToIdx(p.zhi)
+                        val startAge = p.decadal.first
+                        val dxActive = sel?.type == ZwSelType.DECADAL && sel.zhi == zDx
+                        repeat(10) { i ->
+                            val age = startAge + i
+                            val year = birthYear + age - 1
+                            val gz = ganZhiOfYear(year)
+                            val zY = ziToIdx(gz[1].toString())
+                            val yActive = sel?.type == ZwSelType.YEARLY && sel.label.contains("$year")
+                            Column(Modifier.width(yearCellW).border(0.5.dp, ZW_BORDER)
+                                .background(when {
+                                    yActive -> Color(0x3AD4A843)
+                                    dxActive || (sel?.type == ZwSelType.YEARLY && sel.zhi == zY) -> Color(0x12933EA)
+                                    else -> Color.Transparent
+                                })
+                                .clickable { onSelect(ZwSel(zY, "流年 $year · $gz（${age}岁）", ZwSelType.YEARLY, gz[0].toString())) }
+                                .padding(1.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(gz, color = ganWuXingColor(gz[0].toString()), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("${age}岁", color = ZW_FAINT, fontSize = 7.sp)
+                            }
                         }
                     }
                 }

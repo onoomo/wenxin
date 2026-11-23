@@ -264,17 +264,19 @@ object JishiyuRegistry {
         fields = listOf(
             InputField("dt", "出生时间(公历)", FieldType.DATETIME, LocalDateTime.now().format(fmt)),
             InputField("isman", "性别", FieldType.GENDER, "男"),
-            InputField("ti", "时辰索引(0-12,留空自动)", FieldType.NUMBER, "")
+            InputField("ti", "时辰索引(0-12,留空自动)", FieldType.NUMBER, ""),
+            InputField("lon", "出生地经度(真太阳时,留空用钟表时)", FieldType.TEXT, "", "如 116.4 北京 / 121.5 上海")
         )
     ) { m ->
         val ti = (m["ti"] ?: "").trim().toIntOrNull()?.takeIf { it in 0..12 } ?: -1
-        val r = Ziwei.paipan(parseDt(m["dt"] ?: ""), m["isman"] != "女", ti)
+        val lon = (m["lon"] ?: "").trim().toDoubleOrNull()
+        val r = Ziwei.paipan(parseDt(m["dt"] ?: ""), m["isman"] != "女", ti, lon)
         val secs = mutableListOf<CastSection>()
         secs.add(CastSection("命盘", rows = listOf(
             "公历" to r.solarDate, "农历" to r.lunarDate, "干支" to r.chineseDate,
             "命宫" to r.ebSoul, "身宫" to r.ebBody, "命主" to r.soul, "身主" to r.body,
             "五行局" to r.juName, "年干" to r.yearGan
-        ), highlighted = true))
+        ) + (if (r.solarInfo.isNotBlank()) listOf("时间校正" to r.solarInfo) else emptyList()), highlighted = true))
         secs.add(CastSection("十二宫", rows = r.rows))
         CastResult("紫 微 斗 数", subtitle = "命宫${r.ebSoul} · ${r.juName}", sections = secs)
     }

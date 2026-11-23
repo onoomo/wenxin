@@ -63,7 +63,8 @@ data class JiMingpanFormResult(
     val earlyLateZi: Boolean,   // 早晚子时：是=true
     val trueSolar: Boolean,     // 真太阳时：是=true
     val summerTime: Boolean,    // 夏令时：开=true
-    val noSave: Boolean         // 不存开关：开=true 表示不存档
+    val noSave: Boolean,         // 不存开关：开=true 表示不存档
+    val longitude: Double? = null // 出生地经度（真太阳时校正用，东经为正）
 )
 
 /**
@@ -74,6 +75,7 @@ data class JiMingpanFormResult(
 fun JiMingpanCastForm(
     title: String,
     onBack: () -> Unit,
+    showLongitude: Boolean = false,
     onCast: (JiMingpanFormResult) -> Unit
 ) {
     val dtFmt = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm") }
@@ -85,6 +87,7 @@ fun JiMingpanCastForm(
     var earlyLateZi by remember { mutableStateOf(false) }
     var trueSolar by remember { mutableStateOf(false) }
     var summerTime by remember { mutableStateOf(true) }
+    var longitudeText by remember { mutableStateOf("") }
     var showDate by remember { mutableStateOf(false) }
     var showTime by remember { mutableStateOf(false) }
 
@@ -168,14 +171,31 @@ fun JiMingpanCastForm(
                     Spacer(Modifier.weight(1f))
                     JiSwitch(checked = summerTime, onChecked = { summerTime = it }, label = "夏令时")
                 }
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(if (showLongitude) 10.dp else 18.dp))
+
+                // 出生地经度（真太阳时校正）—— 仅紫微等需要的模块显示
+                if (showLongitude) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("出生经度", color = JiForm.TEXT, fontSize = 14.sp, modifier = Modifier.width(72.dp))
+                        Box(Modifier.weight(1f).height(38.dp).clip(RoundedCornerShape(6.dp))
+                            .background(JiForm.INPUT_BG).border(1.dp, JiForm.LINE, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 10.dp), contentAlignment = Alignment.CenterStart) {
+                            BasicTextField(value = longitudeText, onValueChange = { longitudeText = it }, singleLine = true,
+                                textStyle = TextStyle(fontSize = 13.sp, color = JiForm.TEXT),
+                                modifier = Modifier.fillMaxWidth(),
+                                decorationBox = { inner -> if (longitudeText.isEmpty()) Text("如 116.4 北京 / 121.5 上海，留空用钟表时", color = JiForm.SUB, fontSize = 11.sp) else inner() })
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                }
 
                 // 排盘按钮
                 Box(Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(24.dp))
                     .background(JiForm.RED)
                     .clickable {
                         val dt = try { LocalDateTime.parse(dtText.trim(), dtFmt) } catch (e: Exception) { LocalDateTime.now() }
-                        onCast(JiMingpanFormResult(name, isMan, calendar, dt, earlyLateZi, trueSolar, summerTime, noSave))
+                        val lon = longitudeText.trim().toDoubleOrNull()
+                        onCast(JiMingpanFormResult(name, isMan, calendar, dt, earlyLateZi, trueSolar, summerTime, noSave, lon))
                     }, contentAlignment = Alignment.Center) {
                     Text("排 盘", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
                 }
