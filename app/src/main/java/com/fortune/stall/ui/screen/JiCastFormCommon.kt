@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -254,11 +256,11 @@ fun JiMingpanCastForm(
                 onConfirm = { dt -> dtText = dt.format(dtFmt); showDate = false }
             )
         } else {
-            if (showDate) BoardDateDialog(
-                initial = try { LocalDate.parse(dtText.substring(0, 10)) } catch (e: Exception) { LocalDate.now() },
+            if (showDate) JiDateTimeDialog(
+                initial = try { LocalDateTime.parse(dtText.trim(), dtFmt) } catch (e: Exception) { LocalDateTime.now() },
                 onDismiss = { showDate = false },
-                onConfirm = { d -> val t = dtText.substring(11).ifEmpty { "00:00" }
-                    dtText = "${d.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))} $t"; showDate = false })
+                onConfirm = { dt -> dtText = dt.format(dtFmt); showDate = false }
+            )
         }
         // 省份选择
         if (showProv) JiOptionDialog(
@@ -502,6 +504,98 @@ internal fun JiChipLine(label: String, items: List<String>, selected: Int, onSel
                     Text(t, color = if (sel) Color.White else JiForm.TEXT, fontSize = 12.sp)
                 }
             }
+        }
+    }
+}
+
+/**
+ * 白底原版风格「选择日期时间」弹窗：年/月/日/时/分 五行。
+ * 供 JiMingpanCastForm 的非深金分支（八字排盘/命理奇门/阴盘奇门）使用，
+ * 补齐「时和分」输入——此前这些页面点击日期只能改年月日，时分被锁死。
+ * 每行两侧 −/+ 步进，点击中间数字可键盘直接输入。
+ */
+@Composable
+internal fun JiDateTimeDialog(
+    initial: LocalDateTime,
+    onDismiss: () -> Unit,
+    onConfirm: (LocalDateTime) -> Unit
+) {
+    var y by remember { mutableStateOf(initial.year) }
+    var m by remember { mutableStateOf(initial.monthValue) }
+    var d by remember { mutableStateOf(initial.dayOfMonth) }
+    var h by remember { mutableStateOf(initial.hour) }
+    var mi by remember { mutableStateOf(initial.minute) }
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.clip(RoundedCornerShape(14.dp))
+                .background(JiForm.WHITE)
+                .border(1.dp, JiForm.LINE, RoundedCornerShape(14.dp))
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("选择日期时间", color = JiForm.RED, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Text("点击数字可键盘输入，或用 − / + 调整", color = JiForm.SUB, fontSize = 10.sp)
+            Spacer(Modifier.height(10.dp))
+            JiStepper("年", y, 1800, 2199) { y = it }
+            JiStepper("月", m, 1, 12) { m = it }
+            JiStepper("日", d, 1, 31) { d = it }
+            JiStepper("时", h, 0, 23) { h = it }
+            JiStepper("分", mi, 0, 59) { mi = it }
+            Spacer(Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Box(Modifier.clip(RoundedCornerShape(20.dp)).background(JiForm.SELECT_BG)
+                    .clickable(onClick = onDismiss).padding(horizontal = 26.dp, vertical = 10.dp)) {
+                    Text("取消", color = JiForm.SUB, fontSize = 14.sp)
+                }
+                Box(Modifier.clip(RoundedCornerShape(20.dp)).background(JiForm.RED).clickable {
+                    val dim = java.time.YearMonth.of(y, m).lengthOfMonth()
+                    onConfirm(LocalDateTime.of(y, m, kotlin.math.min(d, dim), h, mi))
+                }.padding(horizontal = 26.dp, vertical = 10.dp)) {
+                    Text("确定", color = Color.White, fontSize = 14.sp)
+                }
+            }
+        }
+    }
+}
+
+/** 白底单行步进器：− [数字/输入框] +，点击中间数字进入键盘输入。 */
+@Composable
+private fun JiStepper(label: String, value: Int, min: Int, max: Int, onChange: (Int) -> Unit) {
+    var editing by remember { mutableStateOf(false) }
+    var buf by remember { mutableStateOf("") }
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = JiForm.TEXT, fontSize = 15.sp, modifier = Modifier.width(38.dp))
+        Box(Modifier.clip(RoundedCornerShape(50)).background(JiForm.SELECT_BG)
+            .clickable { editing = false; onChange(maxOf(min, value - 1)) }.padding(12.dp)) {
+            Text("−", color = JiForm.RED, fontSize = 18.sp)
+        }
+        Spacer(Modifier.width(14.dp))
+        Box(Modifier.width(72.dp).height(38.dp).clip(RoundedCornerShape(8.dp))
+            .background(JiForm.INPUT_BG).border(1.dp, JiForm.LINE, RoundedCornerShape(8.dp))
+            .clickable { if (!editing) { buf = ""; editing = true } }, contentAlignment = Alignment.Center) {
+            if (editing) {
+                BasicTextField(
+                    value = buf,
+                    onValueChange = { raw ->
+                        val digits = raw.filter { it.isDigit() }.take(4)
+                        buf = digits
+                        digits.toIntOrNull()?.let { onChange(it.coerceIn(min, max)) }
+                    },
+                    singleLine = true,
+                    textStyle = TextStyle(color = JiForm.TEXT, fontSize = 18.sp,
+                        fontFamily = FontFamily.Monospace, textAlign = TextAlign.Center),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp)
+                )
+            } else {
+                Text("$value", color = JiForm.TEXT, fontSize = 18.sp, fontFamily = FontFamily.Monospace)
+            }
+        }
+        Spacer(Modifier.width(14.dp))
+        Box(Modifier.clip(RoundedCornerShape(50)).background(JiForm.SELECT_BG)
+            .clickable { editing = false; onChange(minOf(max, value + 1)) }.padding(12.dp)) {
+            Text("＋", color = JiForm.RED, fontSize = 18.sp)
         }
     }
 }
