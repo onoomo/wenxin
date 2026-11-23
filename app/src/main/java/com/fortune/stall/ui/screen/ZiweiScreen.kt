@@ -59,7 +59,7 @@ fun ZiweiCastScreen(db: FortuneDb, onBack: () -> Unit) {
     var result by remember { mutableStateOf<Ziwei.Result?>(null) }
 
     if (result == null) {
-        JiMingpanCastForm(title = "紫 微 斗 数", onBack = onBack, showLongitude = true) { f ->
+        JiMingpanCastForm(title = "紫 微 斗 数", onBack = onBack, showLongitude = true, dark = true) { f ->
             // 真太阳时开关开启且填了经度才做经度+均时差校正；夏令时按主流口径只提示、不自动减 1 小时
             val lon = if (f.trueSolar) f.longitude else null
             val r = Ziwei.paipan(f.dateTime, f.isMan, -1, lon, false)
