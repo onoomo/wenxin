@@ -41,6 +41,7 @@ import com.fortune.stall.ui.screen.LiuRenCastScreen
 import com.fortune.stall.ui.screen.MeiHuaCastScreen
 import com.fortune.stall.ui.screen.ZiweiCastScreen
 import com.fortune.stall.ui.screen.BaziCastScreen
+import com.fortune.stall.ui.screen.BaziTaibuScreen
 import com.fortune.stall.ui.screen.YinpanQimenCastScreen
 import com.fortune.stall.ui.screen.MingliQimenCastScreen
 import com.fortune.stall.ui.screen.QianxuScreen
@@ -204,7 +205,7 @@ private fun AppNavigation(
         Route.TAIYI72 -> Taiyi72CastScreen(db = db, onBack = { back() })
         Route.DALIUREN -> LiuRenCastScreen(db = db, onBack = { back() })
         Route.MEIHUA -> MeiHuaCastScreen(db = db, onBack = { back() })
-        Route.BAZI -> BaziCastScreen(db = db, onBack = { back() })
+        Route.BAZI -> BaziTaibuScreen(db = db, onBack = { back() })
         Route.YINPAN -> YinpanQimenCastScreen(db = db, onBack = { back() })
         Route.MINGLI -> MingliQimenCastScreen(db = db, onBack = { back() })
         Route.ZIWEI -> ZiweiCastScreen(db = db, onBack = { back() })
