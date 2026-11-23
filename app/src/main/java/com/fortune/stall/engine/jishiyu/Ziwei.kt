@@ -155,8 +155,17 @@ object Ziwei {
         val m = SIHUA[yearGan] ?: return ""
         return when (name) { m[0] -> "禄"; m[1] -> "权"; m[2] -> "科"; m[3] -> "忌"; else -> "" }
     }
-    /** 亮度表索引以寅=0 (相对宫位索引), 与 iztro getBrightness 一致 */
-    private fun brightness(name: String, relIdx: Int): String = ZiweiData.BRIGHTNESS[name]?.getOrNull(fix(relIdx)) ?: ""
+    /**
+     * 亮度表索引以寅=0 (相对宫位索引), 与 iztro getBrightness 一致。
+     * 14 主星按用户所选流派取表（QS/XD1/ZZ/XD2），其余星沿用 ZiweiData 默认表。
+     * 默认流派 XD1 与 ZiweiData.BRIGHTNESS 完全一致，不改变既有行为。
+     */
+    private fun brightness(name: String, relIdx: Int): String {
+        val school = com.fortune.stall.util.ZiweiSettings.brightnessSchool.value
+        val fromSchool = ZiweiSchools.tableOf(school)[name]?.getOrNull(fix(relIdx))
+        if (!fromSchool.isNullOrEmpty()) return fromSchool
+        return ZiweiData.BRIGHTNESS[name]?.getOrNull(fix(relIdx)) ?: ""
+    }
 
     // ==== 安星函数 (返回相对寅索引) ====
 
@@ -282,7 +291,8 @@ object Ziwei {
         )
     }
     private fun getYearly12(yearZhi: String): Pair<List<String>, List<String>> {
-        val sq = listOf("岁建","晦气","丧门","贯索","官符","小耗","大耗","龙德","白虎","天德","吊客","病符")
+        // 主流排盘「岁破」（岁建对宫），不写「大耗」（后者是顶栏年支星/博士第十二神）
+        val sq = listOf("岁建","晦气","丧门","贯索","官符","小耗","岁破","龙德","白虎","天德","吊客","病符")
         val jq = listOf("将星","攀鞍","岁驿","息神","华盖","劫煞","灾煞","天煞","指背","咸池","月煞","亡神")
         val c = getJiangqianStart(yearZhi)
         val z = rel(ZI.indexOf(yearZhi)) // fixEarthlyBranchIndex
@@ -422,7 +432,7 @@ object Ziwei {
         val csStart = fbi(CS_START[ju]!!)
         val csNames = listOf("长生","沐浴","冠带","临官","帝旺","衰","病","死","墓","绝","胎","养")
         val csA = MutableList(12){""}; csNames.forEachIndexed { i,nm -> csA[fix(if(shun)csStart+i else csStart-i)]=nm }
-        val bsNames = listOf("博士","力士","青龙","小耗","将军","奏书","飞廉","喜神","病符","大耗","伏兵","官府")
+        val bsNames = listOf("博士","力士","青龙","小耗","将军","奏书","飞廉","喜神","病符","大耗","伏兵","官符")
         val bsA = MutableList(12){""}; bsNames.forEachIndexed { i,nm -> bsA[fix(if(shun)lu+i else lu-i)]=nm }
         val (sqA, jqA) = getYearly12(yearZhi)
 

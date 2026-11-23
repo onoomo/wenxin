@@ -74,6 +74,7 @@ import kotlinx.coroutines.launch
 fun AiChatScreen(
     db: FortuneDb,
     initialSession: Session? = null,
+    directContext: String? = null,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -173,7 +174,7 @@ fun AiChatScreen(
             Spacer(Modifier.height(10.dp))
 
             if (tab == 0) {
-                ChatPanel(session = selected, bottomInset = bottomInset)
+                ChatPanel(session = selected, directContext = directContext, bottomInset = bottomInset)
             } else {
                 ApiConfigPanel()
             }
@@ -198,7 +199,7 @@ private fun TabChip(label: String, active: Boolean, modifier: Modifier = Modifie
 
 /** 对话解读面板 */
 @Composable
-private fun ChatPanel(session: Session?, bottomInset: androidx.compose.ui.unit.Dp) {
+private fun ChatPanel(session: Session?, directContext: String?, bottomInset: androidx.compose.ui.unit.Dp) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val messages = remember { mutableStateListOf<ChatMessage>() }
@@ -224,13 +225,21 @@ private fun ChatPanel(session: Session?, bottomInset: androidx.compose.ui.unit.D
             // 组装 system 指令 + 当前排盘上下文 + 历史对话
             val sys = buildString {
                 append(AiSettings.systemPrompt.value)
-                if (session != null) {
+                if (directContext != null) {
+                    // 紫微命盘直接注入：13 维解读框架（对齐参考项目 ziwei-ds 的 13 维选项卡）
+                    append("\n\n你是紫微斗数解读专家。下面是一张紫微命盘，请按 13 个维度逐一解读，每维用小标题分段：")
+                    append("1.命宫（性格与格局）2.兄弟 3.夫妻 4.子女 5.财帛 6.疾厄 7.迁移 8.人际（仆役）")
+                    append("9.官禄 10.田宅 11.福德 12.父母 13.综合（大限流年走势）。")
+                    append("结合主星亮度、四化（禄权科忌）、自化与来因、长生十二神、三方四正与飞星，给出具体而有条理的推断。")
+                    append("\n\n【紫微命盘】\n")
+                    append(directContext.take(AiSettings.contextChars.value * 2))
+                } else if (session != null) {
                     append("\n\n【当前排盘卦象】\n")
                     val face = session.face.take(AiSettings.contextChars.value)
                     append(face)
                     append("\n【落款】").append(session.seal)
                 }
-                append("\n\n请用简体中文作答，参考解读仅供参考。")
+                append("\n\n请用简体中文作答，解读仅供参考。")
             }
             val payload = mutableListOf<ChatMessage>()
             payload.add(ChatMessage("system", sys))
