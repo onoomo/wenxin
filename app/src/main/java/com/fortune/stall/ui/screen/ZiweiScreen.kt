@@ -316,53 +316,69 @@ private fun ZiweiCenter2(r: Ziwei.Result) {
 @Composable
 private fun ZwBottomTable(r: Ziwei.Result, sel: ZwSel?, onSelect: (ZwSel) -> Unit) {
     val birthYear = r.solarDate.substringBefore("-").toIntOrNull() ?: 2000
+    // 两行共用一个滚动状态：滑动大限时流年表同步跟着动（1:1 原版联动）
+    val sharedScroll = rememberScrollState()
+    val cellW = 50.dp
     Column(Modifier.fillMaxWidth().border(1.dp, ZW_LINE).background(Color(0xFFFBFAF7))) {
-        // 大限行
-        Row(Modifier.fillMaxWidth().height(48.dp)) {
-            Box(Modifier.width(34.dp).background(Color(0xFFF2EEE6)).border(1.dp, ZW_LINE),
-                contentAlignment = Alignment.Center) {
-                Text("大\n限", color = Color(0xFF6B5B3A), fontSize = 10.sp, textAlign = TextAlign.Center, lineHeight = 12.sp)
-            }
-            Row(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
-                val sorted = r.palaces.sortedBy { it.decadal.first }
-                sorted.forEach { p ->
-                    val z = ziToIdx(p.zhi)
-                    val active = sel?.type == ZwSelType.DECADAL && sel?.zhi == z
-                    Column(Modifier.width(52.dp).border(0.5.dp, ZW_LINE)
-                        .background(if (active) Color(0xFFFFE0B2) else Color.Transparent)
-                        .clickable { onSelect(ZwSel(z, "大限 ${p.decadal.first}-${p.decadal.second} · ${p.name}${p.gan}${p.zhi}", ZwSelType.DECADAL, p.gan)) }
-                        .padding(2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("${p.decadal.first}-${p.decadal.second}", color = Color(0xFF888888), fontSize = 8.5.sp)
-                        Text(p.gan + p.zhi, color = ZW_RED, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    }
+        Row(Modifier.fillMaxWidth()) {
+            // 左侧固定行标签列
+            Column(Modifier.width(30.dp)) {
+                Box(Modifier.fillMaxWidth().height(46.dp).background(Color(0xFFF2EEE6)).border(1.dp, ZW_LINE),
+                    contentAlignment = Alignment.Center) {
+                    Text("大\n限", color = Color(0xFF6B5B3A), fontSize = 11.sp, textAlign = TextAlign.Center, lineHeight = 13.sp)
+                }
+                Box(Modifier.fillMaxWidth().height(46.dp).background(Color(0xFFF2EEE6)).border(1.dp, ZW_LINE),
+                    contentAlignment = Alignment.Center) {
+                    Text("流\n年", color = Color(0xFF6B5B3A), fontSize = 11.sp, textAlign = TextAlign.Center, lineHeight = 13.sp)
                 }
             }
-        }
-        // 流年行
-        Row(Modifier.fillMaxWidth().height(48.dp)) {
-            Box(Modifier.width(34.dp).background(Color(0xFFF2EEE6)).border(1.dp, ZW_LINE),
-                contentAlignment = Alignment.Center) {
-                Text("流\n年", color = Color(0xFF6B5B3A), fontSize = 10.sp, textAlign = TextAlign.Center, lineHeight = 12.sp)
-            }
-            Row(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
-                val count = 90
-                for (k in 0 until count) {
-                    val year = birthYear + k
-                    val age = k + 1
-                    val gz = ganZhiOfYear(year)
-                    val z = ziToIdx(gz[1].toString())
-                    val active = sel?.type == ZwSelType.YEARLY && sel?.zhi == z
-                    Column(Modifier.width(46.dp).border(0.5.dp, ZW_LINE)
-                        .background(if (active) Color(0xFFFFE0B2) else Color.Transparent)
-                        .clickable { onSelect(ZwSel(z, "流年 $year · $gz（${age}岁）", ZwSelType.YEARLY, gz[0].toString())) }
-                        .padding(2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("${year}年 ${age}岁", color = Color(0xFF888888), fontSize = 8.sp)
-                        Text(gz, color = Color(0xFF2E6FD0), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            // 大限 / 流年两行放进同一个横向滚动容器，列宽一致、上下对齐、同步移动
+            Column(Modifier.weight(1f).horizontalScroll(sharedScroll)) {
+                // 大限行
+                Row(Modifier.height(46.dp)) {
+                    r.palaces.sortedBy { it.decadal.first }.forEach { p ->
+                        val z = ziToIdx(p.zhi)
+                        val active = sel?.type == ZwSelType.DECADAL && sel?.zhi == z
+                        Column(Modifier.width(cellW).border(0.5.dp, ZW_LINE)
+                            .background(if (active) Color(0xFFFFE0B2) else Color.Transparent)
+                            .clickable { onSelect(ZwSel(z, "大限 ${p.decadal.first}-${p.decadal.second} · ${p.name}${p.gan}${p.zhi}", ZwSelType.DECADAL, p.gan)) }
+                            .padding(2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("${p.decadal.first}-${p.decadal.second}", color = Color(0xFF888888), fontSize = 8.5.sp)
+                            Text(p.gan + p.zhi, color = ganWuXingColor(p.gan), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                // 流年行：与大限行共用滚动，从左到右逐年排列
+                Row(Modifier.height(46.dp)) {
+                    val count = 90
+                    for (k in 0 until count) {
+                        val year = birthYear + k
+                        val age = k + 1
+                        val gz = ganZhiOfYear(year)
+                        val z = ziToIdx(gz[1].toString())
+                        val active = sel?.type == ZwSelType.YEARLY && sel?.zhi == z
+                        Column(Modifier.width(cellW).border(0.5.dp, ZW_LINE)
+                            .background(if (active) Color(0xFFFFE0B2) else Color.Transparent)
+                            .clickable { onSelect(ZwSel(z, "流年 $year · $gz（${age}岁）", ZwSelType.YEARLY, gz[0].toString())) }
+                            .padding(2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("${year}年 ${age}岁", color = Color(0xFF888888), fontSize = 7.5.sp)
+                            Text(gz, color = ganWuXingColor(gz[0].toString()), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
         }
     }
+}
+
+/** 天干五行配色：甲乙木绿、丙丁火红、戊己土黄褐、庚辛金橙、壬癸水蓝（对齐截图大限干支彩色） */
+private fun ganWuXingColor(gan: String) = when (gan) {
+    "甲" -> Color(0xFF3E9E5E); "乙" -> Color(0xFF5BAE72)
+    "丙" -> Color(0xFFE0523F); "丁" -> Color(0xFFD9342B)
+    "戊" -> Color(0xFFB88A2E); "己" -> Color(0xFFA67C2E)
+    "庚" -> Color(0xFFD98A2B); "辛" -> Color(0xFFC97A1F)
+    "壬" -> Color(0xFF2E6FD0); "癸" -> Color(0xFF4A86D8)
+    else -> Color(0xFF444444)
 }
 
 @Composable
