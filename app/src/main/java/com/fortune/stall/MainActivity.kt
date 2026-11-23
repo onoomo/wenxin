@@ -51,6 +51,7 @@ import com.fortune.stall.ui.screen.SkillsScreen
 import com.fortune.stall.ui.components.Starfield
 import com.fortune.stall.ui.theme.FortuneTheme
 import com.fortune.stall.util.DisplaySettings
+import com.fortune.stall.util.HomeTilesSettings
 import com.fortune.stall.util.Immersive
 import com.fortune.stall.util.TarotSettings
 
@@ -67,6 +68,7 @@ class MainActivity : ComponentActivity() {
         val skillRepo = SkillRepository(this)
         TarotSettings.init(this)
         DisplaySettings.init(this)
+        HomeTilesSettings.init(this)
 
         setContent {
             FortuneTheme {
@@ -231,7 +233,11 @@ private fun AppNavigation(
         Route.LEDGER -> LedgerScreen(db = db, onBack = { back() })
         Route.FAVORITES -> LedgerScreen(db = db, onBack = { back() }, onlyFavorites = true)
         Route.SETTINGS -> SettingsScreen(
-            onBack = { back() }, onOpenSkills = { go(Route.SKILLS) }
+            onBack = { back() }, onOpenSkills = { go(Route.SKILLS) },
+            onManageTiles = {
+                HomeTilesSettings.editMode.value = true
+                back()
+            }
         )
         Route.SKILLS -> SkillsScreen(repo = skillRepo, onBack = { back() })
     }

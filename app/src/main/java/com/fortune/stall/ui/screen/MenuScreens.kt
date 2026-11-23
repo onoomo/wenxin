@@ -128,7 +128,7 @@ fun ArchiveScreen(
 
 /** 设置页 —— 显示牌面开关 + 下载牌图 + 技能包（可点击条） */
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onOpenSkills: () -> Unit) {
+fun SettingsScreen(onBack: () -> Unit, onOpenSkills: () -> Unit, onManageTiles: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var downloading by remember { mutableStateOf(false) }
@@ -136,6 +136,11 @@ fun SettingsScreen(onBack: () -> Unit, onOpenSkills: () -> Unit) {
     var cachedCount by remember { mutableStateOf(TarotImageLoader.downloadedCount(context)) }
 
     MenuShell(title = "设 置", subtitle = "摊面上用具与心法", onBack = onBack) {
+        MenuRow(
+            glyph = "排", eyebrow = "术 法", title = "隐藏 / 排序术法",
+            desc = "进入首页编辑态：拖动调整术法顺序，点 × 隐藏不用的术法。",
+            onClick = onManageTiles
+        )
         ToggleRow(
             glyph = "图", eyebrow = "布 局", title = "首页图标模式",
             desc = "开启后首页以图标九宫格展示术数；关闭回到详细摊位卡片。",

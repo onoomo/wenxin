@@ -7,6 +7,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
@@ -29,11 +31,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -49,11 +57,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.graphicsLayer
 import com.fortune.stall.R
 import com.fortune.stall.ui.components.Starfield
 import com.fortune.stall.ui.theme.AppColors
 import com.fortune.stall.engine.jishiyu.JishiyuRegistry
 import com.fortune.stall.util.DisplaySettings
+import com.fortune.stall.util.HomeTilesSettings
 
 /** 问心处 · 摊面首页 */
 @OptIn(ExperimentalLayoutApi::class)
@@ -108,6 +122,34 @@ fun HomeScreen(
             )
             Spacer(Modifier.height(28.dp))
 
+            // 编辑态提示条：拖动排序、点角标隐藏、完成、恢复默认
+            if (HomeTilesSettings.editMode.value) {
+                Column(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                        .background(Brush.verticalGradient(listOf(Color(0xE8262632), Color(0xF016161C))))
+                        .border(BorderStroke(1.dp, AppColors.GoldLine), RoundedCornerShape(14.dp))
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    Text("编 辑 术 法", color = AppColors.Lantern, fontSize = 13.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Serif, letterSpacing = 2.sp)
+                    Text("长按拖动可排序 · 点右上角 × 隐藏", color = AppColors.Muted, fontSize = 11.sp,
+                        modifier = Modifier.padding(top = 3.dp))
+                    Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Box(Modifier.weight(1f).clip(RoundedCornerShape(18.dp))
+                            .background(AppColors.Ember).clickable { HomeTilesSettings.reset() }
+                            .padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                            Text("恢复默认", color = Color.White, fontSize = 12.sp)
+                        }
+                        Box(Modifier.weight(1f).clip(RoundedCornerShape(18.dp))
+                            .background(AppColors.Lantern).clickable { HomeTilesSettings.editMode.value = false }
+                            .padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                            Text("完 成", color = AppColors.Ink, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+            }
+
             // 统一点击分流：小六壬/六爻/塔罗走传承页，其余走术数模块入口
             fun openTile(key: String, label: String) {
                 when {
@@ -119,29 +161,23 @@ fun HomeScreen(
                 }
             }
 
+            // 编辑态：由长按磁贴进入，或设置页「隐藏/排序术法」入口进入
+            val editing by HomeTilesSettings.editMode
+            // 按自定义顺序 + 隐藏设置生成当前要显示的清单（两者模式共用）
+            val allByKey = remember { HOME_TILES.associateBy { it.key } }
+            val displayedTiles = remember(HomeTilesSettings.revision.value) {
+                HomeTilesSettings.visibleKeys().mapNotNull { allByKey[it] }
+            }
+
             if (DisplaySettings.iconMode.value) {
-                // 图标模式：每行固定 4 个，末行不足用空位补齐，保持每个磁贴尺寸一致
-                val icons = HOME_TILES.map { IconTile1(it.label, it.key, it.glyph) }
-                var idx = 0
-                while (idx < icons.size) {
-                    val row = mutableListOf<IconTile1>()
-                    repeat(4) { if (idx < icons.size) { row.add(icons[idx]); idx++ } }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        // 始终占满 4 个等宽槽位，最后一个不会被撑成整行大卡
-                        repeat(4) { slot ->
-                            Box(Modifier.weight(1f)) {
-                                if (slot < row.size) {
-                                    val item = row[slot]
-                                    IconTileNew(item) { openTile(item.key, item.label) }
-                                }
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(12.dp))
-                }
+                IconGridEditable(
+                    tiles = displayedTiles,
+                    editing = editing,
+                    openTile = { key, label -> openTile(key, label) }
+                )
             } else {
-                // 详细模式：20 项全部列出，每项带眉标与详细说明
-                for (t in HOME_TILES) {
+                // 详细模式：按自定义顺序与隐藏设置列出，每项带眉标与详细说明
+                for (t in displayedTiles) {
                     StallCard(
                         eyebrow = t.eyebrow, title = t.label, desc = t.desc,
                         onClick = { openTile(t.key, t.label) }
@@ -236,94 +272,8 @@ private fun StallCard(eyebrow: String, title: String, desc: String, onClick: () 
     }
 }
 
-/** 首页 20 项模块清单：名称 + 目标 key + 图标 + 眉标 + 详细说明（图标/详细两种模式共用） */
-private data class HomeTile(
-    val label: String, val key: String, val glyph: Glyph,
-    val eyebrow: String, val desc: String
-)
-
-private val HOME_TILES = listOf(
-    HomeTile("八字排盘", "bazi-paipan", Glyph.BAZI, "四 柱 命 理",
-        "按出生年月日时排定四柱干支，标注十神、藏干、纳音与神煞，起大运流年，断一生格局与起伏。"),
-    HomeTile("八字·寻壬", "xunren-bazi", Glyph.BAZI, "四 柱 细 盘",
-        "寻壬观吉风格八字结果页：藏青主题、生肖圆章、基本信息与专业细盘三页，四柱十神藏干纳音神煞俱全。"),
-    HomeTile("命理奇门", "mingliqimen", Glyph.MINGLI, "终 身 奇 门",
-        "以生辰起终身奇门盘，配大运流年逐限推移，看一生富贵吉凶与关键时刻的天地人三才格局。"),
-    HomeTile("阴盘奇门", "yinpanqimen", Glyph.YINPAN, "阴 盘 起 局",
-        "阴盘奇门时盘起局，布三奇六仪、八神九星八门，隐干、马星、空亡一并排出，用于占断当下事体。"),
-    HomeTile("奇门遁甲", "qimen", Glyph.QIMEN, "九 宫 时 盘",
-        "按时辰起局，拆补、置闰、茅山定阴阳遁局数，值符值使、天盘地盘九宫齐备，问事择方的经典术数。"),
-    HomeTile("紫微斗数", "ziwei", Glyph.ZIWEI, "十 八 飞 星",
-        "以生辰安命身宫，布十四主星、辅弼魁钺与四化，十二宫逐格推演，细看性情、事业、姻缘与财运。"),
-    HomeTile("六爻", "liuyao", Glyph.LIUYAO, "纳 甲 装 卦",
-        "铜钱摇卦、纳甲装卦，六亲六神、世应动变、伏神神煞俱全，大事慢问，一爻一爻看事体成败。"),
-    HomeTile("梅花易数", "meihua-time", Glyph.MEIHUA, "观 象 起 卦",
-        "时间、报数、手动三种起卦，取上下卦与动爻，推本卦、互卦、变卦、错综卦，以体用生克断吉凶。"),
-    HomeTile("大六壬", "daliuren", Glyph.DALIUREN, "三 式 之 首",
-        "四课三传、天盘月将、贵人六亲与十二宫行年，占事时辰可灵活设定，断事精细，被誉为三式之首。"),
-    HomeTile("潜虚筮法", "qianxu", Glyph.QIANXU, "七 十 演 策",
-        "取七十策虚其五，分二挂一揲十定名，得五十五名之一；再揲以求变位，按阴阳取显幽，断吉凶臧否。"),
-    HomeTile("塔罗牌占卜", "tarot", Glyph.TAROT, "心 象 之 镜",
-        "七十八张牌照心象，单张、三牌或凯尔特十字多种牌阵，随问随翻，照见当下心境与走向。"),
-    HomeTile("小六壬", "xiaoliuren", Glyph.XIAOLIUREN, "掐 指 快 卦",
-        "掐指三宫，问急事小事。按时起课或摇骰报数，一掐即得答案，是随身携带的快捷占法。"),
-    HomeTile("戚都翁", "qiduweng", Glyph.QIDU, "未 卜 先 知",
-        "以时间起课，定体用星、月令旺衰与五行类象，断来人办事的成败迟速，属古法未卜先知。"),
-    HomeTile("奇门穿壬", "chuanren", Glyph.CHUANREN, "奇 壬 合 参",
-        "奇门九宫与大六壬贵神、月将、年煞、命宫同盘合参，二式互证，占断更为周全。"),
-    HomeTile("太乙三式", "taiyi3shi", Glyph.TAIYI, "三 式 合 一",
-        "太乙积数定局，主客算与十六神齐备，合奇门、六壬三盘为一，推演天时国运与大事格局。"),
-    HomeTile("太乙神数", "taiyi72", Glyph.TAIYI, "七 十 二 局",
-        "传统太乙神数正统排法，据《太乙金镜式经》七十二局立成，积数定局、主客大小将与十六方位，专推天时国运。"),
-    HomeTile("山向奇门", "shanxiangqimen", Glyph.SHANXIANG, "二 十 四 山",
-        "按罗盘度数查七十二局，以年柱代日、五鼠遁定时，布阳阴遁九宫盘，专用于立向择方。"),
-    HomeTile("玄空飞星", "ninestar", Glyph.FEIXING, "洛 书 飞 泊",
-        "年、月、日、时四颗飞星入九宫，飞泊洛书配九星吉凶，可结合经度校正真太阳时，看方位旺衰。"),
-    HomeTile("达摩一掌经", "yizhangjing", Glyph.YIZHANG, "六 道 轮 回",
-        "以生辰年月日时地支落宫，查六道与神煞，断一生因果、性情与早年晚景，一掌之中见轮回。"),
-    HomeTile("万年历", "wannianli", Glyph.WANNIANLI, "公 农 对 照",
-        "整月日历逐日列出农历、干支、节气与生肖，点选任一天即可查当日老黄历，日期查询的入口。"),
-    HomeTile("老黄历", "laohuangli", Glyph.LAOHUANGLI, "择 日 经 典",
-        "宜忌、冲煞、值神建星、二十八宿、纳音、吉神凶煞、彭祖百忌与财喜福神方位，择日办事的参照。"),
-    HomeTile("八字合婚", "hehun", Glyph.HEHUN, "天 作 之 合",
-        "按双方八字比对生肖、纳音、婚宫、用神、十神、桃花等十二项，逐条给出结论与合婚等级。"),
-    HomeTile("手机号预测", "shuzi", Glyph.PHONE, "磁 场 数 理",
-        "手机号八星磁场分析，延年、天医、生气为吉，六煞、五鬼、祸害、绝命为凶，逐位解读尾数与象义。")
-)
-
 /** 图标模式条目：名称 + 目标 key（空=暂无模块）+ 图标类型 */
 private data class IconTile1(val label: String, val key: String, val glyph: Glyph)
-
-/** 图1的 20 类线性图标 */
-private enum class Glyph {
-    BAZI, MINGLI, YINPAN, QIMEN, ZIWEI, LIUYAO, MEIHUA, DALIUREN, XIAOLIUREN,
-    QIDU, CHUANREN, TAIYI, SHANXIANG, FEIXING, YIZHANG, WANNIANLI, LAOHUANGLI, HEHUN, PHONE, TAROT, QIANXU
-}
-
-/** 原版 ji.js.cn 的 SVG 图标资源（1:1 移植） */
-private fun glyphRes(g: Glyph): Int = when (g) {
-    Glyph.BAZI -> R.drawable.ic_g_bazi
-    Glyph.MINGLI -> R.drawable.ic_g_mingli
-    Glyph.YINPAN -> R.drawable.ic_g_yinpan
-    Glyph.QIMEN -> R.drawable.ic_g_qimen
-    Glyph.ZIWEI -> R.drawable.ic_g_ziwei
-    Glyph.LIUYAO -> R.drawable.ic_g_liuyao
-    Glyph.MEIHUA -> R.drawable.ic_g_meihua
-    Glyph.DALIUREN -> R.drawable.ic_g_daliuren
-    Glyph.XIAOLIUREN -> R.drawable.ic_g_xiaoliuren
-    Glyph.QIDU -> R.drawable.ic_g_qidu
-    Glyph.CHUANREN -> R.drawable.ic_g_chuanren
-    Glyph.TAIYI -> R.drawable.ic_g_taiyi
-    Glyph.SHANXIANG -> R.drawable.ic_g_shanxiang
-    Glyph.FEIXING -> R.drawable.ic_g_feixing
-    Glyph.YIZHANG -> R.drawable.ic_g_yizhang
-    Glyph.WANNIANLI -> R.drawable.ic_g_wannianli
-    Glyph.LAOHUANGLI -> R.drawable.ic_g_laohuangli
-    Glyph.HEHUN -> R.drawable.ic_g_hehun
-    Glyph.PHONE -> R.drawable.ic_g_phone
-    Glyph.TAROT -> R.drawable.ic_g_tarot
-    Glyph.QIANXU -> R.drawable.ic_g_qianxu
-}
 
 /** 单个图标磁贴：100% 透明卡片 + 余烬红圆角方块 + 白色线性图标 + 浅色名称（融入深空背景） */
 @Composable
@@ -350,6 +300,147 @@ private fun IconTileNew(item: IconTile1, onClick: () -> Unit) {
         Text(item.label, color = AppColors.Paper, fontSize = 12.sp,
             fontWeight = FontWeight.Medium, textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 9.dp))
+    }
+}
+
+/**
+ * 5 列可编辑术法网格。
+ * 常态：点击打开术法；长按进入编辑态。
+ * 编辑态：拖动磁贴到目标位置松手即重排；点右上角 × 隐藏该术法。
+ */
+@Composable
+private fun IconGridEditable(
+    tiles: List<HomeTile>,
+    editing: Boolean,
+    openTile: (String, String) -> Unit
+) {
+    // 每个格子在父容器内的边界（按当前显示顺序索引 -> Rect），用于拖拽落点命中
+    val rects = remember { mutableMapOf<Int, Rect>() }
+    // 当前正在拖动的显示索引与位移
+    var draggingIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    // 落点高亮
+    var hoverIndex by remember { mutableStateOf<Int?>(null) }
+
+    // 编辑态开关变化时清理拖拽态
+    LaunchedEffect(editing) {
+        if (!editing) { draggingIndex = null; dragOffset = Offset.Zero; hoverIndex = null }
+    }
+
+    var idx = 0
+    while (idx < tiles.size) {
+        val row = mutableListOf<Pair<Int, HomeTile>>()
+        repeat(5) { if (idx < tiles.size) { row.add(idx to tiles[idx]); idx++ } }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            repeat(5) { slot ->
+                Box(Modifier.weight(1f)) {
+                    if (slot < row.size) {
+                        val (displayIndex, item) = row[slot]
+                        val isDragging = draggingIndex == displayIndex
+                        val isHover = hoverIndex == displayIndex && !isDragging
+                        val hidden = HomeTilesSettings.isHidden(item.key)
+                        val tileModifier = Modifier
+                            .fillMaxWidth()
+                            .onGloballyPositioned { c ->
+                                val p = c.positionInRoot()
+                                rects[displayIndex] = Rect(
+                                    p.x, p.y,
+                                    p.x + c.size.width, p.y + c.size.height
+                                )
+                            }
+                            .graphicsLayer {
+                                if (isDragging) {
+                                    translationX = dragOffset.x
+                                    translationY = dragOffset.y
+                                    scaleX = 1.06f
+                                    scaleY = 1.06f
+                                    shadowElevation = 12f
+                                }
+                            }
+                        Box(
+                            modifier = tileModifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .border(
+                                    width = if (isDragging || isHover) 2.dp else 0.dp,
+                                    color = if (isDragging || isHover) AppColors.Lantern else Color.Transparent,
+                                    shape = RoundedCornerShape(20.dp)
+                                )
+                                .graphicsLayer { alpha = if (hidden && editing) 0.45f else 1f }
+                                .combinedClickable(
+                                    onClick = { if (!editing) openTile(item.key, item.label) },
+                                    onLongClick = {
+                                        if (!editing) HomeTilesSettings.editMode.value = true
+                                    }
+                                )
+                                .then(
+                                    if (editing) Modifier.pointerInput(displayIndex) {
+                                        detectDragGesturesAfterLongPress(
+                                            onDragStart = {
+                                                draggingIndex = displayIndex
+                                                dragOffset = Offset.Zero
+                                            },
+                                            onDrag = { change, amount ->
+                                                change.consume()
+                                                dragOffset += amount
+                                                // 命中检测：拖动方块中心落在哪个显示索引
+                                                val center = Offset(
+                                                    rects[displayIndex]?.center?.x?.plus(dragOffset.x) ?: 0f,
+                                                    rects[displayIndex]?.center?.y?.plus(dragOffset.y) ?: 0f
+                                                )
+                                                hoverIndex = rects.entries.firstOrNull { (i, r) ->
+                                                    i != displayIndex && r.contains(center)
+                                                }?.key
+                                            },
+                                            onDragEnd = {
+                                                val target = hoverIndex
+                                                if (target != null && draggingIndex != null) {
+                                                    val fromKey = tiles[draggingIndex!!].key
+                                                    val toKey = tiles[target].key
+                                                    val from = HomeTilesSettings.order.value.indexOf(fromKey)
+                                                    val to = HomeTilesSettings.order.value.indexOf(toKey)
+                                                    HomeTilesSettings.move(from, to)
+                                                }
+                                                draggingIndex = null
+                                                dragOffset = Offset.Zero
+                                                hoverIndex = null
+                                            },
+                                            onDragCancel = {
+                                                draggingIndex = null
+                                                dragOffset = Offset.Zero
+                                                hoverIndex = null
+                                            }
+                                        )
+                                    } else Modifier
+                                )
+                        ) {
+                            IconTileNew(IconTile1(item.label, item.key, item.glyph)) {
+                                if (!editing) openTile(item.key, item.label)
+                            }
+                            if (editing) {
+                                // 隐藏角标：点一下隐藏/恢复
+                                Box(
+                                    Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(top = 6.dp, end = 6.dp)
+                                        .size(28.dp)
+                                        .clip(RoundedCornerShape(50))
+                                        .background(if (hidden) AppColors.Lantern else AppColors.Ember)
+                                        .clickable { HomeTilesSettings.toggleHidden(item.key) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        if (hidden) "✓" else "×",
+                                        color = if (hidden) AppColors.Ink else Color.White,
+                                        fontSize = 16.sp, fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
     }
 }
 
