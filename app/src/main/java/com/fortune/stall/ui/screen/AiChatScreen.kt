@@ -226,13 +226,18 @@ private fun ChatPanel(session: Session?, directContext: String?, bottomInset: an
             val sys = buildString {
                 append(AiSettings.systemPrompt.value)
                 if (directContext != null) {
-                    // 紫微命盘直接注入：13 维解读框架（对齐参考项目 ziwei-ds 的 13 维选项卡）
-                    append("\n\n你是紫微斗数解读专家。下面是一张紫微命盘，请按 13 个维度逐一解读，每维用小标题分段：")
-                    append("1.命宫（性格与格局）2.兄弟 3.夫妻 4.子女 5.财帛 6.疾厄 7.迁移 8.人际（仆役）")
-                    append("9.官禄 10.田宅 11.福德 12.父母 13.综合（大限流年走势）。")
-                    append("结合主星亮度、四化（禄权科忌）、自化与来因、长生十二神、三方四正与飞星，给出具体而有条理的推断。")
-                    append("\n\n【紫微命盘】\n")
-                    append(directContext.take(AiSettings.contextChars.value * 2))
+                    if (directContext.contains("合盘分析核心框架")) {
+                        // 合盘上下文已自带方法论与输出结构，不再追加 13 维解读框架
+                        append("\n\n你是紫微斗数合盘专家，请严格依据下方【合盘方法论】与【输出结构要求】解读两张命盘。")
+                    } else {
+                        // 紫微命盘直接注入：13 维解读框架（对齐参考项目 ziwei-ds 的 13 维选项卡）
+                        append("\n\n你是紫微斗数解读专家。下面是一张紫微命盘，请按 13 个维度逐一解读，每维用小标题分段：")
+                        append("1.命宫（性格与格局）2.兄弟 3.夫妻 4.子女 5.财帛 6.疾厄 7.迁移 8.人际（仆役）")
+                        append("9.官禄 10.田宅 11.福德 12.父母 13.综合（大限流年走势）。")
+                        append("结合主星亮度、四化（禄权科忌）、自化与来因、长生十二神、三方四正与飞星，给出具体而有条理的推断。")
+                    }
+                    append("\n\n【解读材料】\n")
+                    append(directContext.take(AiSettings.contextChars.value * 3))
                 } else if (session != null) {
                     append("\n\n【当前排盘卦象】\n")
                     val face = session.face.take(AiSettings.contextChars.value)

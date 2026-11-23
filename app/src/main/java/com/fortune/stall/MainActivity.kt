@@ -42,6 +42,7 @@ import com.fortune.stall.ui.screen.Taiyi72CastScreen
 import com.fortune.stall.ui.screen.LiuRenCastScreen
 import com.fortune.stall.ui.screen.MeiHuaCastScreen
 import com.fortune.stall.ui.screen.ZiweiCastScreen
+import com.fortune.stall.ui.screen.ZiweiHemingScreen
 import com.fortune.stall.ui.screen.BaziCastScreen
 import com.fortune.stall.ui.screen.BaziTaibuScreen
 import com.fortune.stall.ui.screen.XunrenBaziScreen
@@ -92,7 +93,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Route { HOME, LINEAGE, CAST, CAST_RESULT, JIANG, JISHUYU_HUB, JISHUYU_CAST, LIUYAO_PAI, WANNIANLI, LAOHUANGLI, SHANXIANG, FEIXING, YIZHANG, QIDUWENG, CHUANREN, TAIYI3SHI, TAIYI72, DALIUREN, MEIHUA, BAZI, HOTBUBAZI, YINPAN, MINGLI, ZIWEI, QIANXU, ARCHIVE, LEDGER, FAVORITES, SETTINGS, SKILLS, AI_CHAT }
+private enum class Route { HOME, LINEAGE, CAST, CAST_RESULT, JIANG, JISHUYU_HUB, JISHUYU_CAST, LIUYAO_PAI, WANNIANLI, LAOHUANGLI, SHANXIANG, FEIXING, YIZHANG, QIDUWENG, CHUANREN, TAIYI3SHI, TAIYI72, DALIUREN, MEIHUA, BAZI, HOTBUBAZI, YINPAN, MINGLI, ZIWEI, HEMING, QIANXU, ARCHIVE, LEDGER, FAVORITES, SETTINGS, SKILLS, AI_CHAT }
 
 @Composable
 private fun AppNavigation(
@@ -160,7 +161,7 @@ private fun AppNavigation(
     val sheetRoutes = setOf(
         Route.SHANXIANG, Route.FEIXING, Route.YIZHANG, Route.QIDUWENG,
         Route.CHUANREN, Route.TAIYI3SHI, Route.TAIYI72, Route.DALIUREN, Route.MEIHUA,
-        Route.BAZI, Route.HOTBUBAZI, Route.YINPAN, Route.MINGLI, Route.ZIWEI,
+        Route.BAZI, Route.HOTBUBAZI, Route.YINPAN, Route.MINGLI, Route.ZIWEI, Route.HEMING,
         Route.JISHUYU_CAST
     )
     Box(Modifier.fillMaxSize()) {
@@ -222,6 +223,10 @@ private fun AppNavigation(
         Route.YINPAN -> YinpanQimenCastScreen(db = db, onBack = { back() })
         Route.MINGLI -> MingliQimenCastScreen(db = db, onBack = { back() })
         Route.ZIWEI -> ZiweiCastScreen(db = db, onBack = { back() },
+            onAskAi = { ctx -> aiDirectContext = ctx; aiSession = null; go(Route.AI_CHAT) },
+            onHeming = { go(Route.HEMING) })
+        Route.HEMING -> ZiweiHemingScreen(
+            onBack = { back() },
             onAskAi = { ctx -> aiDirectContext = ctx; aiSession = null; go(Route.AI_CHAT) })
         Route.QIANXU -> QianxuScreen(db = db, onBack = { back() })
         Route.CAST -> CastScreen(

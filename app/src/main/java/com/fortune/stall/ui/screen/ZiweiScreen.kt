@@ -54,7 +54,7 @@ import java.time.format.DateTimeFormatter
  * 点击宫位画三方四正虚线；底部大限/流年联动表共用横向滚动。
  */
 @Composable
-fun ZiweiCastScreen(db: FortuneDb, onBack: () -> Unit, onAskAi: (String) -> Unit = {}) {
+fun ZiweiCastScreen(db: FortuneDb, onBack: () -> Unit, onAskAi: (String) -> Unit = {}, onHeming: () -> Unit = {}) {
     val ctx = LocalContext.current
     var result by remember { mutableStateOf<Ziwei.Result?>(null) }
     // 保存起卦参数，供详情页切换亮度流派时即时重排
@@ -77,7 +77,7 @@ fun ZiweiCastScreen(db: FortuneDb, onBack: () -> Unit, onAskAi: (String) -> Unit
             }
         }
     } else {
-        ZiweiDetailScreen(result!!, onBack, onAskAi, onSchoolChange = { school ->
+        ZiweiDetailScreen(result!!, onBack, onAskAi, onHeming, onSchoolChange = { school ->
             com.fortune.stall.util.ZiweiSettings.setSchool(school)
             lastArgs?.let { (dt, man, lon) ->
                 result = Ziwei.paipan(dt, man, -1, lon, false)
@@ -131,7 +131,7 @@ private data class FlyAnno(val text: String, val color: Color)
 
 @Composable
 private fun ZiweiDetailScreen(
-    r: Ziwei.Result, onBack: () -> Unit, onAskAi: (String) -> Unit,
+    r: Ziwei.Result, onBack: () -> Unit, onAskAi: (String) -> Unit, onHeming: () -> Unit,
     onSchoolChange: (String) -> Unit
 ) {
     val ctx = LocalContext.current
@@ -228,6 +228,13 @@ private fun ZiweiDetailScreen(
                     .clickable { onAskAi(ziweiFaceText(r)) }
                     .padding(horizontal = 18.dp, vertical = 6.dp)) {
                     Text("✦ 问 AI 解读命盘（13 维）", color = ZW_GOLD, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                }
+                Spacer(Modifier.height(6.dp))
+                Box(Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0x12FFFFFF))
+                    .border(1.dp, GRID_LINE, RoundedCornerShape(16.dp))
+                    .clickable(onClick = onHeming)
+                    .padding(horizontal = 18.dp, vertical = 6.dp)) {
+                    Text("☯ 合盘（双人 AI 分析）", color = ZW_T1, fontSize = 11.sp, fontWeight = FontWeight.Medium)
                 }
                 Spacer(Modifier.height(6.dp))
 
