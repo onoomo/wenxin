@@ -278,11 +278,17 @@ private data class IconTile1(val label: String, val key: String, val glyph: Glyp
 /** 单个图标磁贴：100% 透明卡片 + 余烬红圆角方块 + 白色线性图标 + 浅色名称（融入深空背景） */
 @Composable
 private fun IconTileNew(item: IconTile1, onClick: () -> Unit) {
+    // 名称单行显示：按字数自适应字号，避免窄格把名字折成两行
+    val labelSize = when {
+        item.label.length >= 5 -> 10.sp
+        item.label.length == 4 -> 11.sp
+        else -> 12.sp
+    }
     Column(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
             .background(Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(vertical = 14.dp, horizontal = 6.dp),
+            .padding(vertical = 8.dp, horizontal = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
@@ -297,14 +303,15 @@ private fun IconTileNew(item: IconTile1, onClick: () -> Unit) {
                 contentScale = ContentScale.Fit
             )
         }
-        Text(item.label, color = AppColors.Paper, fontSize = 12.sp,
+        Text(item.label, color = AppColors.Paper, fontSize = labelSize,
             fontWeight = FontWeight.Medium, textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 9.dp))
+            maxLines = 1, softWrap = false,
+            modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
     }
 }
 
 /**
- * 5 列可编辑术法网格。
+ * 4 列可编辑术法网格。
  * 常态：点击打开术法；长按进入编辑态。
  * 编辑态：拖动磁贴到目标位置松手即重排；点右上角 × 隐藏该术法。
  */
@@ -330,9 +337,9 @@ private fun IconGridEditable(
     var idx = 0
     while (idx < tiles.size) {
         val row = mutableListOf<Pair<Int, HomeTile>>()
-        repeat(5) { if (idx < tiles.size) { row.add(idx to tiles[idx]); idx++ } }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            repeat(5) { slot ->
+        repeat(4) { if (idx < tiles.size) { row.add(idx to tiles[idx]); idx++ } }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            repeat(4) { slot ->
                 Box(Modifier.weight(1f)) {
                     if (slot < row.size) {
                         val (displayIndex, item) = row[slot]
@@ -440,7 +447,7 @@ private fun IconGridEditable(
                 }
             }
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(6.dp))
     }
 }
 
