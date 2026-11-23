@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -356,6 +357,7 @@ private fun ChatBubble(m: ChatMessage) {
 }
 
 /** API 配置面板：端点 / 密钥 / 模型 / 提示词 / 上下文长度 + 预设 */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ApiConfigPanel() {
     val context = LocalContext.current
@@ -369,23 +371,18 @@ private fun ApiConfigPanel() {
         Text("接入 OpenAI 兼容的对话接口，密钥只保存在本机", color = AppColors.Muted, fontSize = 11.5.sp)
         Spacer(Modifier.height(12.dp))
 
-        // 预设
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            PresetChip("DeepSeek") {
-                endpoint = com.fortune.stall.util.AiSettings.DEFAULT_ENDPOINT
-                model = com.fortune.stall.util.AiSettings.DEFAULT_MODEL
-            }
-            PresetChip("OpenAI") {
-                endpoint = "https://api.openai.com/v1/chat/completions"
-                model = "gpt-3.5-turbo"
-            }
-            PresetChip("通义") {
-                endpoint = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
-                model = "qwen-plus"
-            }
-            PresetChip("智谱") {
-                endpoint = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
-                model = "glm-4-flash"
+        // 各大 AI 预设（接口与模型名按 2026 最新文档），点击一键填入
+        Text("选择服务商一键填入接口与模型名", color = AppColors.Dim, fontSize = 10.5.sp)
+        Spacer(Modifier.height(8.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            AiSettings.PRESETS.forEach { p ->
+                PresetChip(p.name, active = endpoint == p.endpoint) {
+                    endpoint = p.endpoint
+                    model = p.model
+                }
             }
         }
         Spacer(Modifier.height(14.dp))
@@ -419,15 +416,16 @@ private fun ApiConfigPanel() {
 }
 
 @Composable
-private fun PresetChip(label: String, onClick: () -> Unit) {
+private fun PresetChip(label: String, active: Boolean = false, onClick: () -> Unit) {
     Box(
         Modifier.clip(RoundedCornerShape(14.dp))
-            .background(Color(0x12FFFFFF))
-            .border(1.dp, AppColors.GoldLine.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+            .background(if (active) Color(0x55D9A441) else Color(0x12FFFFFF))
+            .border(1.dp, if (active) AppColors.Lantern else AppColors.GoldLine.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 7.dp)
     ) {
-        Text(label, color = AppColors.Lantern, fontSize = 11.5.sp)
+        Text(label, color = if (active) AppColors.Paper else AppColors.Lantern,
+            fontSize = 11.5.sp, fontWeight = if (active) FontWeight.Bold else FontWeight.Normal)
     }
 }
 
