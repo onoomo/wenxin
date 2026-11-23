@@ -43,14 +43,15 @@ import androidx.compose.ui.unit.sp
 import com.fortune.stall.data.FortuneDb
 import com.fortune.stall.engine.jishiyu.Ziwei
 import com.fortune.stall.util.LunarCalendar
-import com.fortune.stall.ui.theme.AppColors
+import java.time.Year
 import java.time.format.DateTimeFormatter
 
 /**
- * 紫微斗数专用起卦页 —— 对齐参考视频（吉时雨·紫微风格）。
- * 起卦表单：出生公历时间 / 性别 / 时辰索引(留空自动)。
- * 详情页：白底红标题栏 + 4×4 十二宫格(中央信息区) + 底部大限流年条。
- * 点击大限/流年/宫格：飞星四化落宫标注 + 三方四正虚线连线。
+ * 紫微斗数专用起卦页。
+ * 起卦表单沿用通用表单；详情页 1:1 移植 vvdevpro/ziwei-ds 的「深色金国风」盘面：
+ * 顶部本命/大限/流年 TimeNav + 年份切换；深色 4×4 十二宫格 + ☯ 中宫；
+ * 琥珀色主星（按亮度分档）+ 四化 badge + 大限/流年四化叠加；
+ * 点击宫位画三方四正虚线；底部大限/流年联动表共用横向滚动。
  */
 @Composable
 fun ZiweiCastScreen(db: FortuneDb, onBack: () -> Unit) {
@@ -75,128 +76,195 @@ fun ZiweiCastScreen(db: FortuneDb, onBack: () -> Unit) {
     }
 }
 
-// ===== 视频风格配色（白底 + 朱红标题 + 星曜分色）=====
-private val ZW_RED = Color(0xFFD9342B)          // 标题栏朱红 / 宫名红
-private val ZW_BG = Color(0xFFFFFFFF)           // 白底
-private val ZW_LINE = Color(0xFFC9C2B6)         // 宫格线 浅褐灰
-private val STAR_MAJOR = Color(0xFF2E5FA8)      // 主星 蓝
-private val STAR_MINOR = Color(0xFF3C6E9E)      // 辅星 深蓝
-private val STAR_ADJ = Color(0xFF6B6B6B)        // 杂曜 灰
-private val STAR_LIGHT = Color(0xFF3E7A6B)      // 亮度 绿灰
-private val MUT_COLOR = listOf(
-    Color(0xFF1E9E4F),  // 禄 绿
-    Color(0xFFD9342B),  // 权 红
-    Color(0xFF2E6FD0),  // 科 蓝
-    Color(0xFF8E44AD)   // 忌 紫
-)
-private val LINE_DASH = Color(0xFF7A7A7A)       // 三方四正虚线 灰
-private val FLY_GREEN = Color(0xFF1E9E4F)       // 飞星标注 绿
-private val HL_BG = Color(0x14D9342B)           // 选中宫高亮底色
+// ===== 深色金国风配色（对照参考项目 dark 主题的 --t-* token）=====
+private val ZW_BG        = Color(0xFF020810)          // --t-bg / --bg-0  深蓝黑底
+private val ZW_SURFACE   = Color(0xFF0A1020)          // --t-surface / --bg-1
+private val ZW_CARD      = Color(0xFF141E30)          // --bg-2
+private val ZW_BORDER    = Color(0x1FFFFFFF)          // --t-border (white 12%)
+private val ZW_BORDER_H  = Color(0x33FFFFFF)          // 稍亮边框
+private val ZW_GOLD      = Color(0xFFD4A843)          // --t-gold 墨金
+private val ZW_GOLD_DIM  = Color(0xFFE8C060)          // --ac-dim
+private val ZW_T0        = Color(0xFFE8EEF6)          // --tx-0
+private val ZW_T1        = Color(0xFFDCE4F0)          // --tx-1
+private val ZW_T2        = Color(0xFF9DB0D0)          // --tx-2
+private val ZW_FAINT     = Color(0xFF6A7A96)          // --t-faint
 
-// 选中信息：地支绝对序号(0子..11亥) + 显示文案 + 来源类型(区分大限/流年,避免联动) + 天干(算四化)
+// 主星按亮度分档（参考：bright=amber-300 / normal=amber-500 / dim=amber-700）
+private val STAR_BRIGHT  = Color(0xFFFCD34D)
+private val STAR_NORMAL  = Color(0xFFF59E0B)
+private val STAR_DIM     = Color(0xFFB45309)
+private val STAR_LUCKY   = Color(0xB20EA5E9)          // 吉星 sky-500/70
+private val STAR_SHA     = Color(0x99EF4444)          // 煞星 red-500/60
+private val STAR_ADJ     = Color(0x806A7A96)          // 杂曜 淡
+
+// 四化语义色：禄绿 权蓝 科黄 忌红（dark 下用 400 档）
+private val SH_COLORS = listOf(Color(0xFF4ADE80), Color(0xFF60A5FA), Color(0xFFFACC15), Color(0xFFF87171))
+private val SH_BG     = listOf(Color(0x1A4ADE80), Color(0x1A60A5FA), Color(0x1AFACC15), Color(0x1AF87171))
+private fun shIdx(s: String) = when (s) { "禄" -> 0; "权" -> 1; "科" -> 2; else -> 3 }
+
+// 选中/三方/大限底色
+private val SEL_BG      = Color(0x2E2563EB)           // rgba(37,99,235,0.18)
+private val SEL_LINE    = Color(0xB32563EB)
+private val SANFANG_BG  = Color(0x172563EB)           // rgba(37,99,235,0.09)
+private val DX_BG       = Color(0x14933EA)            // rgba(147,51,234,0.08)
+private val DX_STRIP    = Color(0x80933EA)
+private val MING_TINT   = Color(0x0AD4A843)           // rgba(212,168,67,0.04)
+private val GRID_LINE   = Color(0x24FFFFFF)
+private val SF_STROKE   = Color(0x8C2563EB)           // 三方四正线 rgba(37,99,235,0.55)
+private val FLY_STROKE  = Color(0x66B0BEC8)           // 飞星落宫线
+
+private enum class ZwView { MINGPAN, DAXIAN, LIUNIAN }
+// 选中信息：地支绝对序号(0子..11亥) + 文案 + 来源类型 + 天干(算四化)
 private enum class ZwSelType { PALACE, DECADAL, YEARLY }
 private data class ZwSel(val zhi: Int, val label: String, val type: ZwSelType, val gan: String)
-
-/** 飞星落宫标注：落宫地支绝对序号 -> 该宫的标注(可多个) */
 private data class FlyAnno(val text: String, val color: Color)
 
 @Composable
 private fun ZiweiDetailScreen(r: Ziwei.Result, onBack: () -> Unit) {
+    val ctx = LocalContext.current
     val scroll = rememberScrollState()
+    var view by remember { mutableStateOf(ZwView.MINGPAN) }
+    var liunianYear by remember { mutableStateOf(Year.now().value) }
     var sel by remember { mutableStateOf<ZwSel?>(null) }
 
-    // 计算飞星四化：选中宫的天干 -> 禄权科忌四星 -> 各星落宫 -> 落宫显示"禄/权/科/忌"标注
+    val nowYear = Year.now().value
+    val (dxZhi, dxGan) = remember(r) { Ziwei.currentDaXian(r, nowYear) }
+    val dxPalace = r.palaces.firstOrNull { ziToIdx(it.zhi) == dxZhi }
+    val dxRange = dxPalace?.decadal
+
+    // 当前 view 的四化叠加：星名 -> [禄/权/科/忌]
+    val overlay: Map<String, String> = remember(view, dxGan, liunianYear, r) {
+        val gan = when (view) {
+            ZwView.MINGPAN -> null
+            ZwView.DAXIAN  -> dxGan
+            ZwView.LIUNIAN -> Ziwei.yearGan(liunianYear)
+        }
+        if (gan == null) emptyMap() else {
+            val s = Ziwei.sihua(gan)
+            val types = listOf("禄", "权", "科", "忌")
+            s.mapIndexedNotNull { i, name -> if (name.isBlank()) null else name to types[i] }.toMap()
+        }
+    }
+    val overlayLabel = when (view) { ZwView.DAXIAN -> "限"; ZwView.LIUNIAN -> "年"; else -> null }
+    val overlayGanName = when (view) {
+        ZwView.DAXIAN  -> dxGan
+        ZwView.LIUNIAN -> Ziwei.yearGan(liunianYear)
+        else -> ""
+    }
+
+    // 飞星落宫：选中来源天干 -> 四化落宫（本命选中用出生年干）
     val flyMap: Map<Int, List<FlyAnno>> = remember(sel, r) {
         val m = mutableMapOf<Int, MutableList<FlyAnno>>()
         sel?.let { s ->
-            val sihua = Ziwei.sihua(s.gan) // [禄,权,科,忌] 星名
-            val prefix = when (s.type) { ZwSelType.DECADAL -> "大"; ZwSelType.YEARLY -> "年"; else -> "" }
+            val sihua = Ziwei.sihua(s.gan)
+            val prefix = when (s.type) { ZwSelType.DECADAL -> "限"; ZwSelType.YEARLY -> "年"; else -> "" }
             sihua.forEachIndexed { i, star ->
                 if (star.isBlank()) return@forEachIndexed
                 val zhi = Ziwei.starZhi(r, star) ?: return@forEachIndexed
                 val idx = ziToIdx(zhi)
-                // 视频风格：落宫标注「大/年 + 落宫宫名首字」，四化类型用颜色区分
                 val palaceName = r.palaces.firstOrNull { it.zhi == zhi }?.name ?: ""
-                val text = prefix + palaceName.take(1)
-                m.getOrPut(idx) { mutableListOf() }.add(FlyAnno(text, MUT_COLOR[i]))
+                m.getOrPut(idx) { mutableListOf() }
+                    .add(FlyAnno(prefix + palaceName.take(1), SH_COLORS[i]))
             }
         }
         m
     }
 
+    val sanFang = sel?.let { intArrayOf(it.zhi, (it.zhi + 6) % 12, (it.zhi + 4) % 12, (it.zhi + 8) % 12) }
+
     Box(Modifier.fillMaxSize().background(ZW_BG)) {
         Column(Modifier.fillMaxSize()) {
-            ZwRedNavBar("紫微斗数", onBack)
-            Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(scroll).padding(horizontal = 3.dp)) {
-                // 4x4 宫格 + 三方四正连线 + 飞星连线覆盖层
+            ZwGoldNavBar("紫微斗数", onBack)
+            Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(scroll).padding(horizontal = 8.dp)) {
+                Spacer(Modifier.height(8.dp))
+                // TimeNav：本命 / 大限 / 流年 + 年份切换
+                ZwTimeNav(view, liunianYear, dxRange, overlay, overlayGanName,
+                    onView = { view = it }, onYear = { liunianYear = it })
+                Spacer(Modifier.height(10.dp))
+                // 标题
+                Text("Z I   W E I   D O U   S H U", color = ZW_FAINT, fontSize = 8.sp,
+                    letterSpacing = 3.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                Text("${r.solarDate.substringBefore('-')} · 紫微斗数命盘", color = ZW_GOLD,
+                    fontSize = 14.sp, fontWeight = FontWeight.Medium,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), textAlign = TextAlign.Center)
+
+                // 4x4 宫格 + 覆盖连线
                 val lineW = 1.dp
-                val rowH = 128.dp
+                val rowH = 118.dp
                 Box(Modifier.fillMaxWidth()) {
-                    Column(Modifier.fillMaxWidth().border(lineW, ZW_LINE)) {
+                    Column(Modifier.fillMaxWidth().border(lineW, GRID_LINE, RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(10.dp))) {
                         Row(Modifier.fillMaxWidth().height(rowH)) {
-                            ZwCell(byZhi(r)[5], 5, sel, flyMap, Modifier.weight(1f)) { sel = it }
-                            ZwCell(byZhi(r)[6], 6, sel, flyMap, Modifier.weight(1f)) { sel = it }
-                            ZwCell(byZhi(r)[7], 7, sel, flyMap, Modifier.weight(1f)) { sel = it }
-                            ZwCell(byZhi(r)[8], 8, sel, flyMap, Modifier.weight(1f)) { sel = it }
+                            ZwCell(byZhi(r)[5], 5, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi, Modifier.weight(1f)) { sel = it }
+                            ZwCell(byZhi(r)[6], 6, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi, Modifier.weight(1f)) { sel = it }
+                            ZwCell(byZhi(r)[7], 7, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi, Modifier.weight(1f)) { sel = it }
+                            ZwCell(byZhi(r)[8], 8, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi, Modifier.weight(1f)) { sel = it }
                         }
-                        ZWDivider()
+                        ZwGridDivider(lineW)
                         Row(Modifier.fillMaxWidth().height(rowH)) {
-                            ZwCell(byZhi(r)[4], 4, sel, flyMap, Modifier.weight(1f)) { sel = it }
-                            Box(Modifier.weight(2f).border(lineW, ZW_LINE)) { ZiweiCenter(r) }
-                            ZwCell(byZhi(r)[9], 9, sel, flyMap, Modifier.weight(1f)) { sel = it }
+                            ZwCell(byZhi(r)[4], 4, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi, Modifier.weight(1f)) { sel = it }
+                            Box(Modifier.weight(2f).border(lineW, GRID_LINE)) { ZwCenterTop(r) }
+                            ZwCell(byZhi(r)[9], 9, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi, Modifier.weight(1f)) { sel = it }
                         }
-                        ZWDivider()
+                        ZwGridDivider(lineW)
                         Row(Modifier.fillMaxWidth().height(rowH)) {
-                            ZwCell(byZhi(r)[3], 3, sel, flyMap, Modifier.weight(1f)) { sel = it }
-                            Box(Modifier.weight(2f).border(lineW, ZW_LINE)) { ZiweiCenter2(r) }
-                            ZwCell(byZhi(r)[10], 10, sel, flyMap, Modifier.weight(1f)) { sel = it }
+                            ZwCell(byZhi(r)[3], 3, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi, Modifier.weight(1f)) { sel = it }
+                            Box(Modifier.weight(2f).border(lineW, GRID_LINE)) { ZwCenterBottom(r, dxRange) }
+                            ZwCell(byZhi(r)[10], 10, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi, Modifier.weight(1f)) { sel = it }
                         }
-                        ZWDivider()
+                        ZwGridDivider(lineW)
                         Row(Modifier.fillMaxWidth().height(rowH)) {
-                            ZwCell(byZhi(r)[2], 2, sel, flyMap, Modifier.weight(1f)) { sel = it }
-                            ZwCell(byZhi(r)[1], 1, sel, flyMap, Modifier.weight(1f)) { sel = it }
-                            ZwCell(byZhi(r)[0], 0, sel, flyMap, Modifier.weight(1f)) { sel = it }
-                            ZwCell(byZhi(r)[11], 11, sel, flyMap, Modifier.weight(1f)) { sel = it }
+                            ZwCell(byZhi(r)[2], 2, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi, Modifier.weight(1f)) { sel = it }
+                            ZwCell(byZhi(r)[1], 1, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi, Modifier.weight(1f)) { sel = it }
+                            ZwCell(byZhi(r)[0], 0, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi, Modifier.weight(1f)) { sel = it }
+                            ZwCell(byZhi(r)[11], 11, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi, Modifier.weight(1f)) { sel = it }
                         }
                     }
-                    // 三方四正 + 飞星连线（覆盖在宫格上层，不拦截点击）
                     if (sel != null) {
                         Canvas(Modifier.fillMaxSize()) {
-                            val border = lineW.toPx()
-                            val rh = rowH.toPx()
-                            val div = lineW.toPx()
+                            val border = lineW.toPx(); val rh = rowH.toPx(); val div = lineW.toPx()
                             val cw = (size.width - 2 * border) / 4f
                             fun center(z: Int): FloatArray {
                                 val (rr, cc) = zhiToRC(z)
                                 return floatArrayOf(border + cc * cw + cw / 2f, border + rr * (rh + div) + rh / 2f)
                             }
                             val z = sel!!.zhi
-                            val opp = (z + 6) % 12
-                            val s1 = (z + 4) % 12
-                            val s2 = (z + 8) % 12
-                            val cOpp = center(opp); val cSel = center(z); val cS1 = center(s1); val cS2 = center(s2)
-                            val path = Path().apply {
-                                moveTo(cOpp[0], cOpp[1]); lineTo(cSel[0], cSel[1]); lineTo(cS1[0], cS1[1])
-                                lineTo(cS2[0], cS2[1]); lineTo(cSel[0], cSel[1])
+                            val p0 = center(z); val p1 = center((z + 6) % 12)
+                            val p2 = center((z + 4) % 12); val p3 = center((z + 8) % 12)
+                            val dash = PathEffect.dashPathEffect(floatArrayOf(6f, 5f))
+                            val style = Stroke(width = 1.4.dp.toPx(), pathEffect = dash, cap = StrokeCap.Round)
+                            // 对宫直线 + 三合三角形
+                            drawPath(Path().apply { moveTo(p0[0], p0[1]); lineTo(p1[0], p1[1]) }, SF_STROKE, style = style)
+                            drawPath(Path().apply { moveTo(p0[0], p0[1]); lineTo(p2[0], p2[1]); lineTo(p3[0], p3[1]); lineTo(p0[0], p0[1]) }, SF_STROKE, style = style)
+                            listOf(p0, p1, p2, p3).forEachIndexed { i, p ->
+                                drawCircle(SF_STROKE.copy(alpha = if (i == 0) 0.95f else 0.6f),
+                                    radius = 3.dp.toPx(), center = Offset(p[0], p[1]))
                             }
-                            drawPath(path, LINE_DASH, style = Stroke(
-                                width = 1.4.dp.toPx(),
-                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 5f)),
-                                cap = StrokeCap.Round))
-                            // 飞星落宫连线（选中宫 -> 各落宫）
+                            // 飞星落宫连线
                             flyMap.keys.forEach { tz ->
                                 val c = center(tz)
-                                val fp = Path().apply { moveTo(cSel[0], cSel[1]); lineTo(c[0], c[1]) }
-                                drawPath(fp, Color(0xFFBBBBBB), style = Stroke(
-                                    width = 1.dp.toPx(),
-                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 5f))))
+                                drawPath(Path().apply { moveTo(p0[0], p0[1]); lineTo(c[0], c[1]) }, FLY_STROKE,
+                                    style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 5f))))
                             }
                         }
                     }
                 }
 
-                Spacer(Modifier.height(8.dp))
-                // 底部：大限 + 流年 两行表（视频样式），点击联动飞星
+                Spacer(Modifier.height(10.dp))
+                // 图例
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically) {
+                    listOf("禄", "权", "科", "忌").forEach { s ->
+                        ZwBadge(s, false, null)
+                        Spacer(Modifier.width(5.dp))
+                    }
+                }
+                Text("点击宫位看三方四正 · 切本命/大限/流年看四化叠加", color = ZW_FAINT,
+                    fontSize = 8.5.sp, modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    textAlign = TextAlign.Center)
+
+                Spacer(Modifier.height(12.dp))
+                // 底部：大限 + 流年联动表（深色）
                 ZwBottomTable(r, sel) { sel = it }
                 Spacer(Modifier.height(20.dp))
             }
@@ -204,165 +272,258 @@ private fun ZiweiDetailScreen(r: Ziwei.Result, onBack: () -> Unit) {
     }
 }
 
-@Composable private fun ZWDivider() = Box(Modifier.fillMaxWidth().height(1.dp).background(ZW_LINE))
+@Composable private fun ZwGridDivider(w: androidx.compose.ui.unit.Dp) =
+    Box(Modifier.fillMaxWidth().height(w).background(GRID_LINE))
 
 private fun byZhi(r: Ziwei.Result) = r.palaces.associateBy { ziToIdx(it.zhi) }
 
+// ===== 宫格 =====
 @Composable
 private fun ZwCell(
-    p: Ziwei.Palace?, z: Int, sel: ZwSel?, fly: Map<Int, List<FlyAnno>>,
+    p: Ziwei.Palace?, z: Int, r: Ziwei.Result, sel: ZwSel?, fly: Map<Int, List<FlyAnno>>,
+    sanFang: IntArray?, overlay: Map<String, String>, overlayLabel: String?, dxZhi: Int,
     modifier: Modifier, onSelect: (ZwSel) -> Unit
 ) {
     val active = sel?.zhi == z
+    val isCurrentDx = dxZhi == z
+    val isMing = z == Ziwei.mingZhiIdx(r)
+    val isShen = p?.isBody == true
+    val isSanFang = sanFang?.contains(z) == true && !active
     val gan = p?.gan ?: ""
-    val zhi = ZHI_CN[z]
-    Box(modifier.border(1.dp, if (active) ZW_RED else ZW_LINE)
-        .background(if (active) HL_BG else ZW_BG)
-        .clickable { onSelect(ZwSel(z, "选中 ${gan}${zhi} · ${p?.name ?: ""}", ZwSelType.PALACE, gan)) }
+
+    val bg = when {
+        isCurrentDx -> DX_BG
+        active -> SEL_BG
+        isSanFang -> SANFANG_BG
+        isMing || isShen -> MING_TINT
+        else -> ZW_BG
+    }
+    val borderColor = when {
+        active -> SEL_LINE
+        isSanFang -> Color(0x662563EB)
+        else -> GRID_LINE
+    }
+    Box(modifier.background(bg).border(1.dp, borderColor)
+        .clickable {
+            if (active) Unit else onSelect(ZwSel(z, "选中 ${gan}${ZHI_CN[z]} · ${p?.name ?: ""}", ZwSelType.PALACE, gan))
+        }
         .padding(horizontal = 3.dp, vertical = 2.dp)) {
+        if (isCurrentDx) Box(Modifier.width(3.dp).fillMaxSize().background(DX_STRIP))
         if (p == null) return@Box
         Column(Modifier.fillMaxSize()) {
-            // 星曜区（主星/辅星/杂曜 + 亮度 + 四化）
-            Column(Modifier.weight(1f)) {
-                p.major.forEach { ZwStarLine(it) }
-                p.minor.forEach { ZwStarLine(it) }
-                p.adj.chunked(2).forEach { pair ->
-                    Text(pair.joinToString(" "), color = STAR_ADJ, fontSize = 8.5.sp, lineHeight = 10.sp)
+            // 宫名行（右上大限年龄）
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Text(p.name, color = when { isMing -> ZW_GOLD; isShen -> STAR_LUCKY; else -> ZW_FAINT },
+                    fontSize = 10.sp, fontWeight = if (isMing || isShen) FontWeight.Medium else FontWeight.Normal,
+                    lineHeight = 12.sp)
+                if (isMing) Text("命", color = ZW_GOLD, fontSize = 7.sp, modifier = Modifier.padding(start = 2.dp))
+                if (isShen) Text("身", color = STAR_LUCKY, fontSize = 7.sp, modifier = Modifier.padding(start = 2.dp))
+                Spacer(Modifier.weight(1f))
+                Text("${p.decadal.first}-${p.decadal.second}", color = if (isCurrentDx) Color(0xFFC084FC) else ZW_FAINT,
+                    fontSize = 7.5.sp, lineHeight = 10.sp)
+            }
+            // 干支
+            Text(gan + ZHI_CN[z], color = ZW_FAINT, fontSize = 8.sp, lineHeight = 10.sp)
+            // 主星
+            val majors = p.major
+            if (majors.isEmpty()) Text("空宫", color = ZW_FAINT.copy(0.5f), fontSize = 9.sp)
+            majors.forEach { s ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(s.name, color = starBrightColor(s.brightness), fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold, lineHeight = 13.sp)
+                    if (s.mutagen.isNotEmpty()) ZwBadge(s.mutagen, false, null)
+                    overlay[s.name]?.let { ZwBadge(it, true, overlayLabel) }
                 }
             }
-            // 飞星落宫标注（禄/权/科/忌）
-            val annos = fly[z]
-            if (annos != null && annos.isNotEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                    annos.forEach { a ->
-                        Text(a.text, color = a.color, fontSize = 9.sp, fontWeight = FontWeight.Bold, lineHeight = 10.sp)
-                    }
-                }
-            }
-            // 底部行：起运岁数 + 长生 + 宫名 + 地支
-            Text("${p.decadal.first}-${p.decadal.second}", color = Color(0xFF9A9A9A), fontSize = 7.5.sp, lineHeight = 9.sp)
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-                Column(Modifier.weight(1f)) {
-                    Text(p.changsheng, color = STAR_LIGHT, fontSize = 8.sp, lineHeight = 9.sp)
-                    Text(p.boshi, color = Color(0xFF8A7BA8), fontSize = 8.sp, lineHeight = 9.sp)
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(if (p.isBody) "${p.name}·身" else p.name, color = ZW_RED,
-                        fontSize = 13.sp, fontWeight = FontWeight.Bold, lineHeight = 14.sp)
-                    Text(gan + zhi, color = Color(0xFF8A8A8A), fontSize = 8.sp, lineHeight = 9.sp)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ZwStarLine(s: Ziwei.Star) {
-    val color = when (s.type) { "major" -> STAR_MAJOR; else -> STAR_MINOR }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(s.name, color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold, lineHeight = 12.sp)
-        if (s.brightness.isNotEmpty()) Text(s.brightness, color = STAR_LIGHT, fontSize = 8.sp, lineHeight = 12.sp)
-        if (s.mutagen.isNotEmpty()) {
-            val c = MUT_COLOR[when (s.mutagen) { "禄" -> 0; "权" -> 1; "科" -> 2; else -> 3 }]
-            Text(s.mutagen, color = c, fontSize = 8.sp, fontWeight = FontWeight.Bold, lineHeight = 12.sp)
-        }
-    }
-}
-
-@Composable
-private fun ZiweiCenter(r: Ziwei.Result) {
-    Column(Modifier.fillMaxSize().padding(horizontal = 6.dp, vertical = 5.dp)) {
-        Text("吉时雨 · 紫微", color = Color(0xFF7B3FB5), fontSize = 14.sp, fontWeight = FontWeight.Bold,
-            modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-        Spacer(Modifier.height(3.dp))
-        val yinYang = if (Ziweiyang(r.yearGan)) "阳" else "阴"
-        val gender = if (r.isMan) "男" else "女"
-        Text("$yinYang$gender · ${r.juName}", color = Color(0xFF7B3FB5), fontSize = 11.5.sp,
-            modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-        Spacer(Modifier.height(5.dp))
-        Text("公历：${r.solarDate} ${r.timeRange}", color = Color(0xFF444444), fontSize = 9.5.sp, lineHeight = 13.sp)
-        Text("农历：${lunarCn(r)} ${zhiToShi(r)}", color = Color(0xFF444444), fontSize = 9.5.sp, lineHeight = 13.sp)
-        Text("属相：${r.zodiac}   星座：${r.sign}", color = Color(0xFF444444), fontSize = 9.5.sp, lineHeight = 13.sp)
-        Text("命主：${r.soul}   身主：${r.body}", color = Color(0xFF444444), fontSize = 9.5.sp, lineHeight = 13.sp)
-        Text("命宫：${r.ebSoul}   身宫：${r.ebBody}", color = Color(0xFF444444), fontSize = 9.5.sp, lineHeight = 13.sp)
-    }
-}
-
-@Composable
-private fun ZiweiCenter2(r: Ziwei.Result) {
-    Column(Modifier.fillMaxSize().padding(horizontal = 6.dp, vertical = 5.dp)) {
-        // 四柱（天干一行彩色、地支一行）：丙 己 辛 丁 / 午 亥 卯 酉
-        val ganZhi = r.chineseDate.split(" ").filter { it.length >= 2 }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            ganZhi.forEach { gz ->
-                Text(gz[0].toString(), color = Color(0xFF444444), fontSize = 19.sp,
-                    fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-            }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            ganZhi.forEach { gz ->
-                Text(gz[1].toString(), color = Color(0xFF444444), fontSize = 19.sp,
-                    fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-            }
-        }
-        Spacer(Modifier.height(4.dp))
-        Text("出生后 ${r.juName.replace("局","")} 起运 · 五行局 ${r.wuxingju}",
-            color = Color(0xFF666666), fontSize = 8.5.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-        Text("自化  →禄 →权 →科 →忌", color = Color(0xFF888888), fontSize = 9.sp,
-            modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-    }
-}
-
-@Composable
-private fun ZwBottomTable(r: Ziwei.Result, sel: ZwSel?, onSelect: (ZwSel) -> Unit) {
-    val birthYear = r.solarDate.substringBefore("-").toIntOrNull() ?: 2000
-    // 两行共用一个滚动状态：滑动大限时流年表同步跟着动（1:1 原版联动）
-    val sharedScroll = rememberScrollState()
-    val cellW = 50.dp
-    Column(Modifier.fillMaxWidth().border(1.dp, ZW_LINE).background(Color(0xFFFBFAF7))) {
-        Row(Modifier.fillMaxWidth()) {
-            // 左侧固定行标签列
-            Column(Modifier.width(30.dp)) {
-                Box(Modifier.fillMaxWidth().height(46.dp).background(Color(0xFFF2EEE6)).border(1.dp, ZW_LINE),
-                    contentAlignment = Alignment.Center) {
-                    Text("大\n限", color = Color(0xFF6B5B3A), fontSize = 11.sp, textAlign = TextAlign.Center, lineHeight = 13.sp)
-                }
-                Box(Modifier.fillMaxWidth().height(46.dp).background(Color(0xFFF2EEE6)).border(1.dp, ZW_LINE),
-                    contentAlignment = Alignment.Center) {
-                    Text("流\n年", color = Color(0xFF6B5B3A), fontSize = 11.sp, textAlign = TextAlign.Center, lineHeight = 13.sp)
-                }
-            }
-            // 大限 / 流年两行放进同一个横向滚动容器，列宽一致、上下对齐、同步移动
-            Column(Modifier.weight(1f).horizontalScroll(sharedScroll)) {
-                // 大限行
-                Row(Modifier.height(46.dp)) {
-                    r.palaces.sortedBy { it.decadal.first }.forEach { p ->
-                        val z = ziToIdx(p.zhi)
-                        val active = sel?.type == ZwSelType.DECADAL && sel?.zhi == z
-                        Column(Modifier.width(cellW).border(0.5.dp, ZW_LINE)
-                            .background(if (active) Color(0xFFFFE0B2) else Color.Transparent)
-                            .clickable { onSelect(ZwSel(z, "大限 ${p.decadal.first}-${p.decadal.second} · ${p.name}${p.gan}${p.zhi}", ZwSelType.DECADAL, p.gan)) }
-                            .padding(2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("${p.decadal.first}-${p.decadal.second}", color = Color(0xFF888888), fontSize = 8.5.sp)
-                            Text(p.gan + p.zhi, color = ganWuXingColor(p.gan), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            // 吉星
+            val luckies = p.minor.filter { it.type != "tough" }
+            if (luckies.isNotEmpty()) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    luckies.forEach { s ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(s.name, color = STAR_LUCKY, fontSize = 8.5.sp, lineHeight = 10.sp)
+                            if (s.mutagen.isNotEmpty()) ZwBadge(s.mutagen, false, null)
+                            overlay[s.name]?.let { ZwBadge(it, true, overlayLabel) }
                         }
                     }
                 }
-                // 流年行：与大限行共用滚动，从左到右逐年排列
+            }
+            // 煞星
+            val shas = p.minor.filter { it.type == "tough" }
+            if (shas.isNotEmpty()) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    shas.forEach { s -> Text(s.name, color = STAR_SHA, fontSize = 8.5.sp, lineHeight = 10.sp) }
+                }
+            }
+            // 杂曜（淡色）
+            if (p.adj.isNotEmpty()) {
+                Text(p.adj.take(6).joinToString(" "), color = STAR_ADJ, fontSize = 7.sp, lineHeight = 9.sp,
+                    maxLines = 1)
+            }
+            // 飞星落宫标注
+            val annos = fly[z]
+            if (!annos.isNullOrEmpty()) {
+                Spacer(Modifier.weight(1f))
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    annos.forEach { Text(it.text, color = it.color, fontSize = 8.sp, fontWeight = FontWeight.Bold) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ZwBadge(sihua: String, overlay: Boolean, label: String?) {
+    val i = shIdx(sihua); val c = SH_COLORS[i]
+    Row(verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(RoundedCornerShape(3.dp))
+            .background(SH_BG[i])
+            .border(0.5.dp, c.copy(alpha = if (overlay) 0.6f else 0.7f), RoundedCornerShape(3.dp))
+            .padding(horizontal = 2.dp)) {
+        if (overlay && label != null) Text(label, color = c.copy(0.75f), fontSize = 6.5.sp)
+        Text(sihua, color = c, fontSize = 7.5.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+private fun starBrightColor(b: String) = when (b) {
+    "庙", "旺" -> STAR_BRIGHT
+    "陷", "不" -> STAR_DIM
+    else -> STAR_NORMAL
+}
+
+// ===== ☯ 中宫 =====
+@Composable
+private fun ZwCenterTop(r: Ziwei.Result) {
+    Column(Modifier.fillMaxSize().background(ZW_BG).padding(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Text("☯", color = ZW_GOLD.copy(0.18f), fontSize = 44.sp, lineHeight = 44.sp)
+        Text("紫微斗数", color = ZW_GOLD, fontSize = 9.sp, fontWeight = FontWeight.Medium, letterSpacing = 3.sp)
+        Text("命宫 ${r.ebSoul}   身宫 ${r.ebBody}", color = ZW_T2, fontSize = 8.sp)
+        Text(r.juName, color = ZW_GOLD.copy(0.75f), fontSize = 8.sp)
+    }
+}
+
+@Composable
+private fun ZwCenterBottom(r: Ziwei.Result, dxRange: Pair<Int, Int>?) {
+    Column(Modifier.fillMaxSize().background(ZW_BG).padding(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        if (dxRange != null) {
+            Column(Modifier.clip(RoundedCornerShape(6.dp)).background(Color(0x14933EA))
+                .border(0.5.dp, Color(0x3A933EA), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 3.dp),
+                horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("当前大限", color = Color(0xFFC084FC).copy(0.8f), fontSize = 7.sp)
+                Text("${dxRange.first}–${dxRange.second} 岁", color = Color(0xFFC084FC), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+            }
+        }
+        val lunar = lunarCn(r).removePrefix("农历")
+        Text(lunar, color = ZW_FAINT, fontSize = 7.5.sp, modifier = Modifier.padding(top = 4.dp))
+        Text("${r.chineseDate.split(' ').getOrNull(0) ?: ""} 年", color = ZW_FAINT, fontSize = 7.5.sp)
+    }
+}
+
+// ===== TimeNav =====
+@Composable
+private fun ZwTimeNav(
+    view: ZwView, year: Int, dxRange: Pair<Int, Int>?, overlay: Map<String, String>,
+    overlayGanName: String, onView: (ZwView) -> Unit, onYear: (Int) -> Unit
+) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+        .background(ZW_SURFACE).border(1.dp, ZW_BORDER, RoundedCornerShape(10.dp)).padding(5.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            ZwTab("本命", view == ZwView.MINGPAN, Modifier.weight(1f)) { onView(ZwView.MINGPAN) }
+            Spacer(Modifier.width(4.dp))
+            ZwTab(if (dxRange != null) "大限 ${dxRange.first}-${dxRange.second}" else "大限",
+                view == ZwView.DAXIAN, Modifier.weight(1.4f)) { onView(ZwView.DAXIAN) }
+            Spacer(Modifier.width(4.dp))
+            // 流年 + 年份切换
+            Row(Modifier.weight(1.6f).clip(RoundedCornerShape(8.dp))
+                .background(if (view == ZwView.LIUNIAN) Color(0x1AD4A843) else Color.Transparent)
+                .border(1.dp, if (view == ZwView.LIUNIAN) Color(0x40D4A843) else Color.Transparent, RoundedCornerShape(8.dp))
+                .padding(horizontal = 2.dp, vertical = 3.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                Text("流年", color = if (view == ZwView.LIUNIAN) ZW_GOLD else ZW_FAINT,
+                    fontSize = 9.sp, modifier = Modifier.clickable { onView(ZwView.LIUNIAN) })
+                Spacer(Modifier.width(3.dp))
+                Text("‹", color = ZW_FAINT, fontSize = 12.sp, modifier = Modifier.clickable { onYear(year - 1); onView(ZwView.LIUNIAN) })
+                Text("$year", color = if (view == ZwView.LIUNIAN) ZW_GOLD else ZW_FAINT,
+                    fontSize = 9.sp, modifier = Modifier.clickable { onView(ZwView.LIUNIAN) })
+                Text("›", color = ZW_FAINT, fontSize = 12.sp, modifier = Modifier.clickable { onYear(year + 1); onView(ZwView.LIUNIAN) })
+            }
+        }
+        if (view != ZwView.MINGPAN && overlay.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth().padding(top = 5.dp).padding(horizontal = 2.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                val prefix = if (view == ZwView.DAXIAN) "大限" else "$year"
+                Text("$prefix · $overlayGanName 四化：", color = ZW_FAINT, fontSize = 8.5.sp)
+                listOf("禄", "权", "科", "忌").forEach { sh ->
+                    val star = overlay.entries.firstOrNull { it.value == sh }?.key
+                    if (star != null) {
+                        Text("${star}化$sh", color = SH_COLORS[shIdx(sh)], fontSize = 8.5.sp, fontWeight = FontWeight.Medium)
+                        Spacer(Modifier.width(5.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ZwTab(text: String, active: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    Text(text, color = if (active) ZW_GOLD else ZW_FAINT, fontSize = 9.5.sp,
+        fontWeight = if (active) FontWeight.Medium else FontWeight.Normal,
+        textAlign = TextAlign.Center, modifier = modifier.clip(RoundedCornerShape(8.dp))
+            .background(if (active) Color(0x1AD4A843) else Color.Transparent)
+            .border(1.dp, if (active) Color(0x40D4A843) else Color.Transparent, RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick).padding(vertical = 5.dp))
+}
+
+// ===== 底部大限/流年联动表（深色）=====
+@Composable
+private fun ZwBottomTable(r: Ziwei.Result, sel: ZwSel?, onSelect: (ZwSel) -> Unit) {
+    val birthYear = r.solarDate.substringBefore("-").toIntOrNull() ?: 2000
+    val sharedScroll = rememberScrollState()
+    val cellW = 52.dp
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+        .border(1.dp, ZW_BORDER, RoundedCornerShape(8.dp)).background(ZW_SURFACE)) {
+        Row(Modifier.fillMaxWidth()) {
+            Column(Modifier.width(34.dp)) {
+                Box(Modifier.fillMaxWidth().height(46.dp).background(ZW_CARD).border(0.5.dp, ZW_BORDER),
+                    contentAlignment = Alignment.Center) {
+                    Text("大\n限", color = ZW_GOLD, fontSize = 10.sp, textAlign = TextAlign.Center, lineHeight = 12.sp)
+                }
+                Box(Modifier.fillMaxWidth().height(46.dp).background(ZW_CARD).border(0.5.dp, ZW_BORDER),
+                    contentAlignment = Alignment.Center) {
+                    Text("流\n年", color = ZW_GOLD, fontSize = 10.sp, textAlign = TextAlign.Center, lineHeight = 12.sp)
+                }
+            }
+            Column(Modifier.weight(1f).horizontalScroll(sharedScroll)) {
                 Row(Modifier.height(46.dp)) {
-                    val count = 90
-                    for (k in 0 until count) {
+                    r.palaces.sortedBy { it.decadal.first }.forEach { p ->
+                        val z = ziToIdx(p.zhi)
+                        val active = sel?.type == ZwSelType.DECADAL && sel.zhi == z
+                        Column(Modifier.width(cellW).border(0.5.dp, ZW_BORDER)
+                            .background(if (active) Color(0x2E933EA) else Color.Transparent)
+                            .clickable { onSelect(ZwSel(z, "大限 ${p.decadal.first}-${p.decadal.second} · ${p.name}${p.gan}${p.zhi}", ZwSelType.DECADAL, p.gan)) }
+                            .padding(2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("${p.decadal.first}-${p.decadal.second}", color = ZW_FAINT, fontSize = 8.sp)
+                            Text(p.gan + p.zhi, color = ganWuXingColor(p.gan), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                Row(Modifier.height(46.dp)) {
+                    for (k in 0 until 90) {
                         val year = birthYear + k
                         val age = k + 1
                         val gz = ganZhiOfYear(year)
                         val z = ziToIdx(gz[1].toString())
-                        val active = sel?.type == ZwSelType.YEARLY && sel?.zhi == z
-                        Column(Modifier.width(cellW).border(0.5.dp, ZW_LINE)
-                            .background(if (active) Color(0xFFFFE0B2) else Color.Transparent)
+                        val active = sel?.type == ZwSelType.YEARLY && sel.zhi == z
+                        Column(Modifier.width(cellW).border(0.5.dp, ZW_BORDER)
+                            .background(if (active) Color(0x2ED4A843) else Color.Transparent)
                             .clickable { onSelect(ZwSel(z, "流年 $year · $gz（${age}岁）", ZwSelType.YEARLY, gz[0].toString())) }
                             .padding(2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("${year}年 ${age}岁", color = Color(0xFF888888), fontSize = 7.5.sp)
-                            Text(gz, color = ganWuXingColor(gz[0].toString()), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text("${year}年 ${age}岁", color = ZW_FAINT, fontSize = 7.sp)
+                            Text(gz, color = ganWuXingColor(gz[0].toString()), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -371,48 +532,42 @@ private fun ZwBottomTable(r: Ziwei.Result, sel: ZwSel?, onSelect: (ZwSel) -> Uni
     }
 }
 
-/** 天干五行配色：甲乙木绿、丙丁火红、戊己土黄褐、庚辛金橙、壬癸水蓝（对齐截图大限干支彩色） */
 private fun ganWuXingColor(gan: String) = when (gan) {
-    "甲" -> Color(0xFF3E9E5E); "乙" -> Color(0xFF5BAE72)
-    "丙" -> Color(0xFFE0523F); "丁" -> Color(0xFFD9342B)
-    "戊" -> Color(0xFFB88A2E); "己" -> Color(0xFFA67C2E)
-    "庚" -> Color(0xFFD98A2B); "辛" -> Color(0xFFC97A1F)
-    "壬" -> Color(0xFF2E6FD0); "癸" -> Color(0xFF4A86D8)
-    else -> Color(0xFF444444)
+    "甲" -> Color(0xFF5BAE72); "乙" -> Color(0xFF86C79A)
+    "丙" -> Color(0xFFF07A6A); "丁" -> Color(0xFFE86A5A)
+    "戊" -> Color(0xFFD4AE5A); "己" -> Color(0xFFC4A04E)
+    "庚" -> Color(0xFFE6A85A); "辛" -> Color(0xFFD89A4A)
+    "壬" -> Color(0xFF5B9BF0); "癸" -> Color(0xFF6AA8F0)
+    else -> ZW_T1
 }
 
 @Composable
-private fun ZwRedNavBar(title: String, onBack: () -> Unit) {
-    Row(Modifier.fillMaxWidth().background(ZW_RED).height(50.dp).padding(horizontal = 10.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(40.dp).clickable(onClick = onBack), contentAlignment = Alignment.Center) {
-            Text("‹", color = Color.White, fontSize = 30.sp)
+private fun ZwGoldNavBar(title: String, onBack: () -> Unit) {
+    Column(Modifier.fillMaxWidth().background(ZW_SURFACE)) {
+        Row(Modifier.fillMaxWidth().height(50.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(40.dp).clickable(onClick = onBack), contentAlignment = Alignment.Center) {
+                Text("‹", color = ZW_GOLD, fontSize = 30.sp)
+            }
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                Text(title, color = ZW_GOLD, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            }
+            Box(Modifier.size(40.dp))
         }
-        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-            Text(title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-        }
-        Box(Modifier.size(40.dp))
+        Box(Modifier.fillMaxWidth().height(0.5.dp).background(ZW_BORDER))
     }
 }
 
 private val ZHI_CN = listOf("子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥")
 private val GAN_CN = listOf("甲","乙","丙","丁","戊","己","庚","辛","壬","癸")
-
 private fun ziToIdx(zhi: String) = ZHI_CN.indexOf(zhi).coerceAtLeast(0)
-
-// 地支绝对序号 → (行, 列) 宫格坐标
 private fun zhiToRC(z: Int): Pair<Int, Int> = when (z) {
-    5 -> 0 to 0; 6 -> 0 to 1; 7 -> 0 to 2; 8 -> 0 to 3      // 巳午未申
-    4 -> 1 to 0; 9 -> 1 to 3                                  // 辰 酉
-    3 -> 2 to 0; 10 -> 2 to 3                                 // 卯 戌
-    2 -> 3 to 0; 1 -> 3 to 1; 0 -> 3 to 2; 11 -> 3 to 3       // 寅丑子亥
+    5 -> 0 to 0; 6 -> 0 to 1; 7 -> 0 to 2; 8 -> 0 to 3
+    4 -> 1 to 0; 9 -> 1 to 3
+    3 -> 2 to 0; 10 -> 2 to 3
+    2 -> 3 to 0; 1 -> 3 to 1; 0 -> 3 to 2; 11 -> 3 to 3
     else -> 0 to 0
 }
-
-private fun Ziweiyang(gan: String) = GAN_CN.indexOf(gan) % 2 == 0  // 甲丙戊庚壬为阳
-
 private fun lunarCn(r: Ziwei.Result): String {
-    // 从 lunarDate "2026年11月23日" 提取中文农历
     val parts = Regex("(\\d+)年(\\d+)月(\\d+)日").find(r.lunarDate)?.destructured
     return if (parts != null) {
         val (y, m, d) = parts
@@ -420,21 +575,10 @@ private fun lunarCn(r: Ziwei.Result): String {
         "农历${yCn}年${LunarCalendar.cnNumber(m.toInt())}月${LunarCalendar.cnNumber(d.toInt())}日"
     } else r.lunarDate
 }
+private fun ganZhiOfYear(year: Int): String =
+    GAN_CN[Math.floorMod(year - 4, 10)] + ZHI_CN[Math.floorMod(year - 4, 12)]
 
-private fun zhiToShi(r: Ziwei.Result): String {
-    // 由 timeRange 起始小时推时辰地支：17:00 -> 酉
-    val h = r.timeRange.substringBefore(":").toIntOrNull() ?: 0
-    return ZHI_CN[((h + 1) / 2) % 12] + "时"
-}
-
-// 公历年 → 干支（4年为甲子）
-private fun ganZhiOfYear(year: Int): String {
-    val g = GAN_CN[Math.floorMod(year - 4, 10)]
-    val z = ZHI_CN[Math.floorMod(year - 4, 12)]
-    return g + z
-}
-
-private fun ziweiFaceText(r: Ziwei.Result): String = buildString {
+private fun ziweiFaceText(r: Ziwei.Result) = buildString {
     appendLine("【紫微斗数 · 命盘】")
     appendLine("公历：${r.solarDate} ${r.timeRange}")
     appendLine("农历：${r.lunarDate}　${r.chineseDate}")
