@@ -37,9 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fortune.stall.data.FortuneDb
 import com.fortune.stall.engine.jishiyu.BaziTaibu
-import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 /**
@@ -55,7 +53,6 @@ fun BaziTaibuScreen(db: FortuneDb, onBack: () -> Unit) {
     var isMan by remember { mutableStateOf(true) }
     var boundary by remember { mutableStateOf(0) } // 0=午夜换日 1=子时换日
     var showDate by remember { mutableStateOf(false) }
-    var showTime by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<BaziTaibu.Result?>(null) }
 
     if (result != null) {
@@ -84,12 +81,9 @@ fun BaziTaibuScreen(db: FortuneDb, onBack: () -> Unit) {
         Spacer(Modifier.height(10.dp))
         JiRow("预测事项：") { JiInput(question, { question = it.take(30) }, "输入事项（选填）", Modifier.fillMaxWidth()) }
     }
-    if (showDate) BoardDateDialog(initial = try { LocalDate.parse(dtText.substring(0, 10)) } catch (e: Exception) { LocalDate.now() },
+    if (showDate) BoardDateTimeDialog(initial = try { LocalDateTime.parse(dtText.trim(), dtFmt) } catch (e: Exception) { LocalDateTime.now() },
         onDismiss = { showDate = false },
-        onConfirm = { d -> val t = dtText.substring(11).ifEmpty { "00:00" }; dtText = "${d.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))} $t"; showDate = false; showTime = true })
-    if (showTime) BoardTimeDialog(initial = try { LocalTime.parse(dtText.substring(11)) } catch (e: Exception) { LocalTime.now() },
-        onDismiss = { showTime = false },
-        onConfirm = { t -> dtText = "${dtText.substring(0, 10)} ${t.format(DateTimeFormatter.ofPattern("HH:mm"))}"; showTime = false })
+        onConfirm = { dt -> dtText = dt.format(dtFmt); showDate = false })
 }
 
 private val TB_LABEL = Color(0xFF4A5A8A)

@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.fortune.stall.ui.theme.AppColors
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 
 /** 三式模块共享的深色主题色 */
@@ -91,6 +92,49 @@ internal fun BoardDateDialog(initial: LocalDate, onDismiss: () -> Unit, onConfir
                 Box(Modifier.clip(RoundedCornerShape(20.dp)).background(BoardTheme.RED).clickable {
                     val dim = java.time.YearMonth.of(y, m).lengthOfMonth()
                     onConfirm(LocalDate.of(y, m, kotlin.math.min(d, dim)))
+                }.padding(horizontal = 24.dp, vertical = 10.dp)) {
+                    Text("确定", color = Color.White, fontSize = 14.sp)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 一次选完「年/月/日/时/分」的合并弹窗，样式与 BoardDateDialog 一致。
+ * 八字排盘需要精确到出生「几时几分」，避免先选日期再选时间两步。
+ */
+@Composable
+internal fun BoardDateTimeDialog(
+    initial: LocalDateTime,
+    onDismiss: () -> Unit,
+    onConfirm: (LocalDateTime) -> Unit
+) {
+    var y by remember { mutableStateOf(initial.year) }
+    var m by remember { mutableStateOf(initial.monthValue) }
+    var d by remember { mutableStateOf(initial.dayOfMonth) }
+    var h by remember { mutableStateOf(initial.hour) }
+    var mi by remember { mutableStateOf(initial.minute) }
+    Dialog(onDismissRequest = onDismiss) {
+        Column(Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0xFF1E1B14))
+            .border(1.dp, BoardTheme.LINE, RoundedCornerShape(16.dp)).padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("选择出生时间", color = BoardTheme.GOLD, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(12.dp))
+            BoardStepper("年", y, 1800, 2199) { y = it }
+            BoardStepper("月", m, 1, 12) { m = it }
+            BoardStepper("日", d, 1, 31) { d = it }
+            BoardStepper("时", h, 0, 23) { h = it }
+            BoardStepper("分", mi, 0, 59) { mi = it }
+            Spacer(Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.clip(RoundedCornerShape(20.dp)).background(BoardTheme.CARD)
+                    .clickable(onClick = onDismiss).padding(horizontal = 24.dp, vertical = 10.dp)) {
+                    Text("取消", color = AppColors.Muted, fontSize = 14.sp)
+                }
+                Box(Modifier.clip(RoundedCornerShape(20.dp)).background(BoardTheme.RED).clickable {
+                    val dim = java.time.YearMonth.of(y, m).lengthOfMonth()
+                    onConfirm(LocalDateTime.of(y, m, kotlin.math.min(d, dim), h, mi))
                 }.padding(horizontal = 24.dp, vertical = 10.dp)) {
                     Text("确定", color = Color.White, fontSize = 14.sp)
                 }
