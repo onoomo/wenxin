@@ -68,9 +68,35 @@ object Ziwei {
     )
     /** 天干四化：[禄, 权, 科, 忌] 对应星名 */
     fun sihua(gan: String): List<String> = SIHUA[gan] ?: listOf("", "", "", "")
-    /** 某星曜落在哪个宫（返回地支） */
+    /** 某星曜落在哪个宫（返回地支绝对字符 子=0..亥=11） */
     fun starZhi(r: Result, name: String): String? =
         r.palaces.firstOrNull { p -> (p.major + p.minor).any { it.name == name } }?.zhi
+
+    /** 十二宫名序列（自命宫起，逆时针）：命宫→兄弟→夫妻→…→父母 */
+    val GONG_SEQ = listOf("命宫", "兄弟", "夫妻", "子女", "财帛", "疾厄", "迁移", "奴仆", "官禄", "田宅", "福德", "父母")
+
+    /** 命宫地支绝对索引(子=0) */
+    fun mingZhiIdx(r: Result) = ZI.indexOf(r.ebSoul).coerceAtLeast(0)
+    /** 身宫地支绝对索引(子=0) */
+    fun shenZhiIdx(r: Result) = ZI.indexOf(r.ebBody).coerceAtLeast(0)
+
+    /** 按命宫位置校正后的宫名：某绝对地支索引 z 的宫名 */
+    fun gongNameAt(r: Result, z: Int) = GONG_SEQ[fix(mingZhiIdx(r) - z)]
+
+    /**
+     * 当前大限宫（按当前年份虚岁查找 decadal 区间；找不到则取起始最小的宫）。
+     * 返回 Pair<地支绝对索引, 宫天干>。
+     */
+    fun currentDaXian(r: Result, nowYear: Int): Pair<Int, String> {
+        val birthYear = r.solarDate.substringBefore("-").toIntOrNull() ?: nowYear
+        val age = nowYear - birthYear + 1
+        val hit = r.palaces.firstOrNull { age in it.decadal.first..it.decadal.second }
+        val p = hit ?: r.palaces.minByOrNull { it.decadal.first } ?: return 0 to "甲"
+        return ZI.indexOf(p.zhi).coerceAtLeast(0) to p.gan
+    }
+
+    /** 公历年 → 天干（4年为甲年） */
+    fun yearGan(year: Int): String = GAN[fix10(year - 4)]
 
     private val WUXING_NUM = mapOf("水二局" to 2, "木三局" to 3, "金四局" to 4, "土五局" to 5, "火六局" to 6)
     private val CS_START = mapOf(2 to "shen", 3 to "hai", 4 to "si", 5 to "shen", 6 to "yin")
