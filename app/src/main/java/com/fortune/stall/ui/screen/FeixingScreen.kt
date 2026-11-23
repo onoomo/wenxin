@@ -189,6 +189,8 @@ private fun FeixingDetailScreen(dt: LocalDateTime, onBack: () -> Unit) {
             FxGrid(visual, p, mode = m, onHelp = { help = it })
             Spacer(Modifier.height(10.dp))
         }
+        Spacer(Modifier.height(12.dp))
+        com.fortune.stall.ui.components.ResultActionBar(faceText = fxFaceText(dt))
         Spacer(Modifier.height(16.dp))
     }
     help?.let { FxHelpDialog(it) { help = null } }

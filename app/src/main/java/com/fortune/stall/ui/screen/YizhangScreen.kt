@@ -197,6 +197,8 @@ private fun YizhangDetailScreen(dt: LocalDateTime, isMan: Boolean, sunni: Int, o
                 "四柱看命，以时为主，逢吉则吉，逢凶则凶。",
                 color = Color(0xFF444444), fontSize = 13.sp, lineHeight = 20.sp)
         }
+        Spacer(Modifier.height(12.dp))
+        com.fortune.stall.ui.components.ResultActionBar(faceText = yzFaceText(dt, isMan, sunni))
         Spacer(Modifier.height(24.dp))
     }
     help?.let { (t, c) -> YzHelpDialog(t, c) { help = null } }

@@ -890,6 +890,14 @@ private fun QianxuResultPage(s: Qianxu.State, onBack: () -> Unit, onAgain: () ->
                     Text("重新起卦", color = QX.PAPER3, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
             }
+            Spacer(Modifier.height(10.dp))
+            Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(3.dp)).background(QX.CINNABAR)
+                .clickable {
+                    val cb = com.fortune.stall.util.AiBridge.askAi
+                    if (cb != null) cb(Qianxu.faceText(s, time))
+                }.padding(vertical = 13.dp), contentAlignment = Alignment.Center) {
+                Text("✦ 问 AI 解读", color = QX.PAPER3, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            }
             Spacer(Modifier.height(30.dp))
         }
     }

@@ -65,7 +65,7 @@ fun QiduwengCastScreen(db: FortuneDb, onBack: () -> Unit) {
             val dt = LocalDateTime.parse(dtText.trim(), dtFmt)
             val rr = Qiduweng.paipan(dt)
             val id = db.insert(dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                question, "qiduweng", "戚都翁", rr.summary, rr.ju)
+                question, "qiduweng", "戚都翁", qdFaceText(rr, question), rr.ju)
             Toast.makeText(ctx, "已存入存档 · 卦账 #$id", Toast.LENGTH_SHORT).show()
             result = rr
         } catch (e: Exception) {
@@ -177,6 +177,8 @@ private fun QiduwengDetailScreen(r: Qiduweng.Result, question: String, onBack: (
 
         // 占断口诀卡
         QdCaseCard(caseKeys, caseIdx, { caseIdx = it })
+        Spacer(Modifier.height(16.dp))
+        com.fortune.stall.ui.components.ResultActionBar(faceText = qdFaceText(r, question))
         Spacer(Modifier.height(24.dp))
     }
 
@@ -194,6 +196,35 @@ private fun QiduwengDetailScreen(r: Qiduweng.Result, question: String, onBack: (
             }
         }
     } }
+}
+
+/** 完整戚都翁盘面文本：供存档/卦账复制/问AI 统一使用 */
+private fun qdFaceText(r: Qiduweng.Result, question: String) = buildString {
+    appendLine("【戚都翁 · 小六壬排盘】")
+    if (question.isNotBlank()) appendLine("事项：$question")
+    appendLine("起局：${r.ju}")
+    appendLine("日期：${r.date}　节气：${r.jieqi}")
+    appendLine("四柱：${r.siZhu.joinToString(" ")}　旬空：${r.xunKong.joinToString(" ")}")
+    appendLine("农历：${if (r.isLeap) "闰" else ""}${r.lunarMonth}月${r.lunarDay}日")
+    appendLine()
+    appendLine("月令：${r.yueLingZhi}(${r.yueLingWx})　时辰：${r.hourZhi}(${r.hourStar}/${r.hourStarAlias})")
+    appendLine("体：${r.tiZhi}(${r.tiWx}) ${r.tiState}　用：${r.yongXing} ${r.yongState}")
+    appendLine("体用关系：${r.relation} —— ${r.relationDesc}")
+    appendLine("结论：${r.summary}")
+    appendLine()
+    appendLine("── 地盘十二宫星曜 ──")
+    r.plate.forEach { p ->
+        val marks = buildString {
+            if (p.isMonth) append("月"); if (p.isDay) append("日")
+            if (p.isHour) append("时"); if (p.isTi) append("体")
+        }
+        appendLine("${p.zhi}(${p.wuxing}) ${p.starName}${if (p.starAlias.isNotBlank() && p.starAlias != p.starName) "/${p.starAlias}" else ""}${if (marks.isNotBlank()) " [$marks]" else ""}")
+    }
+    if (r.process.isNotEmpty()) {
+        appendLine()
+        appendLine("── 起卦步骤 ──")
+        r.process.forEachIndexed { i, s -> appendLine("${i + 1}. $s") }
+    }
 }
 
 private fun buildWuxingInfo(wx: String): String = buildString {

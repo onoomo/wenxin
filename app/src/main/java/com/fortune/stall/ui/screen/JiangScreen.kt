@@ -252,6 +252,11 @@ fun JiangScreen(db: FortuneDb) {
                     }
                     JResultButton("再问一事", gold = false, Modifier.weight(0.8f)) { reset() }
                 }
+                Spacer(Modifier.height(10.dp))
+                JResultButton("✦ 问 AI 解读卦面", gold = false, Modifier.fillMaxWidth()) {
+                    val cb = com.fortune.stall.util.AiBridge.askAi
+                    if (cb != null) cb(faceText) else Toast.makeText(context, "AI 通道未就绪", Toast.LENGTH_SHORT).show()
+                }
                 Spacer(Modifier.height(40.dp))
             }
         }

@@ -19,6 +19,7 @@ import com.fortune.stall.data.FortuneDb
 import com.fortune.stall.data.Session
 import com.fortune.stall.data.SkillRepository
 import com.fortune.stall.engine.FortuneEngine
+import com.fortune.stall.util.AiBridge
 import com.fortune.stall.ui.screen.LaoHuangLiScreen
 import com.fortune.stall.ui.screen.WanNianLiScreen
 import com.fortune.stall.ui.screen.ArchiveScreen
@@ -126,6 +127,9 @@ private fun AppNavigation(
 
     fun go(r: Route) { stack = stack + r }
     fun back() { if (stack.size > 1) stack = stack.dropLast(1) }
+
+    // 所有术法结果页通过 AiBridge 携带完整盘面进入 AI 解读（无需逐页传参）
+    AiBridge.askAi = { ctx -> aiDirectContext = ctx; aiSession = null; go(Route.AI_CHAT) }
     // 术数模块统一入口：万年历/老黄历走专用日历页，其余走通用排盘页
     fun openJishiyuModule(key: String) {
         jishiyuKey = key

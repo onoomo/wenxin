@@ -126,10 +126,17 @@ private fun BaziDetailScreen(chart: BaziChart.Chart, full: BaziFull.Data?, xp: B
         }
         // 页面内容
         Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            when (tab) {
-                0 -> BzBasicPage(chart, full)
-                1 -> BzMingpanPage(chart, full)
-                2 -> BzDetailPage(chart, full, xp)
+            Column(Modifier.fillMaxWidth()) {
+                when (tab) {
+                    0 -> BzBasicPage(chart, full)
+                    1 -> BzMingpanPage(chart, full)
+                    2 -> BzDetailPage(chart, full, xp)
+                }
+                Spacer(Modifier.height(12.dp))
+                com.fortune.stall.ui.components.ResultActionBar(
+                    faceText = baziFaceText(chart, chart.solar, "")
+                )
+                Spacer(Modifier.height(24.dp))
             }
         }
     }

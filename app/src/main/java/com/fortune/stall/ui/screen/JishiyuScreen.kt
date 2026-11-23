@@ -300,6 +300,10 @@ private fun JishiyuDetailScreen(input: JishiyuDetailInput, onBack: () -> Unit) {
             ProDetailSection(s)
             Spacer(Modifier.height(8.dp))
         }
+        Spacer(Modifier.height(12.dp))
+        com.fortune.stall.ui.components.ResultActionBar(
+            faceText = castResultToText(input.result, input.question, input.timeText, input.eyebrow)
+        )
         Spacer(Modifier.height(24.dp))
     }
 }
@@ -385,7 +389,7 @@ private fun JInputBox(f: com.fortune.stall.engine.jishiyu.InputField, value: Str
 }
 
 @Composable
-private fun JResultView(r: CastResult) {
+private fun JResultView(r: CastResult, faceText: String? = null) {
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
             .background(Brush.verticalGradient(listOf(Color(0xFF242019), Color(0xFF16150F))))
@@ -399,6 +403,10 @@ private fun JResultView(r: CastResult) {
         }
         Spacer(Modifier.height(14.dp))
         for (s in r.sections) JSection(s)
+        if (faceText != null) {
+            Spacer(Modifier.height(12.dp))
+            com.fortune.stall.ui.components.ResultActionBar(faceText = faceText, dark = true)
+        }
     }
 }
 
@@ -704,7 +712,12 @@ fun LiuyaoCastScreen(db: FortuneDb, onBack: () -> Unit) {
             }
             Spacer(Modifier.height(16.dp))
 
-            result?.let { JResultView(it) }
+            result?.let { r ->
+                JResultView(r, castResultToText(
+                    r, mingText.ifBlank { "六爻排盘" }, dtText.trim(),
+                    listOf("手动指定", "自动摇卦", "手动摇卦")[method]
+                ))
+            }
         }
 
         // 选择爻

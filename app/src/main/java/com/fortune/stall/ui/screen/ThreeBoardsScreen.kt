@@ -194,7 +194,7 @@ private fun CompositeDetailScreen(
     LaunchedEffect(Unit) {
         val method = if (threeBoard) "taiyi3shi" else "chuanren"
         val name = if (threeBoard) "太乙三式" else "奇门穿壬"
-        val face = "${q.yangDun}${"遁"}${q.jushu}局 · 用神$yongShen"
+        val face = threeBoardFaceText(threeBoard, q, lr, ty, yongShen, question)
         db.insert(dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), question, method, name, face, q.jieqi)
     }
 
@@ -361,6 +361,42 @@ private fun CompositeDetailScreen(
             }
         }
         Spacer(Modifier.height(12.dp))
+        com.fortune.stall.ui.components.ResultActionBar(
+            faceText = threeBoardFaceText(threeBoard, q, lr, ty, yongShen, question)
+        )
+    }
+}
+
+/** 完整三式盘面文本：供存档/卦账复制/问AI 统一使用 */
+private fun threeBoardFaceText(
+    threeBoard: Boolean, q: com.fortune.stall.engine.jishiyu.Qimen.Result,
+    lr: com.fortune.stall.engine.jishiyu.DaLiuRen.Result,
+    ty: com.fortune.stall.engine.jishiyu.Taiyi.Result?,
+    yongShen: String, question: String
+) = buildString {
+    val title = if (threeBoard) "太乙三式" else "奇门穿壬"
+    appendLine("【$title · 排盘】")
+    if (question.isNotBlank()) appendLine("事项：$question")
+    appendLine("时间：${q.date}　节气：${q.jieqi}")
+    appendLine("四柱：${q.siZhu.joinToString(" ")}")
+    appendLine("${if (q.yangDun) "阳遁" else "阴遁"}${q.jushu}局 · 用神$yongShen")
+    appendLine("值符${q.zhifu}(${q.zhifuGong}) 值使${q.zhishi}(${q.zhishiGong}) 旬首${q.xunhead} 空亡${q.kongwang} 马星${q.maxing}")
+    appendLine("月将${lr.yueJiang} 占时${lr.zhanbuTime} 年命${lr.yearGanzhi} 行年${lr.xingYear}")
+    appendLine()
+    appendLine("── 奇门九宫 ──")
+    for (g in com.fortune.stall.engine.jishiyu.QimenData._8GUA_S) {
+        val c = q.pan[g] ?: continue
+        appendLine("$g：天盘${c.tianpan} 九星${c.jiuxing} 八门${c.men} 八神${c.bashen} 地盘${c.dipan} 隐干${c.yingan}")
+    }
+    appendLine()
+    appendLine("── 大六壬四课三传 ──")
+    lr.fourKe.forEachIndexed { i, k -> appendLine("第${i + 1}课：${k.joinToString(" ")}") }
+    appendLine("三传：${lr.threeChuan.map { it.joinToString(" ") }.joinToString(" → ")}")
+    if (ty != null) {
+        appendLine()
+        appendLine("── 太乙 ──")
+        appendLine("积数${ty.jishu} 主算${ty.zhusuan} 客算${ty.keshuan} 天马${ty.tianma} 太乙宫位${ty.tygongwei}${ty.guan}")
+        ty.lines.forEach { (k, v) -> appendLine("$k：$v") }
     }
 }
 

@@ -247,6 +247,8 @@ private fun MeiHuaDetailScreen(g: MeiHua.GuaData, question: String, desc: String
             MhInfoLine("用卦", "${g.yongGua} · ${g.yongWx}")
             MhInfoLine("体用", g.relation)
         }
+        Spacer(Modifier.height(12.dp))
+        com.fortune.stall.ui.components.ResultActionBar(faceText = mhFaceText(g, question, desc))
         Spacer(Modifier.height(16.dp))
     }
 }

@@ -178,6 +178,12 @@ private fun YinpanDetailScreen(dt: LocalDateTime, method: Int, question: String,
             YpOutlineButton("九宫全景", false, Modifier.weight(1f)) { showZS = true; showDiShen = true }
         }
         Spacer(Modifier.height(10.dp))
+        com.fortune.stall.ui.components.ResultActionBar(
+            faceText = yinpanFaceText(rr, question,
+                curDt.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                ju.methodName, ju.name)
+        )
+        Spacer(Modifier.height(10.dp))
     }
 }
 

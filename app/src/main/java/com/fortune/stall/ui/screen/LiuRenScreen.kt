@@ -291,6 +291,8 @@ private fun LiuRenDetailScreen(
                     Text("下一时辰 →", color = BoardTheme.GOLD, fontSize = 13.sp)
                 }
             }
+            Spacer(Modifier.height(12.dp))
+            com.fortune.stall.ui.components.ResultActionBar(faceText = lrFaceText(r, question), dark = true)
         }
     }
 }

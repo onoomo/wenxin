@@ -335,6 +335,10 @@ private fun QimenDetailScreen(
             TogglePill("地盘八神", showDiShen, Modifier.weight(1f)) { showDiShen = !showDiShen }
         }
         Spacer(Modifier.height(12.dp))
+        com.fortune.stall.ui.components.ResultActionBar(
+            faceText = qimenFaceText(r, question, curDt.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), ju.methodName, ju.name)
+        )
+        Spacer(Modifier.height(6.dp))
 
         // 点击四柱/九宫格弹出的放大浮层（仿原版）
         if (showZoom) {

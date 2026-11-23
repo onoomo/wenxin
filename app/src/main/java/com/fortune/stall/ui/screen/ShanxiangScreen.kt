@@ -211,6 +211,8 @@ private fun ShanxiangDetailScreen(year: Int, degree: Int, question: String, onBa
             SxPill("当前盘", Modifier.weight(1f)) { deg = degree }
             SxPill("下一局(+5)", Modifier.weight(1f)) { deg = kotlin.math.min(360, deg + 5) }
         }
+        Spacer(Modifier.height(12.dp))
+        com.fortune.stall.ui.components.ResultActionBar(faceText = sxFaceText(year, deg, question))
         Spacer(Modifier.height(24.dp))
     }
 

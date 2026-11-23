@@ -223,11 +223,23 @@ private fun ZiweiDetailScreen(
                     }
                 }
                 Spacer(Modifier.height(6.dp))
-                Box(Modifier.clip(RoundedCornerShape(16.dp)).background(ZW_GOLD.copy(alpha = 0.16f))
-                    .border(1.dp, ZW_GOLD.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
-                    .clickable { onAskAi(ziweiFaceText(r)) }
-                    .padding(horizontal = 18.dp, vertical = 6.dp)) {
-                    Text("✦ 问 AI 解读命盘（13 维）", color = ZW_GOLD, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(ZW_GOLD.copy(alpha = 0.16f))
+                        .border(1.dp, ZW_GOLD.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                        .clickable { onAskAi(ziweiFaceText(r)) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp), contentAlignment = Alignment.Center) {
+                        Text("✦ 问 AI 解读命盘（13 维）", color = ZW_GOLD, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                    }
+                    Box(Modifier.weight(0.6f).clip(RoundedCornerShape(16.dp)).background(Color(0x12FFFFFF))
+                        .border(1.dp, GRID_LINE, RoundedCornerShape(16.dp))
+                        .clickable {
+                            val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            cm.setPrimaryClip(android.content.ClipData.newPlainText("紫微命盘", ziweiFaceText(r)))
+                            android.widget.Toast.makeText(ctx, "命盘已复制", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                        .padding(horizontal = 8.dp, vertical = 6.dp), contentAlignment = Alignment.Center) {
+                        Text("⧉ 复制", color = ZW_T1, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                    }
                 }
                 Spacer(Modifier.height(6.dp))
                 Box(Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0x12FFFFFF))

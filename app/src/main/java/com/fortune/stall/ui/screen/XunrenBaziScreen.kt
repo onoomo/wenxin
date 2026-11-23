@@ -89,8 +89,7 @@ fun XunrenBaziScreen(db: FortuneDb, onBack: () -> Unit) {
         try {
             val dt = LocalDateTime.parse(dtText.trim(), dtFmt)
             val r = BaziTaibu.paipan(dt, isMan, "midnight")
-            val bazi = r.pillars.joinToString(" ") { it.ganZhi }
-            val face = "${if (isMan) "乾造" else "坤造"} $bazi"
+            val face = baziTbFaceText(r, question, "八字排盘 · 寻壬")
             db.insert(dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
                 question, "xunrenbazi", "八字·寻壬", face, "")
             result = r
@@ -122,6 +121,8 @@ private fun XrDetail(r: BaziTaibu.Result, name: String, onBack: () -> Unit) {
                 1 -> XrGridPage(r)
                 2 -> XrProPage(r)
             }
+            Spacer(Modifier.height(16.dp))
+            com.fortune.stall.ui.components.ResultActionBar(faceText = baziTbFaceText(r, name, "八字排盘 · 寻壬"))
             Spacer(Modifier.height(24.dp))
         }
     }

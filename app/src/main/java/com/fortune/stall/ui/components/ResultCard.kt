@@ -107,6 +107,20 @@ fun ResultCard(output: FortuneEngine.CastOutput, onReset: () -> Unit) {
             }
             ActionButton("再问一事", gold = false, modifier = Modifier.weight(0.8f), onClick = onReset)
         }
+        Box(
+            modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 14.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Brush.verticalGradient(listOf(Color(0x66D9A441), Color(0x44C96442))))
+                .clickable {
+                    val cb = com.fortune.stall.util.AiBridge.askAi
+                    if (cb != null) cb(output.face)
+                    else Toast.makeText(context, "AI 通道未就绪", Toast.LENGTH_SHORT).show()
+                }.padding(vertical = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("✦ 问 AI 解读卦面", color = AppColors.Paper, fontSize = 11.5.sp,
+                fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        }
     }
     pickedCell?.let { XlrExplainDialog(it) { pickedCell = null } }
 }

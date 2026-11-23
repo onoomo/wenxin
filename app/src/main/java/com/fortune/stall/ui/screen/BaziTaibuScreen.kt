@@ -64,8 +64,7 @@ fun BaziTaibuScreen(db: FortuneDb, onBack: () -> Unit) {
         try {
             val dt = LocalDateTime.parse(dtText.trim(), dtFmt)
             val r = BaziTaibu.paipan(dt, isMan, if (boundary == 0) "midnight" else "zi")
-            val bazi = r.pillars.joinToString(" ") { it.ganZhi }
-            val face = "${if (isMan) "乾造" else "坤造"} $bazi · 日主${r.dayMaster}"
+            val face = baziTbFaceText(r, question)
             db.insert(dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
                 question, "bazitaibu", "八字·太卜", face, "")
             result = r
@@ -114,6 +113,8 @@ private fun BaziTbDetail(r: BaziTaibu.Result, question: String, onBack: () -> Un
                 1 -> TbRelations(r)
                 2 -> TbDayun(r)
             }
+            Spacer(Modifier.height(16.dp))
+            com.fortune.stall.ui.components.ResultActionBar(faceText = baziTbFaceText(r, question))
             Spacer(Modifier.height(20.dp))
         }
     }
@@ -343,4 +344,41 @@ private fun TbSection(title: String, content: @Composable () -> Unit) {
 @Composable
 private fun TbEmpty() {
     Text("无", color = Color(0xFFAAAAAA), fontSize = 12.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+}
+
+/** 完整八字盘面文本：供存档/卦账复制/问AI 统一使用 */
+internal fun baziTbFaceText(r: BaziTaibu.Result, question: String, title: String = "八字排盘 · 太卜") = buildString {
+    appendLine("【$title】")
+    if (question.isNotBlank()) appendLine("事项：$question")
+    appendLine("公历：${r.solarText}　${r.gender}")
+    appendLine("农历：${r.lunarText}")
+    appendLine("日主：${r.dayMaster}（${com.fortune.stall.engine.jishiyu.BaziTaibu.GAN_WX[r.dayMaster] ?: ""}）")
+    appendLine()
+    appendLine("── 四柱 ──")
+    r.pillars.forEach { p ->
+        val hidden = p.hidden.joinToString("、") { "${it.stem}·${it.tenGod}" }
+        appendLine("${p.name} ${p.gan}${p.zhi} [${p.tenGod}] 纳音${p.naYin} 地势${p.diShi}${if (p.kong) " 空亡" else ""}")
+        appendLine("    藏干：${hidden.ifEmpty { "无" }}")
+        if (p.shenSha.isNotEmpty()) appendLine("    神煞：${p.shenSha.joinToString(" ")}")
+    }
+    appendLine()
+    appendLine("胎元：${r.taiYuan}　命宫：${r.mingGong}　胎息：${r.taiXi}　身宫：${r.shenGong}")
+    appendLine("空亡：${r.kongWang.xun} · ${r.kongWang.kongZhi.joinToString("")}")
+    appendLine("五行（含藏干）：木${r.wuXing["木"] ?: 0} 火${r.wuXing["火"] ?: 0} 土${r.wuXing["土"] ?: 0} 金${r.wuXing["金"] ?: 0} 水${r.wuXing["水"] ?: 0}")
+    appendLine("旺相休囚死：旺${r.wangShuai.getOrNull(0) ?: ""} 相${r.wangShuai.getOrNull(1) ?: ""} 休${r.wangShuai.getOrNull(2) ?: ""} 囚${r.wangShuai.getOrNull(3) ?: ""} 死${r.wangShuai.getOrNull(4) ?: ""}")
+    appendLine()
+    val rel = (r.relations + r.banHe + r.sanHui).joinToString("；") { "${it.desc}(${it.pillars.joinToString("·")})" }
+    val ganRel = (r.ganWuHe + r.ganChong).joinToString("；") { "${it.desc}(${it.pillars.joinToString("·")})" }
+    if (rel.isNotBlank()) appendLine("地支刑冲合害：$rel")
+    if (ganRel.isNotBlank()) appendLine("天干合冲：$ganRel")
+    if (r.globalShenSha.isNotEmpty()) appendLine("全局神煞：${r.globalShenSha.joinToString(" ")}")
+    appendLine()
+    appendLine("起运：${r.qiYunText}")
+    if (r.xiaoYun.isNotEmpty()) appendLine("小运：${r.xiaoYun.joinToString(" ")}")
+    r.dayun.forEach { d ->
+        appendLine("大运 ${d.ganZhi}（${d.startYear}年起 ${d.startAge}岁）${d.tenGod} 地势${d.diShi}${if (d.relations.isNotEmpty()) " 原局:${d.relations.joinToString("、")}" else ""}${if (d.shenSha.isNotEmpty()) " 神煞:${d.shenSha.joinToString(" ")}" else ""}")
+        d.liunian.forEach { ln ->
+            appendLine("　　${ln.year} ${ln.ganZhi} ${ln.age}岁 ${ln.tenGod} ${ln.naYin} 地势${ln.diShi}${if (ln.taiSui.isNotEmpty()) " 太岁:${ln.taiSui.joinToString("、")}" else ""}${if (ln.shenSha.isNotEmpty()) " 神煞:${ln.shenSha.joinToString(" ")}" else ""}")
+        }
+    }
 }

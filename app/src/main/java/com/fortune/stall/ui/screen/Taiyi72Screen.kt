@@ -71,7 +71,7 @@ fun Taiyi72CastScreen(db: FortuneDb, onBack: () -> Unit) {
             val dt = LocalDateTime.parse(dtText.trim(), dtFmt)
             val acc = manualAcc.trim().toLongOrNull()
             val r = Taiyi72.paipan(dt, modes[modeIdx], traditions[traditionIdx], acc, null)
-            val face = "${r.modeLabel}·${r.dunLabel}${r.bureau}局 · 太乙${r.taiyiPosition} · 主算${r.home.count}/客算${r.away.count}"
+            val face = ty72FaceText(r, question)
             db.insert(dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
                 question, "taiyi72", "太乙神数", face, r.jieqi)
             result = r
@@ -220,6 +220,8 @@ private fun Taiyi72DetailScreen(r: Taiyi72.Result, question: String, onBack: () 
             }
         }
         Spacer(Modifier.height(16.dp))
+        com.fortune.stall.ui.components.ResultActionBar(faceText = ty72FaceText(r, question))
+        Spacer(Modifier.height(10.dp))
         Text("规则：太乙金镜式经·七十二局立成（taibu-core MIT）", color = Color(0xFF999999), fontSize = 11.sp,
             modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
         Spacer(Modifier.height(12.dp))
@@ -248,4 +250,27 @@ private fun Ty72CountCard(title: String, g: Taiyi72.General, modifier: Modifier)
             }
         }
     }
+}
+
+/** 完整太乙盘面文本：供存档/卦账复制/问AI 统一使用 */
+private fun ty72FaceText(r: Taiyi72.Result, question: String) = buildString {
+    appendLine("【太乙神数 · 七十二局】")
+    if (question.isNotBlank()) appendLine("事项：$question")
+    appendLine("公历：${r.solarText}")
+    appendLine("农历：${r.lunarText}　节气：${r.jieqi}")
+    appendLine("四柱：${r.siZhu.joinToString(" ")}")
+    appendLine()
+    appendLine("${r.modeLabel} · ${r.traditionLabel} · 积数${r.accumulatedNumber}（${r.accumulationSource}）")
+    appendLine("${r.dunLabel}${r.bureau}局 · 太乙宫位${r.taiyiPalace}(${r.taiyiPosition}) · 规则${r.ruleVersion}")
+    appendLine("主算${r.home.count}（大将${r.home.general} 参将${r.home.assistant}）　客算${r.away.count}（大将${r.away.general} 参将${r.away.assistant}）")
+    appendLine()
+    appendLine("── 十六方位神盘 ──")
+    r.palaces.forEach { p ->
+        appendLine("${p.position}[${p.deity}]：${p.stars.joinToString(" ").ifEmpty { "空" }}")
+    }
+    appendLine()
+    appendLine("── 星将落宫 ──")
+    appendLine("太乙${r.taiyiPosition} 文昌${r.wenChang} 始击${r.shiJi} 计神${r.jiShen} 合神${r.heShen} 太岁${r.taiSui}")
+    fun posOf(name: String) = r.palaces.firstOrNull { name in it.stars }?.position ?: "—"
+    appendLine("主大将${posOf("主大将")} 主参将${posOf("主参将")} 客大将${posOf("客大将")} 客参将${posOf("客参将")}")
 }

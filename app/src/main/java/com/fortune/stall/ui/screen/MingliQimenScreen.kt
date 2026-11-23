@@ -206,6 +206,9 @@ private fun MingliDetailScreen(result: MingliQimen.Result, onBack: () -> Unit) {
             MlOutlineBtn("九宫全景", false, Modifier.weight(1f)) { showZS = true; showDiShen = true }
         }
         Spacer(Modifier.height(12.dp))
+        com.fortune.stall.ui.components.ResultActionBar(
+            faceText = mingliFaceText(result, "${result.name} · 命理奇门", "")
+        )
     }
 }
 
