@@ -65,7 +65,6 @@ fun LiuRenCastScreen(db: FortuneDb, onBack: () -> Unit) {
     var guiSunni by remember { mutableStateOf(1) }
     var question by remember { mutableStateOf("") }
     var showDate by remember { mutableStateOf(false) }
-    var showTime by remember { mutableStateOf(false) }
     var showYear by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<DaLiuRen.Result?>(null) }
     var castDt by remember { mutableStateOf(LocalDateTime.now()) }
@@ -108,12 +107,11 @@ fun LiuRenCastScreen(db: FortuneDb, onBack: () -> Unit) {
             Spacer(Modifier.height(12.dp))
             JiRow("事项：") { JiInput(question, { question = it }, "输入预测事项（选填）", Modifier.fillMaxWidth()) }
         }
-        if (showDate) BoardDateDialog(initial = try { LocalDate.parse(dtText.substring(0, 10)) } catch (e: Exception) { LocalDate.now() },
+        if (showDate) JiDateTimeDialog(
+            initial = try { LocalDateTime.parse(dtText.trim(), dtFmt) } catch (e: Exception) { LocalDateTime.now() },
             onDismiss = { showDate = false },
-            onConfirm = { d -> val t = dtText.substring(11).ifEmpty { "00:00" }; dtText = "${d.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))} $t"; showDate = false; showTime = true })
-        if (showTime) BoardTimeDialog(initial = try { LocalTime.parse(dtText.substring(11)) } catch (e: Exception) { LocalTime.now() },
-            onDismiss = { showTime = false },
-            onConfirm = { t -> dtText = "${dtText.substring(0, 10)} ${t.format(DateTimeFormatter.ofPattern("HH:mm"))}"; showTime = false })
+            onConfirm = { dt -> dtText = dt.format(dtFmt); showDate = false }
+        )
         if (showYear) BoardYearDialog(birthYear, { showYear = false }) { birthYear = it; showYear = false }
     } else {
         LiuRenDetailScreen(result!!, castDt, question, birthYear, isMan, yueJiangMethod, guiMethod, guiSunni, zhanTime, db, ctx, onBack) { result = it }

@@ -62,7 +62,6 @@ fun CompositeCastScreen(db: FortuneDb, kind: String, onBack: () -> Unit) {
     var yongGan by remember { mutableStateOf("甲") }
     var yongZhi by remember { mutableStateOf("子") }
     var showDate by remember { mutableStateOf(false) }
-    var showTime by remember { mutableStateOf(false) }
     var showYear by remember { mutableStateOf(false) }
     var question by remember { mutableStateOf("") }
     var prepared by remember { mutableStateOf(false) }
@@ -94,12 +93,11 @@ fun CompositeCastScreen(db: FortuneDb, kind: String, onBack: () -> Unit) {
         Spacer(Modifier.height(10.dp))
         JiChipLine("贵神类型：", listOf("卯酉区分", "白昼", "夜晚"), guiMethod - 1) { guiMethod = it + 1 }
     }
-    if (showDate) BoardDateDialog(initial = try { LocalDate.parse(dtText.substring(0, 10)) } catch (e: Exception) { LocalDate.now() },
+    if (showDate) JiDateTimeDialog(
+        initial = try { LocalDateTime.parse(dtText.trim(), dtFmt) } catch (e: Exception) { LocalDateTime.now() },
         onDismiss = { showDate = false },
-        onConfirm = { d -> val t = dtText.substring(11).ifEmpty { "00:00" }; dtText = "${d.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))} $t"; showDate = false; showTime = true })
-    if (showTime) BoardTimeDialog(initial = try { LocalTime.parse(dtText.substring(11)) } catch (e: Exception) { LocalTime.now() },
-        onDismiss = { showTime = false },
-        onConfirm = { t -> dtText = "${dtText.substring(0, 10)} ${t.format(DateTimeFormatter.ofPattern("HH:mm"))}"; showTime = false })
+        onConfirm = { dt -> dtText = dt.format(dtFmt); showDate = false }
+    )
     if (showYear) BoardIntDialog("出生年份", (yearMingText.toIntOrNull() ?: 1990), 1900, 2199, { showYear = false }) { yearMingText = it.toString(); showYear = false }
 }
 

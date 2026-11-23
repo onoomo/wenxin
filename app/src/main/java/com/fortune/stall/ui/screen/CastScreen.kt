@@ -103,6 +103,14 @@ fun CastScreen(methodKey: String, lineageName: String? = null, db: FortuneDb, on
     var gender by remember { mutableStateOf("") }
     var cardNames by remember { mutableStateOf("") }
 
+    // 起卦时间（年月日时分）—— 时间/农历起卦可精确指定，时辰从中派生
+    var castDateTime by remember { mutableStateOf(LocalDateTime.now().withSecond(0).withNano(0)) }
+    var showCastTime by remember { mutableStateOf(false) }
+    val dtFmt = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm") }
+    // 仅"按时起卦"这类完全依赖公历时刻的模式才显示年月日时分选择器；
+    // 农历起卦走"农历月日+时辰下拉"，本身已含时辰，保持原交互。
+    val needsCastTime = methodKey != "tarot" && curMode == "time"
+
     var casting by remember { mutableStateOf(false) }
     var lockedRoll by remember { mutableStateOf<Pair<String, String>?>(null) } // kind -> question
     var output by remember { mutableStateOf<FortuneEngine.CastOutput?>(null) }
@@ -121,11 +129,13 @@ fun CastScreen(methodKey: String, lineageName: String? = null, db: FortuneDb, on
     }
 
     suspend fun doCast() {
-        val now = LocalDateTime.now()
+        // 时间/农历起卦用用户所选时刻（含时分）；其它模式用当前时刻
+        val now = if (needsCastTime) castDateTime else LocalDateTime.now()
+        if (needsCastTime) hourZhi = LunarCalendar.hourToZhi(now.hour)
         val a = pA.toIntOrNull(); val b = pB.toIntOrNull(); val c = pC.toIntOrNull()
         // 先落账拿到卦局编号（印章），再生成卦面
         val id = db.insert(
-            createdAt = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+            createdAt = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
             question = question, method = methodKey, mode = curMode,
             face = "落印中…", seal = FortuneEngine.sealLine(now)
         )
@@ -228,6 +238,32 @@ fun CastScreen(methodKey: String, lineageName: String? = null, db: FortuneDb, on
             )
             Spacer(Modifier.height(8.dp))
 
+            // 起卦时间（年月日时分）—— 按时/农历起卦可精确指定
+            if (needsCastTime) {
+                FieldLabel("起卦时间（年 / 月 / 日 / 时 / 分）")
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Box(
+                        Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
+                            .background(Color(0x0AFFFFFF)).border(1.dp, AppColors.GoldLine, RoundedCornerShape(10.dp))
+                            .clickable(enabled = !casting) { showCastTime = true }
+                            .padding(horizontal = 12.dp, vertical = 12.dp)
+                    ) {
+                        Text(castDateTime.format(dtFmt), color = AppColors.Paper,
+                            fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Box(
+                        Modifier.clip(RoundedCornerShape(10.dp)).background(Color(0x17D9A441))
+                            .clickable(enabled = !casting) {
+                                val n = LocalDateTime.now().withSecond(0).withNano(0)
+                                castDateTime = n; hourZhi = LunarCalendar.hourToZhi(n.hour)
+                            }
+                            .padding(horizontal = 12.dp, vertical = 14.dp)
+                    ) { Text("此刻", color = AppColors.Lantern, fontSize = 12.sp) }
+                }
+                Spacer(Modifier.height(10.dp))
+            }
+
             // 参数区
             ParamFields(def, mode, pA, { pA = it }, pB, { pB = it }, pC, { pC = it },
                 hourZhi, { hourZhi = it }, gender, { gender = it },
@@ -280,6 +316,19 @@ fun CastScreen(methodKey: String, lineageName: String? = null, db: FortuneDb, on
             Spacer(Modifier.height(8.dp))
 
             Spacer(Modifier.height(80.dp))
+        }
+
+        // 起卦时间选择弹窗（年月日时分，可键盘输入 + 步进）
+        if (showCastTime) {
+            BoardDateTimeDialog(
+                initial = castDateTime,
+                onDismiss = { showCastTime = false },
+                onConfirm = { dt ->
+                    castDateTime = dt.withSecond(0).withNano(0)
+                    hourZhi = LunarCalendar.hourToZhi(dt.hour)
+                    showCastTime = false
+                }
+            )
         }
     }
 }

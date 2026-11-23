@@ -55,7 +55,6 @@ fun Taiyi72CastScreen(db: FortuneDb, onBack: () -> Unit) {
     var traditionIdx by remember { mutableStateOf(0) } // 默认金镜
     var manualAcc by remember { mutableStateOf("") }
     var showDate by remember { mutableStateOf(false) }
-    var showTime by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<Taiyi72.Result?>(null) }
 
     val modes = listOf(Taiyi72.Mode.YEAR, Taiyi72.Mode.MONTH, Taiyi72.Mode.DAY, Taiyi72.Mode.HOUR)
@@ -89,12 +88,11 @@ fun Taiyi72CastScreen(db: FortuneDb, onBack: () -> Unit) {
         Spacer(Modifier.height(10.dp))
         JiRow("手工积数：") { JiInput(manualAcc, { manualAcc = it.filter { c -> c.isDigit() }.take(12) }, "留空=自动（可填复核）", Modifier.fillMaxWidth()) }
     }
-    if (showDate) BoardDateDialog(initial = try { LocalDate.parse(dtText.substring(0, 10)) } catch (e: Exception) { LocalDate.now() },
+    if (showDate) JiDateTimeDialog(
+        initial = try { LocalDateTime.parse(dtText.trim(), dtFmt) } catch (e: Exception) { LocalDateTime.now() },
         onDismiss = { showDate = false },
-        onConfirm = { d -> val t = dtText.substring(11).ifEmpty { "00:00" }; dtText = "${d.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))} $t"; showDate = false; showTime = true })
-    if (showTime) BoardTimeDialog(initial = try { LocalTime.parse(dtText.substring(11)) } catch (e: Exception) { LocalTime.now() },
-        onDismiss = { showTime = false },
-        onConfirm = { t -> dtText = "${dtText.substring(0, 10)} ${t.format(DateTimeFormatter.ofPattern("HH:mm"))}"; showTime = false })
+        onConfirm = { dt -> dtText = dt.format(dtFmt); showDate = false }
+    )
 }
 
 private val TY72_LABEL = Color(0xFF4A5A8A)

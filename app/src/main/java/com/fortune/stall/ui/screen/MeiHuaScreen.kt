@@ -65,7 +65,6 @@ fun MeiHuaCastScreen(db: FortuneDb, onBack: () -> Unit) {
     var deltaYao by remember { mutableStateOf(1) }
     var question by remember { mutableStateOf("") }
     var showDate by remember { mutableStateOf(false) }
-    var showTime by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<MeiHua.GuaData?>(null) }
     var castDesc by remember { mutableStateOf("") }
     var castDt by remember { mutableStateOf(LocalDateTime.now()) }
@@ -121,8 +120,11 @@ fun MeiHuaCastScreen(db: FortuneDb, onBack: () -> Unit) {
             Spacer(Modifier.height(12.dp))
             JiRow("事项：") { JiInput(question, { question = it }, "输入预测事项（选填）", Modifier.fillMaxWidth()) }
         }
-        if (showDate) BoardDateDialog(date, { showDate = false }) { date = it; showDate = false; showTime = true }
-        if (showTime) BoardTimeDialog(time, { showTime = false }) { time = it; showTime = false }
+        if (showDate) JiDateTimeDialog(
+            initial = LocalDateTime.of(date, time),
+            onDismiss = { showDate = false },
+            onConfirm = { dt -> date = dt.toLocalDate(); time = dt.toLocalTime().withSecond(0).withNano(0); showDate = false }
+        )
     } else {
         MeiHuaDetailScreen(result!!, question, castDesc, castDt, onBack)
     }

@@ -61,7 +61,6 @@ fun YizhangCastScreen(db: FortuneDb, onBack: () -> Unit) {
     var isMan by remember { mutableStateOf(true) }
     var sunni by remember { mutableStateOf(1) }
     var showDate by remember { mutableStateOf(false) }
-    var showTime by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<Triple<LocalDateTime, Boolean, Int>?>(null) }
 
     if (detail == null) {
@@ -83,12 +82,11 @@ fun YizhangCastScreen(db: FortuneDb, onBack: () -> Unit) {
             Spacer(Modifier.height(14.dp))
             JiChipLine("顺逆方式：", listOf("男顺女逆", "阳男阴女顺，阴男阳女逆"), sunni - 1) { sunni = it + 1 }
         }
-        if (showDate) YzDateDialog(initial = try { LocalDate.parse(dtText.substring(0, 10)) } catch (e: Exception) { LocalDate.now() },
+        if (showDate) JiDateTimeDialog(
+            initial = try { LocalDateTime.parse(dtText.trim(), dtFmt) } catch (e: Exception) { LocalDateTime.now() },
             onDismiss = { showDate = false },
-            onConfirm = { d -> val t = dtText.substring(11); dtText = "${d.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))} $t"; showDate = false; showTime = true })
-        if (showTime) YzTimeDialog(initial = try { LocalTime.parse(dtText.substring(11)) } catch (e: Exception) { LocalTime.now() },
-            onDismiss = { showTime = false },
-            onConfirm = { t -> dtText = "${dtText.substring(0, 10)} ${t.format(DateTimeFormatter.ofPattern("HH:mm"))}"; showTime = false })
+            onConfirm = { dt -> dtText = dt.format(dtFmt); showDate = false }
+        )
     } else {
         val (dt, man, sn) = detail!!
         YizhangDetailScreen(dt = dt, isMan = man, sunni = sn, onBack = { detail = null })

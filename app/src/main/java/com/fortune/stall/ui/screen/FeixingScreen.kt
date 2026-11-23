@@ -65,7 +65,6 @@ fun FeixingCastScreen(db: FortuneDb, onBack: () -> Unit) {
     val dtFmt = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm") }
     var dtText by remember { mutableStateOf(LocalDateTime.now().format(dtFmt)) }
     var showDate by remember { mutableStateOf(false) }
-    var showTime by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<LocalDateTime?>(null) }
 
     if (detail == null) {
@@ -84,12 +83,11 @@ fun FeixingCastScreen(db: FortuneDb, onBack: () -> Unit) {
                 JiDateInput(dtText, { showDate = true }, Modifier.fillMaxWidth())
             }
         }
-        if (showDate) FxDateDialog(initial = try { LocalDate.parse(dtText.substring(0, 10)) } catch (e: Exception) { LocalDate.now() },
+        if (showDate) JiDateTimeDialog(
+            initial = try { LocalDateTime.parse(dtText.trim(), dtFmt) } catch (e: Exception) { LocalDateTime.now() },
             onDismiss = { showDate = false },
-            onConfirm = { d -> val t = dtText.substring(11).ifEmpty { "00:00" }; dtText = "${d.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))} $t"; showDate = false; showTime = true })
-        if (showTime) FxTimeDialog(initial = try { LocalTime.parse(dtText.substring(11)) } catch (e: Exception) { LocalTime.now() },
-            onDismiss = { showTime = false },
-            onConfirm = { t -> dtText = "${dtText.substring(0, 10)} ${t.format(DateTimeFormatter.ofPattern("HH:mm"))}"; showTime = false })
+            onConfirm = { dt -> dtText = dt.format(dtFmt); showDate = false }
+        )
     } else {
         FeixingDetailScreen(dt = detail!!, onBack = { detail = null })
     }

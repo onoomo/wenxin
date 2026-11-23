@@ -51,7 +51,6 @@ fun QiduwengCastScreen(db: FortuneDb, onBack: () -> Unit) {
     val dtFmt = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm") }
     var dtText by remember { mutableStateOf(LocalDateTime.now().format(dtFmt)) }
     var showDate by remember { mutableStateOf(false) }
-    var showTime by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<Qiduweng.Result?>(null) }
     var question by remember { mutableStateOf("") }
 
@@ -76,12 +75,11 @@ fun QiduwengCastScreen(db: FortuneDb, onBack: () -> Unit) {
         Spacer(Modifier.height(12.dp))
         JiRow("预测事项：") { JiInput(question, { question = it.take(30) }, "输入预测事项（选填）", Modifier.fillMaxWidth()) }
     }
-    if (showDate) BoardDateDialog(initial = try { LocalDate.parse(dtText.substring(0, 10)) } catch (e: Exception) { LocalDate.now() },
+    if (showDate) JiDateTimeDialog(
+        initial = try { LocalDateTime.parse(dtText.trim(), dtFmt) } catch (e: Exception) { LocalDateTime.now() },
         onDismiss = { showDate = false },
-        onConfirm = { d -> val t = dtText.substring(11).ifEmpty { "00:00" }; dtText = "${d.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))} $t"; showDate = false; showTime = true })
-    if (showTime) BoardTimeDialog(initial = try { LocalTime.parse(dtText.substring(11)) } catch (e: Exception) { LocalTime.now() },
-        onDismiss = { showTime = false },
-        onConfirm = { t -> dtText = "${dtText.substring(0, 10)} ${t.format(DateTimeFormatter.ofPattern("HH:mm"))}"; showTime = false })
+        onConfirm = { dt -> dtText = dt.format(dtFmt); showDate = false }
+    )
 }
 
 @Composable
