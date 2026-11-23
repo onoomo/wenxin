@@ -245,6 +245,8 @@ private data class HomeTile(
 private val HOME_TILES = listOf(
     HomeTile("八字排盘", "bazi-paipan", Glyph.BAZI, "四 柱 命 理",
         "按出生年月日时排定四柱干支，标注十神、藏干、纳音与神煞，起大运流年，断一生格局与起伏。"),
+    HomeTile("八字·热卜", "hotbu-bazi", Glyph.BAZI, "大 数 据 分 析",
+        "热卜风格八字结果页：命主信息、四柱八字表、五行旺衰百分比与喜忌分析，青绿主题清晰呈现。"),
     HomeTile("命理奇门", "mingliqimen", Glyph.MINGLI, "终 身 奇 门",
         "以生辰起终身奇门盘，配大运流年逐限推移，看一生富贵吉凶与关键时刻的天地人三才格局。"),
     HomeTile("阴盘奇门", "yinpanqimen", Glyph.YINPAN, "阴 盘 起 局",

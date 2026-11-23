@@ -42,6 +42,7 @@ import com.fortune.stall.ui.screen.MeiHuaCastScreen
 import com.fortune.stall.ui.screen.ZiweiCastScreen
 import com.fortune.stall.ui.screen.BaziCastScreen
 import com.fortune.stall.ui.screen.BaziTaibuScreen
+import com.fortune.stall.ui.screen.HotbuBaziScreen
 import com.fortune.stall.ui.screen.YinpanQimenCastScreen
 import com.fortune.stall.ui.screen.MingliQimenCastScreen
 import com.fortune.stall.ui.screen.QianxuScreen
@@ -83,7 +84,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Route { HOME, LINEAGE, CAST, CAST_RESULT, JIANG, JISHUYU_HUB, JISHUYU_CAST, LIUYAO_PAI, WANNIANLI, LAOHUANGLI, SHANXIANG, FEIXING, YIZHANG, QIDUWENG, CHUANREN, TAIYI3SHI, TAIYI72, DALIUREN, MEIHUA, BAZI, YINPAN, MINGLI, ZIWEI, QIANXU, ARCHIVE, LEDGER, FAVORITES, SETTINGS, SKILLS }
+private enum class Route { HOME, LINEAGE, CAST, CAST_RESULT, JIANG, JISHUYU_HUB, JISHUYU_CAST, LIUYAO_PAI, WANNIANLI, LAOHUANGLI, SHANXIANG, FEIXING, YIZHANG, QIDUWENG, CHUANREN, TAIYI3SHI, TAIYI72, DALIUREN, MEIHUA, BAZI, HOTBUBAZI, YINPAN, MINGLI, ZIWEI, QIANXU, ARCHIVE, LEDGER, FAVORITES, SETTINGS, SKILLS }
 
 @Composable
 private fun AppNavigation(
@@ -130,6 +131,7 @@ private fun AppNavigation(
             "daliuren" -> go(Route.DALIUREN)
             "meihua", "meihua-time", "meihua-num" -> go(Route.MEIHUA)
             "bazi-paipan", "bazi-analysis" -> go(Route.BAZI)
+            "hotbu-bazi", "bazi-hotbu" -> go(Route.HOTBUBAZI)
             "yinpanqimen" -> go(Route.YINPAN)
             "mingliqimen" -> go(Route.MINGLI)
             "ziwei" -> go(Route.ZIWEI)
@@ -148,7 +150,7 @@ private fun AppNavigation(
     val sheetRoutes = setOf(
         Route.SHANXIANG, Route.FEIXING, Route.YIZHANG, Route.QIDUWENG,
         Route.CHUANREN, Route.TAIYI3SHI, Route.TAIYI72, Route.DALIUREN, Route.MEIHUA,
-        Route.BAZI, Route.YINPAN, Route.MINGLI, Route.ZIWEI,
+        Route.BAZI, Route.HOTBUBAZI, Route.YINPAN, Route.MINGLI, Route.ZIWEI,
         Route.JISHUYU_CAST
     )
     Box(Modifier.fillMaxSize()) {
@@ -206,6 +208,7 @@ private fun AppNavigation(
         Route.DALIUREN -> LiuRenCastScreen(db = db, onBack = { back() })
         Route.MEIHUA -> MeiHuaCastScreen(db = db, onBack = { back() })
         Route.BAZI -> BaziTaibuScreen(db = db, onBack = { back() })
+        Route.HOTBUBAZI -> HotbuBaziScreen(db = db, onBack = { back() })
         Route.YINPAN -> YinpanQimenCastScreen(db = db, onBack = { back() })
         Route.MINGLI -> MingliQimenCastScreen(db = db, onBack = { back() })
         Route.ZIWEI -> ZiweiCastScreen(db = db, onBack = { back() })
