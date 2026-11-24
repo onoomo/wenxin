@@ -288,7 +288,7 @@ private fun BaziPaipanForm(
 
 @Composable
 private fun BzFormCard(content: @Composable () -> Unit) {
-    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
         .background(Color(0x14FFFFFF)).border(1.dp, Color(0x52D9A441), RoundedCornerShape(16.dp))
         .padding(16.dp)) { content() }
 }
