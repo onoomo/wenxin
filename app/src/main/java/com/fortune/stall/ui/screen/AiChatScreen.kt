@@ -60,6 +60,7 @@ import com.fortune.stall.data.Session
 import com.fortune.stall.ui.components.Starfield
 import com.fortune.stall.ui.theme.AppColors
 import com.fortune.stall.util.AiClient
+import com.fortune.stall.util.AiPreset
 import com.fortune.stall.util.AiResult
 import com.fortune.stall.util.AiSettings
 import com.fortune.stall.util.ChatMessage
@@ -264,7 +265,7 @@ private fun ChatPanel(session: Session?, directContext: String?, bottomInset: an
     }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        // 会话工具行：新对话 / 模型名 / 配置
+        // 会话工具行：新对话 / 当前配置名 · 模型名（由 API 配置提供，切换即时更新）
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier.clip(RoundedCornerShape(14.dp))
@@ -276,8 +277,15 @@ private fun ChatPanel(session: Session?, directContext: String?, bottomInset: an
                 Text("＋ 新对话", color = AppColors.Lantern, fontSize = 11.5.sp)
             }
             Spacer(Modifier.weight(1f))
-            Text(AiSettings.model.value, color = AppColors.Lantern, fontSize = 12.sp,
-                fontWeight = FontWeight.Medium, maxLines = 1)
+            // 读 revision 让配置切换/重命名后即时重组，模型名直接取当前激活配置
+            AiSettings.revision.value
+            val curCfg = AiSettings.current()
+            val shownModel = curCfg?.model?.ifBlank { AiSettings.model.value } ?: AiSettings.model.value
+            Text(
+                curCfg?.name?.let { "$it · $shownModel" } ?: shownModel,
+                color = AppColors.Lantern, fontSize = 12.sp,
+                fontWeight = FontWeight.Medium, maxLines = 1
+            )
         }
         Spacer(Modifier.height(8.dp))
 
@@ -370,20 +378,67 @@ private fun ChatBubble(m: ChatMessage) {
     }
 }
 
-/** API 配置面板：端点 / 密钥 / 模型 / 提示词 / 上下文长度 + 预设 */
+/** API 配置面板：多套配置切换 + 端点 / 密钥 / 模型 / 提示词 / 上下文长度 + 预设 */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ApiConfigPanel() {
     val context = LocalContext.current
+    var name by remember { mutableStateOf(AiSettings.current()?.name ?: "") }
     var endpoint by remember { mutableStateOf(AiSettings.endpoint.value) }
     var apiKey by remember { mutableStateOf(AiSettings.apiKey.value) }
     var model by remember { mutableStateOf(AiSettings.model.value) }
     var prompt by remember { mutableStateOf(AiSettings.systemPrompt.value) }
     var ctx by remember { mutableStateOf(AiSettings.contextChars.value.toString()) }
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    // 切换配置时，把编辑区重置为该配置的值
+    LaunchedEffect(AiSettings.activeId.value) {
+        val c = AiSettings.current()
+        name = c?.name ?: ""
+        endpoint = AiSettings.endpoint.value
+        apiKey = AiSettings.apiKey.value
+        model = AiSettings.model.value
+        prompt = AiSettings.systemPrompt.value
+        ctx = AiSettings.contextChars.value.toString()
+    }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
         Text("接入 OpenAI 兼容的对话接口，密钥只保存在本机", color = AppColors.Muted, fontSize = 11.5.sp)
         Spacer(Modifier.height(12.dp))
+
+        // ===== 多套配置：横向切换 + 新增 + 删除 =====
+        Text("配置方案（可保存多套，点击切换）", color = AppColors.Dim, fontSize = 10.5.sp)
+        Spacer(Modifier.height(8.dp))
+        // 读 revision 触发配置变更后的重组
+        AiSettings.revision.value
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            AiSettings.configs.forEach { c ->
+                ConfigChip(
+                    label = c.name.ifBlank { "未命名" },
+                    active = c.id == AiSettings.activeId.value,
+                    onClick = { AiSettings.switchTo(c.id) }
+                )
+            }
+            ConfigChip(label = "＋ 新增", active = false, highlight = true) { showAddDialog = true }
+        }
+        if (AiSettings.configs.size > 1) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "删除当前配置「${AiSettings.current()?.name ?: ""}」",
+                color = Color(0xFFE08A7A), fontSize = 11.sp,
+                modifier = Modifier.clickable {
+                    AiSettings.deleteConfig(AiSettings.activeId.value)
+                    Toast.makeText(context, "已删除配置", Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
+        Spacer(Modifier.height(14.dp))
+
+        AiField("配置名称", name, { name = it }, singleLine = true)
+        Spacer(Modifier.height(10.dp))
 
         // 各大 AI 预设（接口与模型名按 2026 最新文档），点击一键填入
         Text("选择服务商一键填入接口与模型名", color = AppColors.Dim, fontSize = 10.5.sp)
@@ -417,8 +472,11 @@ private fun ApiConfigPanel() {
                 .background(AppColors.Lantern)
                 .clickable {
                     val n = ctx.toIntOrNull()?.coerceIn(500, 20000) ?: 6000
-                    AiSettings.save(endpoint.trim(), apiKey.trim(), model.trim(), prompt, n)
-                    Toast.makeText(context, "AI 配置已保存", Toast.LENGTH_SHORT).show()
+                    AiSettings.saveActive(
+                        name.trim().ifBlank { "未命名配置" },
+                        endpoint.trim(), apiKey.trim(), model.trim(), prompt, n
+                    )
+                    Toast.makeText(context, "配置已保存", Toast.LENGTH_SHORT).show()
                 }
                 .padding(vertical = 13.dp), contentAlignment = Alignment.Center
         ) {
@@ -426,6 +484,115 @@ private fun ApiConfigPanel() {
                 fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
         }
         Spacer(Modifier.height(24.dp))
+    }
+
+    if (showAddDialog) {
+        AddConfigDialog(
+            onDismiss = { showAddDialog = false },
+            onAddByName = { n ->
+                AiSettings.addConfig(n)
+                showAddDialog = false
+                Toast.makeText(context, "已新增配置「$n」", Toast.LENGTH_SHORT).show()
+            },
+            onAddByPreset = { p ->
+                AiSettings.addConfig(p.name, p)
+                showAddDialog = false
+                Toast.makeText(context, "已新增配置「${p.name}」", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+}
+
+@Composable
+private fun ConfigChip(
+    label: String,
+    active: Boolean,
+    highlight: Boolean = false,
+    onClick: () -> Unit
+) {
+    val bg = when {
+        active -> Color(0x55D9A441)
+        highlight -> Color(0x1AD9A441)
+        else -> Color(0x12FFFFFF)
+    }
+    Box(
+        Modifier.clip(RoundedCornerShape(14.dp))
+            .background(bg)
+            .border(
+                1.dp,
+                if (active || highlight) AppColors.Lantern else AppColors.GoldLine.copy(alpha = 0.35f),
+                RoundedCornerShape(14.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 7.dp)
+    ) {
+        Text(
+            label,
+            color = if (active || highlight) AppColors.Paper else AppColors.Lantern,
+            fontSize = 11.5.sp,
+            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal
+        )
+    }
+}
+
+/** 新增配置弹窗：可自定义名称，或从预设一键建立 */
+@Composable
+private fun AddConfigDialog(
+    onDismiss: () -> Unit,
+    onAddByName: (String) -> Unit,
+    onAddByPreset: (AiPreset) -> Unit
+) {
+    var customName by remember { mutableStateOf("") }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFF1C1B22))
+                .border(1.dp, AppColors.GoldLine, RoundedCornerShape(16.dp))
+                .padding(18.dp)
+        ) {
+            Text("新增配置", color = AppColors.Paper, fontSize = 16.sp,
+                fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(6.dp))
+            Text("自定义名称，或从服务商预设一键建立", color = AppColors.Muted, fontSize = 11.5.sp)
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = customName, onValueChange = { customName = it },
+                singleLine = true,
+                placeholder = { Text("例如：工作号 DeepSeek", color = AppColors.Dim) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = AppColors.Paper, unfocusedTextColor = AppColors.Paper,
+                    focusedBorderColor = AppColors.GoldLine, unfocusedBorderColor = AppColors.Line,
+                    cursorColor = AppColors.Lantern,
+                    focusedContainerColor = Color(0x08FFFFFF), unfocusedContainerColor = Color(0x08FFFFFF)
+                )
+            )
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Text("取消", color = AppColors.Muted, fontSize = 13.sp,
+                    modifier = Modifier.clickable { onDismiss() }.padding(horizontal = 12.dp, vertical = 6.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "创建", color = if (customName.isBlank()) AppColors.Dim else AppColors.Lantern,
+                    fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable {
+                        if (customName.isNotBlank()) onAddByName(customName.trim())
+                    }.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            Text("或选择预设：", color = AppColors.Dim, fontSize = 10.5.sp)
+            Spacer(Modifier.height(8.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                AiSettings.PRESETS.forEach { p ->
+                    PresetChip(p.name, active = false) { onAddByPreset(p) }
+                }
+            }
+        }
     }
 }
 

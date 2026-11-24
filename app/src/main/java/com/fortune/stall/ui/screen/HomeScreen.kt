@@ -75,6 +75,11 @@ import com.fortune.stall.engine.jishiyu.JishiyuRegistry
 import com.fortune.stall.util.DisplaySettings
 import com.fortune.stall.util.HomeTilesSettings
 
+/** 开场动画进程级标记：App 存活期间只播一次，页面切换/点图标返回不再重播 */
+private object HomeIntroOnce {
+    var shown = false
+}
+
 /** 问心处 · 摊面首页 */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -104,15 +109,18 @@ fun HomeScreen(
     }
     val context = LocalContext.current
 
-    // ===== 开场动画：问心处 → 心形 → 消失（快速流畅，约 0.85s）=====
+    // ===== 开场动画：问心处 → 心形 → 消失（快速流畅，约 0.85s，仅首次打开播放一次）=====
     // phase 0 文字停留 → 1 文字淡出+心形淡入 → 2 心形放大 → 3 完成(标题区收起)
-    var animPhase by remember { mutableStateOf(0) }
-    var introDone by remember { mutableStateOf(false) }
+    // 已播放过则直接进入完成态（无标题、无动画），避免点图标/切页返回时反复重播
+    var animPhase by remember { mutableStateOf(if (HomeIntroOnce.shown) 3 else 0) }
+    var introDone by remember { mutableStateOf(HomeIntroOnce.shown) }
     LaunchedEffect(Unit) {
+        if (HomeIntroOnce.shown) return@LaunchedEffect
         delay(240);  animPhase = 1   // 文字短暂停留后开始变身
         delay(180);  animPhase = 2   // 心形放大
         delay(170);  animPhase = 3   // 心形消散
         delay(190);  introDone = true // 标题区彻底收起，露出图1布局
+        HomeIntroOnce.shown = true
     }
     // 统一用 FastOutSlowIn 缓动：起步快、收尾柔，整体更顺
     val textAlpha by animateFloatAsState(

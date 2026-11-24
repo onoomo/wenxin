@@ -214,7 +214,7 @@ fun SettingsScreen(
         }
         Spacer(Modifier.height(18.dp))
         Text(
-            "问心处 · v1.0.5",
+            "问心处 · v1.0.6",
             color = AppColors.Muted, fontSize = 11.sp,
             modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center
         )
