@@ -108,11 +108,15 @@ object BaziFull {
         val minggongNayin = JishiyuBase.queryNayin(chart.mingGong.replace("宫", ""))
         val shengongNayin = JishiyuBase.queryNayin(chart.shenGong.replace("宫", ""))
 
-        // ---- 五行统计(含藏干) ----
+        // ---- 五行统计(含藏干)：原版口径 = 4天干 + 4地支本气 + 地支全部藏干 ----
+        // 例：丙午 己亥 癸卯 壬戌 = 4天干 + 4地支本气 + 8藏干 = 16
+        // (木3 火4 土4 金1 水4)，与原版基本信息页一致。
         val qty = mutableMapOf("金" to 0, "水" to 0, "木" to 0, "火" to 0, "土" to 0)
         for (p in chart.pillars) {
             val gw = GAN_WX[p.gan] ?: "木"
             qty[gw] = (qty[gw] ?: 0) + 1
+            val zw = ZHI_WX[p.zhi] ?: "木"
+            qty[zw] = (qty[zw] ?: 0) + 1
             for (c in p.cangGan) {
                 val wx = GAN_WX[c.toString()]
                 if (wx != null) qty[wx] = (qty[wx] ?: 0) + 1
