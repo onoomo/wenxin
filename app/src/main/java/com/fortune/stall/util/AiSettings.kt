@@ -31,6 +31,7 @@ object AiSettings {
     private const val PREF = "ai_settings"
     private const val KEY_CONFIGS = "configs_json"
     private const val KEY_ACTIVE = "active_config_id"
+    private const val KEY_CUSTOM_PROMPTS = "custom_prompts_json"
     // 老版本单配置键（仅用于一次性迁移）
     private const val KEY_ENDPOINT = "endpoint"
     private const val KEY_KEY = "api_key"
@@ -43,6 +44,31 @@ object AiSettings {
     const val DEFAULT_PROMPT = """你是一位精通中国术数（小六壬、六爻、梅花易数、大六壬、奇门遁甲、八字、紫微斗数、太乙、塔罗等）的断卦师。
 请根据我提供的排盘卦象进行专业解读：先点明卦象核心与用神，再结合具体事体分析吉凶成败、时间应期，最后给出简明建议。
 要求：不使用开场白与客套话，条理清晰，直击要害；解读仅供参考。"""
+
+    /** 断卦师人设切换预设：名称 + System Prompt 文本 */
+    val PROMPT_PRESETS = listOf(
+        PromptPreset("默认", DEFAULT_PROMPT),
+        PromptPreset(
+            "道家小六壬",
+            "你是一位精通「道家小六壬」占卜术的玄学大师，请用专业、神秘而富有人文关怀的语气回答。"
+        ),
+        PromptPreset(
+            "专业风水师",
+            "你是一位持有执业资格的专业风水师，擅长将传统堪舆学与现代环境科学结合。请用专业严谨的语言分析，注重实际应用和可操作性。"
+        ),
+        PromptPreset(
+            "民间高人",
+            "你是一位隐居深山的民间高人，通晓阴阳五行、天机妙算。说话玄妙深奥，善用古语和典故，偶尔透露天机，令人敬畏。"
+        ),
+        PromptPreset(
+            "学术研究者",
+            "你是一位研究中国传统术数文化的学者，精通六壬、奇门、太乙等术数体系。请用学术化的语言分析，注重文献考证和理论依据。"
+        ),
+        PromptPreset(
+            "温暖知心",
+            "你是一位温暖知心的朋友，懂得小六壬占卜。说话亲切自然，像闺蜜聊天一样，在给出解读的同时保持严谨性。"
+        )
+    )
 
     /** 各大 AI 的 OpenAI 兼容接口与最新推荐模型名（点预设一键填入） */
     val PRESETS = listOf(
@@ -60,6 +86,8 @@ object AiSettings {
 
     /** 所有配置（可组合观察，增删或字段变更会触发重组） */
     val configs = mutableStateListOf<AiConfig>()
+    /** 用户自定义人设（在 6 个内置预设之外） */
+    val customPrompts = mutableStateListOf<PromptPreset>()
     /** 当前激活配置 id */
     val activeId = mutableStateOf("")
     /** 配置变更版本号：字段重命名后由此触发界面刷新 */
@@ -134,9 +162,55 @@ object AiSettings {
         }
         configs.clear()
         configs.addAll(list)
+
+        // 读取用户自定义人设
+        val cpJson = prefs!!.getString(KEY_CUSTOM_PROMPTS, null)
+        if (!cpJson.isNullOrBlank()) {
+            try {
+                val arr = JSONArray(cpJson)
+                for (i in 0 until arr.length()) {
+                    val o = arr.getJSONObject(i)
+                    val nm = o.optString("name", "")
+                    val tx = o.optString("text", "")
+                    if (nm.isNotBlank() && tx.isNotBlank()) customPrompts.add(PromptPreset(nm, tx))
+                }
+            } catch (_: Exception) {
+            }
+        }
+
         val saved = prefs!!.getString(KEY_ACTIVE, "") ?: ""
         val target = if (list.any { it.id == saved }) saved else list[0].id
         switchTo(target)
+    }
+
+    /** 全部人设 = 内置 6 种 + 用户自定义 */
+    fun allPrompts(): List<PromptPreset> = PROMPT_PRESETS + customPrompts
+
+    /** 保存一个自定义人设（同名覆盖） */
+    fun saveCustomPrompt(name: String, text: String) {
+        if (name.isBlank() || text.isBlank()) return
+        val idx = customPrompts.indexOfFirst { it.name == name }
+        if (idx >= 0) customPrompts[idx] = PromptPreset(name, text)
+        else customPrompts.add(PromptPreset(name, text))
+        persistCustomPrompts()
+        revision.value++
+    }
+
+    /** 删除一个自定义人设 */
+    fun deleteCustomPrompt(name: String) {
+        val removed = customPrompts.removeAll { it.name == name }
+        if (removed) {
+            persistCustomPrompts()
+            revision.value++
+        }
+    }
+
+    private fun persistCustomPrompts() {
+        val arr = JSONArray()
+        customPrompts.forEach { p ->
+            arr.put(JSONObject().put("name", p.name).put("text", p.text))
+        }
+        prefs?.edit()?.putString(KEY_CUSTOM_PROMPTS, arr.toString())?.apply()
     }
 
     private fun upgradeModel(model: String): String = when (model.trim()) {
@@ -237,3 +311,6 @@ object AiSettings {
 
 /** 一个 AI 服务商预设：名称 + OpenAI 兼容接口地址 + 推荐模型名 */
 data class AiPreset(val name: String, val endpoint: String, val model: String)
+
+/** 一个断卦师人设预设：名称 + System Prompt */
+data class PromptPreset(val name: String, val text: String)

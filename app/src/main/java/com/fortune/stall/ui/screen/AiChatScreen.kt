@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -62,6 +63,7 @@ import com.fortune.stall.ui.theme.AppColors
 import com.fortune.stall.util.AiClient
 import com.fortune.stall.util.AiPreset
 import com.fortune.stall.util.ModelsResult
+import com.fortune.stall.util.PromptPreset
 import com.fortune.stall.util.AiResult
 import com.fortune.stall.util.AiSettings
 import com.fortune.stall.util.ChatMessage
@@ -391,6 +393,8 @@ private fun ApiConfigPanel() {
     var prompt by remember { mutableStateOf(AiSettings.systemPrompt.value) }
     var ctx by remember { mutableStateOf(AiSettings.contextChars.value.toString()) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var showPromptPicker by remember { mutableStateOf(false) }
+    var showSavePromptDialog by remember { mutableStateOf(false) }
     var fetchedModels by remember { mutableStateOf<List<String>>(emptyList()) }
     var showModelPicker by remember { mutableStateOf(false) }
     var loadingModels by remember { mutableStateOf(false) }
@@ -407,7 +411,8 @@ private fun ApiConfigPanel() {
         ctx = AiSettings.contextChars.value.toString()
     }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+        .padding(horizontal = 16.dp).imePadding()) {
         Text("接入 OpenAI 兼容的对话接口，密钥只保存在本机", color = AppColors.Muted, fontSize = 11.5.sp)
         Spacer(Modifier.height(12.dp))
 
@@ -505,8 +510,55 @@ private fun ApiConfigPanel() {
         }
         Spacer(Modifier.height(10.dp))
         AiField("上下文字数上限", ctx, { ctx = it }, singleLine = true, numeric = true)
-        Spacer(Modifier.height(10.dp))
-        AiField("自定义提示词（System Prompt）", prompt, { prompt = it }, singleLine = false)
+        Spacer(Modifier.height(12.dp))
+
+        // 自定义提示词：标签行右侧带「切换人设」+「确认保存」按钮
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("自定义提示词（System Prompt）", color = AppColors.Muted,
+                fontSize = 11.sp, letterSpacing = 1.sp, modifier = Modifier.weight(1f))
+            Box(
+                Modifier.clip(RoundedCornerShape(12.dp))
+                    .background(Color(0x1AD9A441))
+                    .border(1.dp, AppColors.GoldLine.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                    .clickable { showPromptPicker = true }
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
+                Text("⇄ 切换人设", color = AppColors.Lantern, fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium)
+            }
+            Spacer(Modifier.width(6.dp))
+            Box(
+                Modifier.clip(RoundedCornerShape(12.dp))
+                    .background(AppColors.Lantern)
+                    .clickable { showSavePromptDialog = true }
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
+                Text("✓ 确认保存", color = AppColors.Ink, fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold)
+            }
+        }
+        Spacer(Modifier.height(5.dp))
+        AiSettings.revision.value // 自定义人设增删后重组
+        val currentPresetName = AiSettings.allPrompts().firstOrNull { it.text == prompt }?.name
+        if (currentPresetName != null) {
+            Text("当前人设：$currentPresetName", color = AppColors.Dim, fontSize = 10.5.sp)
+            Spacer(Modifier.height(5.dp))
+        }
+        OutlinedTextField(
+            value = prompt, onValueChange = { prompt = it },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 130.dp),
+            shape = RoundedCornerShape(10.dp),
+            // 输入法修复：多行文本允许正常换行（ImeAction.Default + 不强制单行），回车可换行
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = AppColors.Paper, unfocusedTextColor = AppColors.Paper,
+                focusedBorderColor = AppColors.GoldLine, unfocusedBorderColor = AppColors.Line,
+                cursorColor = AppColors.Lantern,
+                focusedContainerColor = Color(0x08FFFFFF), unfocusedContainerColor = Color(0x08FFFFFF)
+            )
+        )
+        Spacer(Modifier.height(4.dp))
+        Text("改好提示词后点「确认保存」，起个名字存入人设列表", color = AppColors.Dim, fontSize = 10.sp)
         Spacer(Modifier.height(16.dp))
 
         Box(
@@ -555,6 +607,163 @@ private fun ApiConfigPanel() {
                 Toast.makeText(context, "已选择模型：$picked（记得点保存配置）", Toast.LENGTH_SHORT).show()
             }
         )
+    }
+
+    if (showPromptPicker) {
+        PromptPresetDialog(
+            currentText = prompt,
+            onDismiss = { showPromptPicker = false },
+            onSelect = { picked ->
+                prompt = picked.text
+                showPromptPicker = false
+                Toast.makeText(context, "已切换人设：${picked.name}（记得点保存配置）", Toast.LENGTH_SHORT).show()
+            },
+            onDeleteCustom = { nm ->
+                AiSettings.deleteCustomPrompt(nm)
+                Toast.makeText(context, "已删除人设：$nm", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    if (showSavePromptDialog) {
+        SavePromptDialog(
+            currentText = prompt,
+            onDismiss = { showSavePromptDialog = false },
+            onSave = { nm ->
+                AiSettings.saveCustomPrompt(nm, prompt)
+                showSavePromptDialog = false
+                Toast.makeText(context, "人设「$nm」已保存", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+}
+
+/** 确认保存人设弹窗：给当前提示词起名字，存入人设列表 */
+@Composable
+private fun SavePromptDialog(
+    currentText: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFF1C1B22))
+                .border(1.dp, AppColors.GoldLine, RoundedCornerShape(16.dp))
+                .padding(18.dp)
+        ) {
+            Text("保存为人设", color = AppColors.Paper, fontSize = 16.sp,
+                fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Text("给这段提示词起个名字，之后可在「切换人设」里选用",
+                color = AppColors.Muted, fontSize = 11.sp)
+            Spacer(Modifier.height(10.dp))
+            Text("人设名称", color = AppColors.Dim, fontSize = 10.5.sp)
+            Spacer(Modifier.height(5.dp))
+            OutlinedTextField(
+                value = name, onValueChange = { name = it },
+                singleLine = true,
+                placeholder = { Text("例如：我的断卦风格", color = AppColors.Dim) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = AppColors.Paper, unfocusedTextColor = AppColors.Paper,
+                    focusedBorderColor = AppColors.GoldLine, unfocusedBorderColor = AppColors.Line,
+                    cursorColor = AppColors.Lantern,
+                    focusedContainerColor = Color(0x08FFFFFF), unfocusedContainerColor = Color(0x08FFFFFF)
+                )
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "提示词预览：${currentText.take(60).replace("\n", " ")}${if (currentText.length > 60) "…" else ""}",
+                color = AppColors.Dim, fontSize = 10.5.sp, maxLines = 2
+            )
+            Spacer(Modifier.height(14.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Text("取消", color = AppColors.Muted, fontSize = 13.sp,
+                    modifier = Modifier.clickable { onDismiss() }.padding(horizontal = 12.dp, vertical = 6.dp))
+                Spacer(Modifier.width(6.dp))
+                Box(
+                    Modifier.clip(RoundedCornerShape(10.dp))
+                        .background(if (name.isNotBlank()) AppColors.Lantern else Color(0x33FFFFFF))
+                        .clickable { if (name.isNotBlank()) onSave(name.trim()) }
+                        .padding(horizontal = 18.dp, vertical = 7.dp)
+                ) {
+                    Text("确认保存", color = if (name.isNotBlank()) AppColors.Ink else AppColors.Dim,
+                        fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+/** 人设切换弹窗：列出内置 + 自定义人设，点选即填入；自定义可删除 */
+@Composable
+private fun PromptPresetDialog(
+    currentText: String,
+    onDismiss: () -> Unit,
+    onSelect: (PromptPreset) -> Unit,
+    onDeleteCustom: (String) -> Unit
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFF1C1B22))
+                .border(1.dp, AppColors.GoldLine, RoundedCornerShape(16.dp))
+                .padding(18.dp)
+        ) {
+            Text("切换断卦人设", color = AppColors.Paper, fontSize = 16.sp,
+                fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Text("点选后填入提示词框，保存配置即生效", color = AppColors.Muted, fontSize = 11.sp)
+            Spacer(Modifier.height(12.dp))
+            LazyColumn(Modifier.heightIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                AiSettings.revision.value // 自定义人设增删后重组
+                items(AiSettings.allPrompts()) { p ->
+                    val active = p.text == currentText
+                    val isCustom = AiSettings.customPrompts.any { it.name == p.name && it.text == p.text }
+                    Column(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                            .background(if (active) Color(0x33D9A441) else Color(0x10FFFFFF))
+                            .border(
+                                1.dp,
+                                if (active) AppColors.Lantern else AppColors.GoldLine.copy(alpha = 0.3f),
+                                RoundedCornerShape(12.dp)
+                            )
+                            .clickable { onSelect(p) }
+                            .padding(horizontal = 13.dp, vertical = 11.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(p.name, color = if (active) AppColors.Paper else AppColors.Lantern,
+                                fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f))
+                            if (active) Text("当前 ✓", color = AppColors.Lantern, fontSize = 10.5.sp)
+                            if (isCustom) {
+                                Spacer(Modifier.width(8.dp))
+                                Text("删除", color = Color(0xFFE08A7A), fontSize = 10.5.sp,
+                                    modifier = Modifier.clickable { onDeleteCustom(p.name) }
+                                        .padding(horizontal = 4.dp, vertical = 2.dp))
+                            }
+                        }
+                        Spacer(Modifier.height(5.dp))
+                        Text(
+                            p.text,
+                            color = AppColors.Muted, fontSize = 10.5.sp, lineHeight = 16.sp,
+                            maxLines = 3,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                .background(Color(0x12FFFFFF)).clickable { onDismiss() }
+                .padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
+                Text("关闭", color = AppColors.Muted, fontSize = 12.5.sp)
+            }
+        }
     }
 }
 
