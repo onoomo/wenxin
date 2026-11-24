@@ -30,7 +30,7 @@ object Taiyi72 {
 
     /** 积数纪元流派 */
     enum class Tradition(val label: String) {
-        JINJING("金镜"), TONGZONG("统宗")
+        TONGZONG("统宗"), JINJING("金镜")
     }
 
     // 《太乙金鏡式經》四库本卷三 阳/阴七十二局立成（主算、客算，各 72 项）
@@ -122,14 +122,14 @@ object Taiyi72 {
      * 起局。
      * @param dt 公历时间
      * @param mode 年/月/日/时盘
-     * @param tradition 积数纪元流派（金镜/统宗）
+     * @param tradition 积数纪元流派（统宗/金镜）
      * @param manualAccumulated 手工积数（可选，用于复核其他历书）
      * @param manualYangDun 手工阴阳遁（可选，null=自动）
      */
     fun paipan(
         dt: LocalDateTime,
         mode: Mode = Mode.HOUR,
-        tradition: Tradition = Tradition.JINJING,
+        tradition: Tradition = Tradition.TONGZONG,
         manualAccumulated: Long? = null,
         manualYangDun: Boolean? = null
     ): Result {

@@ -50,13 +50,20 @@ fun Taiyi72CastScreen(db: FortuneDb, onBack: () -> Unit) {
     var dtText by remember { mutableStateOf(LocalDateTime.now().format(dtFmt)) }
     var question by remember { mutableStateOf("") }
     var modeIdx by remember { mutableStateOf(3) } // 默认时盘
-    var traditionIdx by remember { mutableStateOf(0) } // 默认金镜
+    var traditionIdx by remember { mutableStateOf(0) } // 默认统宗（列表首位）
     var manualAcc by remember { mutableStateOf("") }
     var showDate by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<Taiyi72.Result?>(null) }
 
     val modes = listOf(Taiyi72.Mode.YEAR, Taiyi72.Mode.MONTH, Taiyi72.Mode.DAY, Taiyi72.Mode.HOUR)
-    val traditions = listOf(Taiyi72.Tradition.JINJING, Taiyi72.Tradition.TONGZONG)
+    // 起局尺度场景说明（与 modes 一一对应）
+    val modeHints = listOf(
+        "大事、长期走势 → 年盘（岁计）",
+        "一月内趋势 → 月盘（月计）",
+        "当天事情 → 日盘",
+        "当下这件事、短时间得失 → 时盘"
+    )
+    val traditions = listOf(Taiyi72.Tradition.TONGZONG, Taiyi72.Tradition.JINJING)
 
     if (result != null) {
         Taiyi72DetailScreen(result!!, question, onBack)
@@ -81,7 +88,14 @@ fun Taiyi72CastScreen(db: FortuneDb, onBack: () -> Unit) {
         JiRow("预测事项：") { JiInput(question, { question = it.take(30) }, "输入预测事项（选填）", Modifier.fillMaxWidth()) }
         Spacer(Modifier.height(12.dp))
         JiChipLine("起局尺度：", modes.map { it.label }, modeIdx) { modeIdx = it }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(4.dp))
+        Text(
+            modeHints[modeIdx],
+            color = JiForm.SUB,
+            fontSize = 11.sp,
+            modifier = Modifier.padding(start = 2.dp)
+        )
+        Spacer(Modifier.height(8.dp))
         JiChipLine("积数纪元：", traditions.map { it.label }, traditionIdx) { traditionIdx = it }
         Spacer(Modifier.height(10.dp))
         JiRow("手工积数：") { JiInput(manualAcc, { manualAcc = it.filter { c -> c.isDigit() }.take(12) }, "留空=自动（可填复核）", Modifier.fillMaxWidth()) }
