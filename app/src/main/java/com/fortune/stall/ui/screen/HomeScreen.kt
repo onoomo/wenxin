@@ -30,6 +30,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
@@ -103,34 +104,35 @@ fun HomeScreen(
     }
     val context = LocalContext.current
 
-    // ===== 开场动画：问心处 → 心形 → 消失（只播放一次）=====
-    // phase 0 文字停留 → 1 文字淡出+心形淡入 → 2 心形放大淡出 → 3 完成(标题区收起)
+    // ===== 开场动画：问心处 → 心形 → 消失（快速流畅，约 0.85s）=====
+    // phase 0 文字停留 → 1 文字淡出+心形淡入 → 2 心形放大 → 3 完成(标题区收起)
     var animPhase by remember { mutableStateOf(0) }
     var introDone by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        delay(700);  animPhase = 1   // 文字停留 0.7s 后开始变身
-        delay(560);  animPhase = 2   // 心形成形后再停留
-        delay(520);  animPhase = 3   // 心形消散
-        delay(520);  introDone = true // 标题区彻底收起，露出图1布局
+        delay(240);  animPhase = 1   // 文字短暂停留后开始变身
+        delay(180);  animPhase = 2   // 心形放大
+        delay(170);  animPhase = 3   // 心形消散
+        delay(190);  introDone = true // 标题区彻底收起，露出图1布局
     }
+    // 统一用 FastOutSlowIn 缓动：起步快、收尾柔，整体更顺
     val textAlpha by animateFloatAsState(
         targetValue = if (animPhase == 0) 1f else 0f,
-        animationSpec = tween(520), label = "textAlpha")
+        animationSpec = tween(260, easing = FastOutSlowInEasing), label = "textAlpha")
     val textScale by animateFloatAsState(
-        targetValue = if (animPhase == 0) 1f else 1.18f,
-        animationSpec = tween(520), label = "textScale")
+        targetValue = if (animPhase == 0) 1f else 1.12f,
+        animationSpec = tween(260, easing = FastOutSlowInEasing), label = "textScale")
     val heartAlpha by animateFloatAsState(
         targetValue = when (animPhase) { 1 -> 1f; 2 -> 1f; else -> 0f },
-        animationSpec = tween(440), label = "heartAlpha")
+        animationSpec = tween(240, easing = FastOutSlowInEasing), label = "heartAlpha")
     val heartScale by animateFloatAsState(
-        targetValue = when (animPhase) { 1 -> 0.55f; 2 -> 1.35f; else -> 1.6f },
-        animationSpec = tween(560), label = "heartScale")
+        targetValue = when (animPhase) { 1 -> 0.6f; 2 -> 1.1f; else -> 1.28f },
+        animationSpec = tween(300, easing = FastOutSlowInEasing), label = "heartScale")
     // 标题占位高度：动画完成后收为 0，让副标题上移（图1效果）
     // 用 Float 动画再乘 density 转 Dp，避免依赖完整 animation 包
     val heroHeightFrac by animateFloatAsState(
         targetValue = if (introDone) 0f else 1f,
-        animationSpec = tween(360), label = "heroHeight")
-    val heroHeight = with(density) { (84f * heroHeightFrac).dp }
+        animationSpec = tween(240, easing = FastOutSlowInEasing), label = "heroHeight")
+    val heroHeight = with(density) { (58f * heroHeightFrac).dp }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Starfield(Modifier.fillMaxSize())
@@ -152,7 +154,7 @@ fun HomeScreen(
                 Text(
                     "问心处",
                     color = AppColors.Paper,
-                    fontSize = 46.sp, letterSpacing = 10.sp,
+                    fontSize = 36.sp, letterSpacing = 7.sp,
                     fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.alpha(textAlpha).scale(textScale)
@@ -161,7 +163,7 @@ fun HomeScreen(
                 if (!introDone) {
                     Canvas(
                         modifier = Modifier
-                            .size(72.dp)
+                            .size(48.dp)
                             .alpha(heartAlpha)
                             .scale(heartScale)
                     ) {
