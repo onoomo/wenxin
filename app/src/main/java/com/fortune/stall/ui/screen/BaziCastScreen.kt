@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -460,6 +461,87 @@ private fun BzAreaPick(
     }
 }
 
+/** 内置分析弹窗：基于 BaziAnalyzer 的格局/旺衰/用神/性格/行为/风险/大运，仿原版自带分析。 */
+@Composable
+private fun BzBuiltInDialog(c: BaziChart.Chart, onDismiss: () -> Unit) {
+    val a = c.analysis
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFF241E16))
+            .padding(20.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("✦ 内置命理分析", color = BZ_GOLD, fontSize = 17.sp, fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("✕", color = Color(0xFF9A8E7A), fontSize = 16.sp, modifier = Modifier.clickable { onDismiss() })
+            }
+            Spacer(Modifier.height(4.dp))
+            Text("${c.lunar}  ${if (c.gender == "男") "乾造" else "坤造"}  ·  ${c.baziText}",
+                color = Color(0xFF9A8E7A), fontSize = 11.sp)
+            Spacer(Modifier.height(12.dp))
+            Column(Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState())) {
+                @Composable
+                fun sec(title: String, body: String) {
+                    if (body.isBlank()) return
+                    Spacer(Modifier.height(10.dp))
+                    Text(title, color = BZ_GOLD, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(3.dp))
+                    Text(body, color = Color(0xFFD9D0BE), fontSize = 12.5.sp, lineHeight = 20.sp)
+                }
+                sec("【总论】", buildString {
+                    append("日主${c.pillars[2].gan}，${a.wangshuai}。")
+                    if (!a.geju.isNullOrBlank()) append("格局：${a.geju}。")
+                    if (!a.congge.isNullOrBlank()) append("从格：${a.congge}。")
+                    append("综合评分 ${a.score} 分。")
+                })
+                sec("【五行喜忌】", "旺衰：${a.wangshuai}；用神：${a.yongshen.joinToString("、")}；" +
+                    "调候：${a.tiaohou.joinToString("、")}；主导五行：${a.dominantWuxing}。")
+                sec("【性格心性】", a.personality)
+                sec("【主导十神】", a.dominantShishen)
+                sec("【行为作风】", a.behavior)
+                sec("【行事风格】", a.style)
+                if (a.risks.isNotEmpty()) sec("【风险提示】", a.risks.joinToString("；"))
+                if (a.detail.isNotEmpty()) sec("【详细论断】", a.detail.joinToString("\n"))
+            }
+            Spacer(Modifier.height(14.dp))
+            BzDlgBtn("关闭", true, Modifier.fillMaxWidth(), onDismiss)
+        }
+    }
+}
+
+/** 十神/神煞/纳音 知识详情弹窗。 */
+@Composable
+private fun BzKnowledgeDialog(target: BzDetailTarget, onDismiss: () -> Unit) {
+    val (title, raw) = bzKnowledge(target.type, target.name)
+    val paras = remember(target) {
+        raw.split("<br/>", "<br>", "\n").map { it.trim() }.filter { it.isNotBlank() }
+    }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFF241E16))
+            .padding(20.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(title, color = BZ_GOLD, fontSize = 17.sp, fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("✕", color = Color(0xFF9A8E7A), fontSize = 16.sp, modifier = Modifier.clickable { onDismiss() })
+            }
+            Spacer(Modifier.height(12.dp))
+            Column(Modifier.fillMaxWidth().heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                paras.forEach { p ->
+                    val isHead = p.length <= 8 && (p.startsWith("优点") || p.startsWith("缺点") ||
+                        p.startsWith("代表") || p.startsWith("命中") || p in setOf("身强时", "身弱时", "格局", "断句"))
+                    if (isHead) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(p, color = BZ_GOLD, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    } else {
+                        Text(p, color = Color(0xFFD9D0BE), fontSize = 12.5.sp, lineHeight = 20.sp,
+                            modifier = Modifier.padding(vertical = 2.dp))
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            BzDlgBtn("关闭", true, Modifier.fillMaxWidth(), onDismiss)
+        }
+    }
+}
+
 @Composable
 private fun BzReverseDialog(onDismiss: () -> Unit) {
     var gz by remember { mutableStateOf("") }
@@ -487,6 +569,8 @@ private fun BzReverseDialog(onDismiss: () -> Unit) {
 @Composable
 private fun BaziDetailScreen(chart: BaziChart.Chart, full: BaziFull.Data?, xp: BaziXiangpan.Data?, onBack: () -> Unit) {
     var tab by remember { mutableIntStateOf(0) }
+    var detailTarget by remember { mutableStateOf<BzDetailTarget?>(null) }
+    var showBuiltIn by remember { mutableStateOf(false) }
     val tabs = listOf("基本", "命盘", "详盘")
     Column(Modifier.fillMaxSize().background(Color(0xFFF5F1E8))) {
         // 顶栏（仿原版吉时雨八字 红色标题栏）
@@ -495,7 +579,7 @@ private fun BaziDetailScreen(chart: BaziChart.Chart, full: BaziFull.Data?, xp: B
                 Box(Modifier.size(28.dp).clickable { onBack() }, contentAlignment = Alignment.Center) {
                     Text("‹", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
                 }
-                Text("吉时雨八字", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                Text("八 字 排 盘", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
                 Spacer(Modifier.size(28.dp))
             }
@@ -519,17 +603,33 @@ private fun BaziDetailScreen(chart: BaziChart.Chart, full: BaziFull.Data?, xp: B
             Column(Modifier.fillMaxWidth()) {
                 when (tab) {
                     0 -> BzBasicPage(chart, full)
-                    1 -> BzMingpanPage(chart, full)
-                    2 -> BzDetailPage(chart, full, xp)
+                    1 -> BzMingpanPage(chart, full, onDetail = { detailTarget = it })
+                    2 -> BzDetailPage(chart, full, xp, onDetail = { detailTarget = it })
                 }
                 Spacer(Modifier.height(12.dp))
-                com.fortune.stall.ui.components.ResultActionBar(
-                    faceText = baziFaceText(chart, chart.solar, "")
-                )
+                // 内置分析（原版自带） + 复制排盘 + 问AI
+                val faceText = when (tab) {
+                    0 -> baziBasicText(chart, full)
+                    1 -> baziMingpanText(chart, full)
+                    else -> baziDetailText(chart, full, xp)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
+                        .background(Brush.horizontalGradient(listOf(Color(0xFF8E44AD), Color(0xFF6A3093))))
+                        .clickable { showBuiltIn = true }.padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center) {
+                        Text("✦ 内置分析", color = Color.White, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Box(Modifier.weight(1.4f)) {
+                        com.fortune.stall.ui.components.ResultActionBar(faceText = faceText)
+                    }
+                }
                 Spacer(Modifier.height(24.dp))
             }
         }
     }
+    detailTarget?.let { BzKnowledgeDialog(it) { detailTarget = null } }
+    if (showBuiltIn) BzBuiltInDialog(chart) { showBuiltIn = false }
 }
 
 /* ============================ 基本页（图1） ============================ */
@@ -563,7 +663,7 @@ private fun BzBasicPage(c: BaziChart.Chart, f: BaziFull.Data?) {
             BzSection("五行统计")
             val qty = f?.wuXingQty ?: c.wuXing.toMap()
             val order = listOf("木", "火", "土", "金", "水")
-            val shishenOf = mapOf("木" to "财星", "火" to "官星", "土" to "印星", "金" to "比劫", "水" to "食伤")
+            val dayWx = GAN_WX_OF(c.pillars[2].gan)
             val barColor = mapOf("木" to Color(0xFF4CAF50), "火" to Color(0xFFE53935), "土" to Color(0xFFC8883C),
                 "金" to Color(0xFFD9A441), "水" to Color(0xFF3D7FC1))
             val maxQty = (order.maxOfOrNull { qty[it] ?: 0 } ?: 1).coerceAtLeast(1)
@@ -576,7 +676,7 @@ private fun BzBasicPage(c: BaziChart.Chart, f: BaziFull.Data?) {
                             .clip(RoundedCornerShape(5.dp)).background(barColor[wx] ?: Color.Gray))
                     }
                     Spacer(Modifier.width(8.dp))
-                    Text("$cnt 个${shishenOf[wx] ?: ""}", color = Color(0xFF666666), fontSize = 11.sp)
+                    Text("$cnt 个${shishenCategory(wx, dayWx)}", color = Color(0xFF666666), fontSize = 11.sp)
                 }
             }
         }
@@ -610,7 +710,7 @@ private fun BzBasicPage(c: BaziChart.Chart, f: BaziFull.Data?) {
 
 /* ============================ 命盘页（图2） ============================ */
 @Composable
-private fun BzMingpanPage(c: BaziChart.Chart, f: BaziFull.Data?) {
+private fun BzMingpanPage(c: BaziChart.Chart, f: BaziFull.Data?, onDetail: (BzDetailTarget) -> Unit) {
     Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
         // 顶部信息
         Column(Modifier.fillMaxWidth().background(Color.White).padding(12.dp)) {
@@ -633,8 +733,8 @@ private fun BzMingpanPage(c: BaziChart.Chart, f: BaziFull.Data?) {
                 for (h in listOf("年柱", "月柱", "日柱", "时柱")) Text(h, color = Color(0xFF888888), fontSize = 13.sp,
                     modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             }
-            // 十神
-            BzTableRow("十神", c.pillars.map { it.shiShen }) { Color(0xFF222222) to 13.sp }
+            // 十神（可点击查看详情）
+            BzTableRow("十神", c.pillars.map { it.shiShen }, detailType = "十神", onDetail = onDetail) { Color(0xFF222222) to 13.sp }
             // 天干（五行着色 + 大字）
             BzTableRow("天干", c.pillars.map { it.gan }) { g -> (WX_COLOR_DETAIL[GAN_WX_OF(g)] ?: BZ_RED) to 24.sp }
             // 地支（五行着色 + 大字）
@@ -646,8 +746,10 @@ private fun BzMingpanPage(c: BaziChart.Chart, f: BaziFull.Data?) {
                     val gs = p.cangGan.map { it.toString() }; val ss = p.cangShen.split("·")
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                         for (i in gs.indices) Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(gs[i], color = WX_COLOR_LIGHT[GAN_WX_OF(gs[i])] ?: Color(0xFF555555), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            Text(ss.getOrNull(i) ?: "", color = Color(0xFF333333), fontSize = 12.sp)
+                            Text(gs[i], color = WX_COLOR_LIGHT[GAN_WX_OF(gs[i])] ?: Color(0xFF555555), fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                                modifier = Modifier.clickable { onDetail(BzDetailTarget("十神", com.fortune.stall.engine.jishiyu.Shishen.query(gs[i], c.pillars[2].gan))) })
+                            Text(ss.getOrNull(i) ?: "", color = Color(0xFF333333), fontSize = 12.sp,
+                                modifier = Modifier.clickable { val sv = ss.getOrNull(i) ?: ""; if (sv.isNotBlank()) onDetail(BzDetailTarget("藏干十神", sv)) })
                         }
                     }
                 }
@@ -655,14 +757,15 @@ private fun BzMingpanPage(c: BaziChart.Chart, f: BaziFull.Data?) {
             BzTableRow("地势", c.pillars.map { it.deShi }) { Color(0xFF222222) to 12.sp }
             BzTableRow("自坐", c.pillars.map { it.ziZuo }) { Color(0xFF222222) to 12.sp }
             BzTableRow("空亡", c.pillars.map { it.kongWang }) { Color(0xFF222222) to 12.sp }
-            BzTableRow("纳音", c.pillars.map { it.naYin }) { Color(0xFF1565C0) to 12.sp }
-            // 神煞（每行多个，竖排）
+            BzTableRow("纳音", c.pillars.map { it.naYin }, detailType = "纳音", onDetail = onDetail) { Color(0xFF1565C0) to 12.sp }
+            // 神煞（每行多个，竖排，可点击查看详情）
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
                 Text("神煞", color = Color(0xFF888888), fontSize = 11.sp, modifier = Modifier.weight(0.72f), textAlign = TextAlign.Center)
                 c.pillars.forEach { p ->
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                         p.shenSha.split("、", "·").filter { it.isNotBlank() && it != "无" }.forEach {
-                            Text(it, color = Color(0xFF3F51B5), fontSize = 10.sp, lineHeight = 15.sp)
+                            Text(it, color = Color(0xFF3F51B5), fontSize = 10.sp, lineHeight = 15.sp,
+                                modifier = Modifier.clickable { onDetail(BzDetailTarget("神煞", it)) })
                         }
                     }
                 }
@@ -726,7 +829,7 @@ private val WX_COLOR_LIGHT = mapOf(
 )
 
 @Composable
-private fun BzDetailPage(c: BaziChart.Chart, f: BaziFull.Data?, xp: BaziXiangpan.Data?) {
+private fun BzDetailPage(c: BaziChart.Chart, f: BaziFull.Data?, xp: BaziXiangpan.Data?, onDetail: (BzDetailTarget) -> Unit) {
     var taimingOn by remember { mutableStateOf(false) }   // 胎命身：开=左列换胎元/命宫/身宫
     var chuangongOn by remember { mutableStateOf(false) } // 串宫：开=显示干支串宫两行
     var taisuiType by remember { mutableIntStateOf(1) }   // 起太岁：1流年 2大运 3日干
@@ -795,8 +898,8 @@ private fun BzDetailPage(c: BaziChart.Chart, f: BaziFull.Data?, xp: BaziXiangpan
                         Box(Modifier.fillMaxWidth().height(42.dp), contentAlignment = Alignment.Center) { Text("地支", color = Color(0xFF999999), fontSize = 10.sp) }
                         if (chuangongOn) Box(Modifier.fillMaxWidth().height(22.dp).clickable { taisuiType = taisuiType % 3 + 1 },
                             contentAlignment = Alignment.Center) { Text("串宫", color = Color(0xFFC62828), fontSize = 9.sp) }
-                        listOf("藏干","地势","自坐","空亡","纳音").forEach { lbl ->
-                            Box(Modifier.fillMaxWidth().height(if (lbl=="藏干") 84.dp else 34.dp),
+                        listOf("藏干","地势","自坐","空亡","纳音","神煞").forEach { lbl ->
+                            Box(Modifier.fillMaxWidth().height(if (lbl=="藏干") 84.dp else if (lbl=="神煞") 96.dp else 34.dp),
                                 contentAlignment = Alignment.Center) { Text(lbl, color = Color(0xFF999999), fontSize = 10.sp) }
                         }
                     }
@@ -817,14 +920,14 @@ private fun BzDetailPage(c: BaziChart.Chart, f: BaziFull.Data?, xp: BaziXiangpan
                     // 年月日时四柱
                     XpColCard(xp.year, "年柱", c.lunar.replace("日",""), showGods = chuangongOn,
                         ganGod = gods(xp.year.ganzhi).gan, zhiGod = gods(xp.year.ganzhi).zhi,
-                        hiGan = chuangongOn && taisuiType==3)
+                        hiGan = chuangongOn && taisuiType==3, onDetail = onDetail)
                     XpColCard(xp.month, "月柱", "十月", showGods = chuangongOn,
-                        ganGod = gods(xp.month.ganzhi).gan, zhiGod = gods(xp.month.ganzhi).zhi)
+                        ganGod = gods(xp.month.ganzhi).gan, zhiGod = gods(xp.month.ganzhi).zhi, onDetail = onDetail)
                     XpColCard(xp.day, "日柱", "十四", showGods = chuangongOn,
                         ganGod = gods(xp.day.ganzhi).gan, zhiGod = gods(xp.day.ganzhi).zhi,
-                        hiGan = chuangongOn && taisuiType==3)
+                        hiGan = chuangongOn && taisuiType==3, onDetail = onDetail)
                     XpColCard(xp.hour, "时柱", "辰时", showGods = chuangongOn,
-                        ganGod = gods(xp.hour.ganzhi).gan, zhiGod = gods(xp.hour.ganzhi).zhi)
+                        ganGod = gods(xp.hour.ganzhi).gan, zhiGod = gods(xp.hour.ganzhi).zhi, onDetail = onDetail)
                 }
             }
             Spacer(Modifier.height(6.dp))
@@ -886,7 +989,7 @@ private fun BzDetailPage(c: BaziChart.Chart, f: BaziFull.Data?, xp: BaziXiangpan
 private fun XpColCard(
     col: BaziXiangpan.Col, head1: String, head2: String, divider: Boolean = false,
     showGods: Boolean = false, ganGod: String = "", zhiGod: String = "",
-    hiGan: Boolean = false
+    hiGan: Boolean = false, onDetail: (BzDetailTarget) -> Unit = {}
 ) {
     Column(
         Modifier.width(52.dp)
@@ -898,8 +1001,10 @@ private fun XpColCard(
         Box(Modifier.fillMaxWidth().height(30.dp), contentAlignment = Alignment.Center) {
             Text(head1, color = Color(0xFF777777), fontSize = 11.sp)
         }
-        // 十神
-        Box(Modifier.fillMaxWidth().height(36.dp), contentAlignment = Alignment.Center) { Text(col.ganShen, color = Color(0xFF222222), fontSize = 12.sp) }
+        // 十神（可点击查看详情）
+        Box(Modifier.fillMaxWidth().height(36.dp).clickable {
+            if (col.ganShen.isNotBlank()) onDetail(BzDetailTarget("十神", col.ganShen))
+        }, contentAlignment = Alignment.Center) { Text(col.ganShen, color = Color(0xFF222222), fontSize = 12.sp) }
         // 天干串宫行（十神下方）：红字白底
         if (showGods) Box(Modifier.fillMaxWidth().height(22.dp), contentAlignment = Alignment.Center) {
             Text(ganGod, color = Color(0xFFC62828), fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -931,9 +1036,19 @@ private fun XpColCard(
         for (v in listOf(col.deShi, col.ziZuo, col.kongWang)) {
             Box(Modifier.fillMaxWidth().height(34.dp), contentAlignment = Alignment.Center) { Text(v, color = Color(0xFF222222), fontSize = 11.sp) }
         }
-        // 纳音
-        Box(Modifier.fillMaxWidth().height(34.dp), contentAlignment = Alignment.Center) {
+        // 纳音（可点击查看详情）
+        Box(Modifier.fillMaxWidth().height(34.dp).clickable {
+            if (col.naYin.isNotBlank()) onDetail(BzDetailTarget("纳音", col.naYin))
+        }, contentAlignment = Alignment.Center) {
             Text(col.naYin, color = Color(0xFF1565C0), fontSize = 11.sp)
+        }
+        // 神煞（竖排多个，与表头 96.dp 对齐）
+        Column(Modifier.fillMaxWidth().height(96.dp), horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center) {
+            val ss = col.shenSha.split("、", "·").filter { it.isNotBlank() && it != "无" }
+            if (ss.isEmpty()) Text("无", color = Color(0xFFAAAAAA), fontSize = 9.sp)
+            else ss.forEach { Text(it, color = Color(0xFF3F51B5), fontSize = 9.sp, lineHeight = 13.sp,
+                modifier = Modifier.clickable { onDetail(BzDetailTarget("神煞", it)) }) }
         }
     }
 }
@@ -942,15 +1057,134 @@ private fun GAN_WX_OF(gan: String) = when (gan) {
     "甲","乙" -> "木"; "丙","丁" -> "火"; "戊","己" -> "土"; "庚","辛" -> "金"; "壬","癸" -> "水"; else -> ""
 }
 
+// 五行相生（我生者=食伤，生我者=印）与相克（我克者=财，克我者=官）
+private val WX_SHENG = mapOf("木" to "火", "火" to "土", "土" to "金", "金" to "水", "水" to "木")
+private val WX_KE = mapOf("木" to "土", "土" to "水", "水" to "火", "火" to "金", "金" to "木")
+
+/** 某五行相对日主的十神类别（财/官/印/比劫/食伤）。 */
+private fun shishenCategory(wx: String, dayWx: String) = when {
+    wx == dayWx -> "比劫"
+    WX_SHENG[dayWx] == wx -> "食伤"
+    WX_SHENG[wx] == dayWx -> "印星"
+    WX_KE[dayWx] == wx -> "财星"
+    WX_KE[wx] == dayWx -> "官星"
+    else -> ""
+}
+
+/** 点击查询项：十神 / 神煞 / 纳音 / 藏干十神。 */
+private data class BzDetailTarget(val type: String, val name: String)
+
+/** 取某项的知识解释（正文，可能含 <br/> 分段）。 */
+private fun bzKnowledge(type: String, name: String): Pair<String, String> {
+    return when (type) {
+        "十神", "藏干十神" -> {
+            val key = when (name) {
+                "比" -> "比肩"; "劫" -> "劫财"; "食" -> "食神"; "伤" -> "伤官"
+                "才" -> "偏财"; "财" -> "正财"; "杀" -> "七杀"; "官" -> "正官"
+                "枭" -> "偏印"; "印" -> "正印"; "日元" -> "日主"; else -> name
+            }
+            val body = com.fortune.stall.engine.jishiyu.Shishen.HELP[key]
+            "十神 · $key" to (body ?: "$key：日主与对应天干的生克关系，代表命局中该类人事物与性格倾向。")
+        }
+        "神煞" -> "神煞 · $name" to (SHENSHA_KNOWLEDGE[name] ?:
+            "$name：八字神煞之一，由特定干支组合推演而来，吉者助运、凶者示警，需结合全局喜忌参看，不可单凭一星定论。")
+        "纳音" -> "纳音 · $name" to (NAYIN_KNOWLEDGE[name] ?:
+            "$name：六十甲子纳音之一，以五行之象喻人物品性，古称\"纳音配命\"，作为格局与性情参看的辅助。")
+        else -> name to "暂无详解。"
+    }
+}
+
+/** 神煞简明知识（常见 40+ 神煞，取核心断语）。 */
+private val SHENSHA_KNOWLEDGE = mapOf(
+    "天乙贵人" to "命中最吉之神，主逢凶化吉、易得贵人扶助，人缘佳、遇难呈祥。",
+    "太极贵人" to "主聪明好学、喜神秘事物，有钻研精神，宜学术、玄学、研究之道。",
+    "文昌贵人" to "主聪明好学、才华文采，利读书、考试、著述，文书学业有成。",
+    "天厨贵人" to "主衣食丰足、口福好，一生不缺饮食，宜饮食、烹饪相关。",
+    "福星贵人" to "主一生福禄相伴、少灾少难，性情温和，家宅安宁。",
+    "国印贵人" to "主诚实可靠、有权威，宜公职、管理，掌权印之象。",
+    "学堂" to "主聪明、学业有成，利于读书求知，文科才华突出。",
+    "词馆" to "主文采出众、口才佳，宜写作、教育、演艺等文字口舌之业。",
+    "驿马" to "主走动、迁移、奔波，宜外出发展、交通运输、外向型职业。",
+    "桃花" to "又称咸池，主异性缘、魅力、情感丰富，也主才艺与人缘。",
+    "红鸾" to "主婚姻喜事、姻缘，逢流年引动多有婚恋之喜。",
+    "天喜" to "主喜庆、婚姻、添丁之喜，一生喜事较多。",
+    "将星" to "主领导力、权威，能统御众人，宜担当管理者、团队核心。",
+    "华盖" to "主聪明孤高、喜哲学玄学艺术，聪明好学但易孤独，宜宗教、研究、艺术。",
+    "劫煞" to "主耗损、被夺、意外破财，凡事宜守，防小人夺财。",
+    "亡神" to "主心机、失落、易失势，细胞内耗，宜谨慎行事。",
+    "灾煞" to "主灾病、意外、血光，流年逢之宜注意健康与安全。",
+    "勾绞" to "主牵连、纠纷、官非口舌，宜远离是非、慎重签约。",
+    "元辰" to "主坎坷、感情波折，做事多阻，宜稳中求进。",
+    "大耗" to "主破财、耗损，大半因意外或人情花费，宜量入为出。",
+    "小耗" to "主小的财物损耗、破小财，无大碍。",
+    "岁破" to "主与太岁相冲，流年逢之诸事不顺、宜守不宜进。",
+    "羊刃" to "主刚烈、暴戾、血光，身强者尤忌，宜收敛脾气、注意刀兵之灾。",
+    "飞刃" to "主血光、争斗、意外伤灾，宜谨慎、避免冲突。",
+    "血刃" to "主血光之灾、开刀手术、意外创伤，流年逢之注意健康。",
+    "禄神" to "主俸禄、财禄、衣食，天干之禄，主稳定收入与生活保障。",
+    "天德贵人" to "至善之神，主心地仁善、逢凶化吉、消灾解厄，一生多贵人。",
+    "月德贵人" to "主仁慈、人缘好、逢凶化吉，能化解灾厄。",
+    "天德合" to "主吉上加吉、贵人相助，化解凶煞之力更强。",
+    "月德合" to "主和顺、人缘佳、遇难呈祥。",
+    "天赦日" to "主消灾解厄、诸事顺遂，百无禁忌。",
+    "天医" to "主医药、健康、医缘，宜从医、养生，疾病易愈。",
+    "孤辰" to "主孤独、六亲缘薄，性情独立，宜修身养性。",
+    "寡宿" to "主孤寂、独居，女命尤显，人际较淡。",
+    "空亡" to "主虚耗、落空、事难成，吉神落空则其力减，凶煞落空则其害轻。",
+    "十灵日" to "主聪慧灵秀、直觉强，悟性高。",
+    "魁罡" to "主刚毅果断、聪明有威，性情刚烈，女命婚姻宜慎。",
+    "金舆" to "主富贵、车马之荣，得配偶或长辈之助。",
+    "红艳" to "主风情、异性缘旺、魅力强，也主才艺。",
+    "流霞" to "女命主产厄、血光，孕期宜慎。",
+    "日贵" to "主品性端庄、有贵人助，一生较为顺遂。",
+    "德秀贵人" to "主聪明秀气、温文有礼，才华与德行兼备。"
+)
+
+/** 六十甲子纳音简明知识（按纳音名）。 */
+private val NAYIN_KNOWLEDGE = mapOf(
+    "海中金" to "金藏于水，主内敛深沉、藏而不露，需时机淬炼方显其贵。",
+    "炉中火" to "火居炉中，主热情内蓄、可塑性高，得木助则旺。",
+    "大林木" to "木之繁茂，主生机旺盛、胸怀宽广，宜成林立业。",
+    "路旁土" to "土在路边，主宽厚包容、任劳任怨，需草木养护。",
+    "剑锋金" to "金之锋锐，主刚毅果决、锋芒毕露，宜裁决、武职。",
+    "山头火" to "火照山头，主光明磊落、志向高远，气势宏大。",
+    "涧下水" to "水出山涧，主清澈灵动、性情柔和，绵延不绝。",
+    "城头土" to "土筑城垣，主坚实可靠、有防御力，宜守护之职。",
+    "白蜡金" to "金之温润，主外柔内刚、体态清秀，需火炼成器。",
+    "杨柳木" to "木之柔韧，主适应力强、性情温和，随风而立。",
+    "泉中水" to "水涌清泉，主聪慧明澈、源源不断，润物无声。",
+    "屋上土" to "土覆屋宇，主庇护他人、稳重实在，宜安居乐业。",
+    "霹雳火" to "火之猛烈，主刚烈果断、声威显赫，行动力强。",
+    "松柏木" to "木之坚挺，主坚贞不屈、傲骨铮铮，耐寒不凋。",
+    "长流水" to "水之绵长，主聪慧灵活、意志连绵，善积小流。",
+    "平地木" to "木生平地，主平顺扎实、生生不息，宜稳步发展。",
+    "壁上土" to "土附墙壁，主依附性强、注重外表，需依附根基。",
+    "金箔金" to "金之轻薄，主外表华美、内质轻柔，需衬托方显。",
+    "佛灯火" to "火如灯烛，主温和有礼、照亮他人，默默奉献。",
+    "天河水" to "水在高天，主清高远大、胸怀广阔，超凡脱俗。",
+    "大驿土" to "土通大道，主通达四方、包容万物，宜交通贸易。",
+    "钗钏金" to "金饰之美，主精致华贵、性情温柔，宜装饰珠宝。",
+    "桑柘木" to "木之柔韧，主蚕桑之利、温厚务实，宜纺织养生。",
+    "大溪水" to "水汇成溪，主奔流向前、思路开阔，气势渐盛。",
+    "沙中土" to "土杂沙砾，主散布四方、根基较浅，需水木养护。",
+    "天上火" to "火悬天上，主光明普照、气势恢宏，恩泽广泛。",
+    "石榴木" to "木结石榴，主多子多福、热情如火，鲜艳夺目。",
+    "大海水" to "水之浩渺，主胸怀宽广、气度不凡，包容万象。"
+)
+
 /** 命盘页四柱表的一行：行标签 + 4 列（颜色/字号由回调决定） */
 @Composable
-private fun BzTableRow(label: String, values: List<String>, style: (String) -> Pair<Color, androidx.compose.ui.unit.TextUnit>) {
+private fun BzTableRow(label: String, values: List<String>,
+                       detailType: String? = null, onDetail: ((BzDetailTarget) -> Unit)? = null,
+                       style: (String) -> Pair<Color, androidx.compose.ui.unit.TextUnit>) {
     Row(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
         Text(label, color = Color(0xFF888888), fontSize = 11.sp, modifier = Modifier.weight(0.72f), textAlign = TextAlign.Center)
         values.forEach { v ->
             val st = style(v)
+            val clickable = if (detailType != null && onDetail != null && v.isNotBlank() && v != "无")
+                Modifier.clickable { onDetail(BzDetailTarget(detailType, v)) } else Modifier
             Text(v, color = st.first, fontSize = st.second, fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Serif, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                fontFamily = FontFamily.Serif, modifier = Modifier.weight(1f).then(clickable), textAlign = TextAlign.Center)
         }
     }
 }
@@ -1375,4 +1609,94 @@ private fun baziFaceText(c: BaziChart.Chart, q: String, createdAt: String) = bui
     appendLine("胎元${c.taiYuan} 命宫${c.mingGong} 命卦${c.mingGua}")
     appendLine("旺衰：${c.analysis.wangshuai} 用神：${c.analysis.yongshen.joinToString("、")}")
     appendLine("骨重：${c.chenggu.weight}")
+}.trim()
+
+/** 基本页完整复制文本。 */
+private fun baziBasicText(c: BaziChart.Chart, f: BaziFull.Data?) = buildString {
+    appendLine("【八字排盘 · 基本信息】")
+    appendLine("农历：${f?.nongliFull ?: c.lunar}  ${if (c.gender == "男") "乾造" else "坤造"}")
+    appendLine("北京时间：${c.solar}    真太阳时：${c.solar}")
+    appendLine("出生地区：${f?.birthArea ?: ""}")
+    appendLine("出生节气：${f?.jieqiFull ?: c.jieQi}")
+    appendLine("命卦：${(f?.mingGuaDir ?: "")} ${c.mingGua}")
+    appendLine()
+    appendLine("四柱：${c.baziText}")
+    appendLine("十神：${c.pillars.joinToString("  ") { it.shiShen }}")
+    appendLine("纳音：${c.pillars.joinToString("  ") { it.naYin }}")
+    appendLine("胎元 ${c.taiYuan} · 胎息 ${c.taiXi} · 命宫 ${c.mingGong} · 身宫 ${c.shenGong}")
+    appendLine()
+    appendLine("【五行统计（含藏干）】")
+    val qty = f?.wuXingQty ?: c.wuXing.toMap()
+    val dayWx = GAN_WX_OF(c.pillars[2].gan)
+    for (wx in listOf("木", "火", "土", "金", "水")) {
+        appendLine("${wx}：${qty[wx] ?: 0} 个（${shishenCategory(wx, dayWx)}）")
+    }
+    appendLine()
+    appendLine("【旺衰用神】${c.analysis.wangshuai}  用神：${c.analysis.yongshen.joinToString("、")}")
+    appendLine("【袁天罡称骨】${c.chenggu.weight}  ${c.chenggu.verse}")
+    if (f != null && f.wangShuai.isNotEmpty()) {
+        val labels = listOf("旺", "相", "休", "囚", "死")
+        appendLine("【五行旺衰】${f.wangShuai.mapIndexed { i, wx -> wx + labels[i] }.joinToString("  ")}")
+    }
+}.trim()
+
+/** 命盘页完整复制文本（四柱表全部行 + 旺衰 + 留意）。 */
+private fun baziMingpanText(c: BaziChart.Chart, f: BaziFull.Data?) = buildString {
+    appendLine("【八字排盘 · 命盘】")
+    appendLine("${c.lunar}  ${if (c.gender == "男") "乾造" else "坤造"}  北京时间：${c.solar}")
+    val names = listOf("年柱", "月柱", "日柱", "时柱")
+    fun row(label: String, values: List<String>) = appendLine("$label：${values.mapIndexed { i, v -> "${names[i]} $v" }.joinToString("  ")}")
+    row("十神", c.pillars.map { it.shiShen })
+    row("天干", c.pillars.map { it.gan })
+    row("地支", c.pillars.map { it.zhi })
+    row("藏干", c.pillars.map { it.cangGan })
+    row("藏干十神", c.pillars.map { it.cangShen })
+    row("地势", c.pillars.map { it.deShi })
+    row("自坐", c.pillars.map { it.ziZuo })
+    row("空亡", c.pillars.map { it.kongWang })
+    row("纳音", c.pillars.map { it.naYin })
+    row("神煞", c.pillars.map { it.shenSha })
+    if (f != null) {
+        appendLine()
+        val labels = listOf("旺", "相", "休", "囚", "死")
+        appendLine("【五行旺衰】${f.wangShuai.mapIndexed { i, wx -> wx + labels[i] }.joinToString("  ")}")
+        if (f.liuYi.tiangan.isNotEmpty()) appendLine("【天干留意】${f.liuYi.tiangan.joinToString("、")}")
+        if (f.liuYi.dizhi.isNotEmpty()) appendLine("【地支留意】${f.liuYi.dizhi.joinToString("、")}")
+    }
+}.trim()
+
+/** 详盘页完整复制文本（原局列 + 大运/流年/流月/流日/小运八列盘 + 起运 + 逐级大运 + 旺衰留意）。 */
+private fun baziDetailText(c: BaziChart.Chart, f: BaziFull.Data?, xp: BaziXiangpan.Data?) = buildString {
+    appendLine("【八字排盘 · 详盘】")
+    appendLine("${c.lunar}  ${if (c.gender == "男") "乾造" else "坤造"}  北京时间：${c.solar}")
+    if (xp != null) {
+        appendLine()
+        fun colBlock(title: String, col: BaziXiangpan.Col) {
+            appendLine("[$title] ${col.ganzhi}  十神:${col.ganShen}  藏干:${col.cangGan}(${col.cangShen})")
+            appendLine("  地势:${col.deShi}  自坐:${col.ziZuo}  空亡:${col.kongWang}  纳音:${col.naYin}")
+            val ss = col.shenSha.split("、", "·").filter { it.isNotBlank() && it != "无" }
+            if (ss.isNotEmpty()) appendLine("  神煞:${ss.joinToString("、")}")
+        }
+        colBlock("年柱", xp.year); colBlock("月柱", xp.month)
+        colBlock("日柱", xp.day); colBlock("时柱", xp.hour)
+        appendLine()
+        colBlock("流年${xp.liunianYear}", xp.liunian)
+        appendLine("司令：${xp.siLing}")
+        if (xp.liuYi.tiangan.isNotEmpty()) appendLine("【天干留意】${xp.liuYi.tiangan.joinToString("、")}")
+        if (xp.liuYi.dizhi.isNotEmpty()) appendLine("【地支留意】${xp.liuYi.dizhi.joinToString("、")}")
+    }
+    if (f != null) {
+        appendLine()
+        appendLine("起运：出生${f.qiYun.startYear}年${f.qiYun.startMonth}月${f.qiYun.startDay}天${f.qiYun.startHour}时后起运")
+        appendLine("交运：逢${f.qiYun.jiaoyunGan1}、${f.qiYun.jiaoyunGan2}年 ${f.qiYun.jieName}后${f.qiYun.days}天交大运")
+        if (f.dayun.isNotEmpty()) {
+            appendLine("【大运流年】")
+            for (dy in f.dayun) {
+                appendLine("  ${dy.ganzhi} ${dy.startYear}年起(${dy.startAge}虚岁)  ${dy.ganSs}${dy.zhiSs}")
+                for (ln in dy.liunian) appendLine("    ${ln.year} ${ln.ganzhi} ${ln.age}岁")
+            }
+        }
+        val labels = listOf("旺", "相", "休", "囚", "死")
+        if (f.wangShuai.isNotEmpty()) appendLine("【五行旺衰】${f.wangShuai.mapIndexed { i, wx -> wx + labels[i] }.joinToString("  ")}")
+    }
 }.trim()
