@@ -48,6 +48,11 @@ object HomeTilesSettings {
             // 兼容模块增减：保留已知 key 的相对顺序，把新增 key 补到末尾，剔除已移除的 key
             val merged = parsed.filter { it in defaultKeys }.toMutableList()
             defaultKeys.forEach { if (it !in merged) merged.add(it) }
+            // 八字命理要求固定在首页第一位：老用户升级时若原本没有该 key，插到最前而非追加末尾
+            if ("bazi-paipan" !in parsed && "bazi-paipan" in defaultKeys) {
+                merged.remove("bazi-paipan")
+                merged.add(0, "bazi-paipan")
+            }
             order.value = merged
         }
         val savedHidden = prefs!!.getString(KEY_HIDDEN, null)
