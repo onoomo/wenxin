@@ -27,6 +27,7 @@ import com.fortune.stall.ui.screen.CastScreen
 import com.fortune.stall.ui.screen.CastResultScreen
 import com.fortune.stall.ui.screen.HomeScreen
 import com.fortune.stall.ui.screen.AiChatScreen
+import com.fortune.stall.ui.screen.DaoJiaLiuRenScreen
 import com.fortune.stall.ui.screen.JiangScreen
 import com.fortune.stall.ui.screen.JishiyuCastScreen
 import com.fortune.stall.ui.screen.JishiyuHubScreen
@@ -90,7 +91,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Route { HOME, LINEAGE, CAST, CAST_RESULT, JIANG, JISHUYU_HUB, JISHUYU_CAST, LIUYAO_PAI, WANNIANLI, LAOHUANGLI, SHANXIANG, FEIXING, YIZHANG, QIDUWENG, CHUANREN, DALIUREN, MEIHUA, YINPAN, MINGLI, ZIWEI, HEMING, QIANXU, ARCHIVE, LEDGER, FAVORITES, SETTINGS, SKILLS, AI_CHAT }
+private enum class Route { HOME, LINEAGE, CAST, CAST_RESULT, JIANG, DAOJIA_LIUREN, JISHUYU_HUB, JISHUYU_CAST, LIUYAO_PAI, WANNIANLI, LAOHUANGLI, SHANXIANG, FEIXING, YIZHANG, QIDUWENG, CHUANREN, DALIUREN, MEIHUA, YINPAN, MINGLI, ZIWEI, HEMING, QIANXU, ARCHIVE, LEDGER, FAVORITES, SETTINGS, SKILLS, AI_CHAT }
 
 @Composable
 private fun AppNavigation(
@@ -191,6 +192,7 @@ private fun AppNavigation(
             onPick = { lin ->
                 lineageName = lin.title
                 when (lin.key) {
+                    "daojia" -> replaceTop(Route.DAOJIA_LIUREN)
                     "jiang" -> replaceTop(Route.JIANG)
                     "liuyupaipan" -> replaceTop(Route.LIUYAO_PAI)
                     else -> replaceTop(Route.CAST)
@@ -198,6 +200,7 @@ private fun AppNavigation(
             }
         )
         Route.JIANG -> JiangScreen(db = db)
+        Route.DAOJIA_LIUREN -> DaoJiaLiuRenScreen(db = db, onBack = { back() })
         Route.LIUYAO_PAI -> LiuyaoCastScreen(db = db, onBack = { back() })
         Route.JISHUYU_HUB -> JishiyuHubScreen(
             onOpen = { key -> openJishiyuModule(key) },
