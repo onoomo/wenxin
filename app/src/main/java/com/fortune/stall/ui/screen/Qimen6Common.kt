@@ -26,7 +26,7 @@ import com.fortune.stall.engine.jishiyu.DaLiuRen
 import com.fortune.stall.engine.jishiyu.Qimen
 
 /**
- * 奇门穿壬 九宫盘（仿原版 qimen6ren_tpl.html）。
+ * 奇门穿壬 / 太乙三式 共享的九宫盘（仿原版 qimen6ren_tpl.html）。
  * 九宫每格 2 列 x 3 行：
  *   行1 左=八神+空亡〇  右=隐干(灰)
  *   行2 左=天盘干+寄宫  右=九星

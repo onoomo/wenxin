@@ -640,7 +640,7 @@ private fun DrawScope.drawGlyph(glyph: Glyph) {
             }
             drawPath(path, white, style = stroke)
         }
-        Glyph.TAIYI -> { // 太乙神数：三圆相叠
+        Glyph.TAIYI -> { // 太乙三式：三圆相叠
             drawCircle(white, radius = w * 0.19f, center = Offset(w * 0.38f, h * 0.4f), style = stroke)
             drawCircle(white, radius = w * 0.19f, center = Offset(w * 0.62f, h * 0.4f), style = stroke)
             drawCircle(white, radius = w * 0.19f, center = Offset(w * 0.5f, h * 0.64f), style = stroke)

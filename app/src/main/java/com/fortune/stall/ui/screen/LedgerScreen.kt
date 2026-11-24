@@ -72,7 +72,7 @@ private val LEDGER_CATEGORIES = listOf(
     LedgerCategory("六爻", setOf("liuyao")),
     LedgerCategory("梅花", setOf("meihua")),
     LedgerCategory("六壬", setOf("daliuren", "xiaoliuren")),
-    LedgerCategory("太乙", setOf("taiyi72", "taiyi3shi")),
+    LedgerCategory("太乙", setOf("taiyi3shi")),
     LedgerCategory("飞星", setOf("ninestar")),
     LedgerCategory("一掌经", setOf("yizhangjing")),
     LedgerCategory("戚都翁", setOf("qiduweng")),
