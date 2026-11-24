@@ -597,30 +597,31 @@ private fun JiWheelPicker(
         Column(
             Modifier.clip(RoundedCornerShape(14.dp)).background(JiForm.WHITE)
                 .border(1.dp, JiForm.LINE, RoundedCornerShape(14.dp))
-                .padding(horizontal = 18.dp, vertical = 16.dp)
-                .heightIn(max = 520.dp)
+                .padding(horizontal = 14.dp, vertical = 14.dp)
+                .heightIn(max = 560.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text("选择$label（${"%02d".format(min)}–${"%02d".format(max)}）",
                 color = JiForm.RED, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(12.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Spacer(Modifier.height(10.dp))
+            FlowRow(maxItemsInEachRow = 6,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 for (n in min..max) {
                     val sel = n == value
-                    Box(Modifier.width(52.dp).height(40.dp).clip(RoundedCornerShape(8.dp))
+                    Box(Modifier.width(44.dp).height(36.dp).clip(RoundedCornerShape(6.dp))
                         .background(if (sel) JiForm.RED else JiForm.INPUT_BG)
-                        .border(1.dp, if (sel) JiForm.RED else JiForm.LINE, RoundedCornerShape(8.dp))
+                        .border(1.dp, if (sel) JiForm.RED else JiForm.LINE, RoundedCornerShape(6.dp))
                         .clickable { onPick(n); onDismiss() }, contentAlignment = Alignment.Center) {
                         Text("%02d".format(n),
                             color = if (sel) Color.White else JiForm.TEXT,
-                            fontSize = 15.sp, fontFamily = FontFamily.Monospace,
+                            fontSize = 14.sp, fontFamily = FontFamily.Monospace,
                             fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal)
                     }
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
             Box(Modifier.clip(RoundedCornerShape(20.dp)).background(JiForm.SELECT_BG)
                 .clickable(onClick = onDismiss).padding(horizontal = 30.dp, vertical = 8.dp)) {
                 Text("取消", color = JiForm.SUB, fontSize = 14.sp)

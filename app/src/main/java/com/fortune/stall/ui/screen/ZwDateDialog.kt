@@ -3,6 +3,8 @@ package com.fortune.stall.ui.screen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Arrangement
@@ -137,29 +139,30 @@ private fun ZwWheelPicker(
         Column(
             Modifier.clip(RoundedCornerShape(18.dp)).background(ZwFormTheme.BG)
                 .border(1.dp, ZwFormTheme.LINE, RoundedCornerShape(18.dp))
-                .padding(horizontal = 18.dp, vertical = 16.dp)
-                .heightIn(max = 520.dp),
+                .padding(horizontal = 14.dp, vertical = 14.dp)
+                .heightIn(max = 560.dp).verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text("选择$label（${"%02d".format(min)}–${"%02d".format(max)}）",
                 color = ZwFormTheme.GOLD, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(12.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Spacer(Modifier.height(10.dp))
+            FlowRow(maxItemsInEachRow = 6,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 for (n in min..max) {
                     val sel = n == value
-                    Box(Modifier.width(52.dp).height(40.dp).clip(RoundedCornerShape(8.dp))
+                    Box(Modifier.width(44.dp).height(36.dp).clip(RoundedCornerShape(6.dp))
                         .background(if (sel) ZwFormTheme.GOLD else ZwFormTheme.PANEL)
-                        .border(1.dp, ZwFormTheme.LINE, RoundedCornerShape(8.dp))
+                        .border(1.dp, ZwFormTheme.LINE, RoundedCornerShape(6.dp))
                         .clickable { onPick(n); onDismiss() }, contentAlignment = Alignment.Center) {
                         Text("%02d".format(n),
                             color = if (sel) ZwFormTheme.BG else ZwFormTheme.TEXT,
-                            fontSize = 15.sp, fontFamily = FontFamily.Monospace,
+                            fontSize = 14.sp, fontFamily = FontFamily.Monospace,
                             fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal)
                     }
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
             Box(Modifier.clip(RoundedCornerShape(20.dp)).background(ZwFormTheme.BTN)
                 .clickable(onClick = onDismiss).padding(horizontal = 30.dp, vertical = 8.dp)) {
                 Text("取消", color = ZwFormTheme.SUB, fontSize = 14.sp)
