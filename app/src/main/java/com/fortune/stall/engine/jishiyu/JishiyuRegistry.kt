@@ -14,7 +14,7 @@ object JishiyuRegistry {
 
     /** 全部模块（按移植批次与难度排序） */
     val modules: List<ModuleDef> = listOf(
-        chenggu(), shuZi(), shiShen(), yiZhangJing(), meiHuaTime(), meiHuaNum(), liuYao(), baziAnalysis(), hehun(), nineStar(), shensha(), daLiuRen(), taiyi(), qimen(), shanXiangQimen(), ziwei(),
+        chenggu(), shuZi(), shiShen(), yiZhangJing(), meiHuaTime(), meiHuaNum(), liuYao(), nineStar(), shensha(), daLiuRen(), taiyi(), qimen(), shanXiangQimen(), ziwei(),
         wanNianLi(), laoHuangLi()
     )
 

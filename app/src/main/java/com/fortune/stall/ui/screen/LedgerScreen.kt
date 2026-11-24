@@ -68,7 +68,6 @@ private data class LedgerCategory(val name: String, val methods: Set<String>?)
 private val LEDGER_CATEGORIES = listOf(
     LedgerCategory("全部", null),
     LedgerCategory("奇门", setOf("qimen", "mingliqimen", "yinpanqimen", "shanxiangqimen", "chuanren")),
-    LedgerCategory("八字", setOf("bazi", "bazi-analysis", "hehun")),
     LedgerCategory("紫微", setOf("ziwei")),
     LedgerCategory("六爻", setOf("liuyao")),
     LedgerCategory("梅花", setOf("meihua")),

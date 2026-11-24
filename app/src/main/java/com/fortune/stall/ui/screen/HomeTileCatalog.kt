@@ -10,10 +10,6 @@ data class HomeTile(
 
 /** 首页术法清单（默认顺序）。图标/详细两种模式、排序与隐藏设置共用这一份。 */
 val HOME_TILES = listOf(
-    HomeTile("八字排盘", "bazi-paipan", Glyph.BAZI, "四 柱 命 理",
-        "按出生年月日时排定四柱干支，标注十神、藏干、纳音与神煞，起大运流年，断一生格局与起伏。"),
-    HomeTile("八字·谷雨", "guyu-bazi", Glyph.BAZI, "四 柱 细 盘",
-        "谷雨风格八字工作台：四柱九行明细、五行旺衰、神煞落点、大运流年逐级钻取，真太阳时按出生地经度校正。"),
     HomeTile("命理奇门", "mingliqimen", Glyph.MINGLI, "终 身 奇 门",
         "以生辰起终身奇门盘，配大运流年逐限推移，看一生富贵吉凶与关键时刻的天地人三才格局。"),
     HomeTile("阴盘奇门", "yinpanqimen", Glyph.YINPAN, "阴 盘 起 局",
@@ -52,8 +48,6 @@ val HOME_TILES = listOf(
         "整月日历逐日列出农历、干支、节气与生肖，点选任一天即可查当日老黄历，日期查询的入口。"),
     HomeTile("老黄历", "laohuangli", Glyph.LAOHUANGLI, "择 日 经 典",
         "宜忌、冲煞、值神建星、二十八宿、纳音、吉神凶煞、彭祖百忌与财喜福神方位，择日办事的参照。"),
-    HomeTile("八字合婚", "hehun", Glyph.HEHUN, "天 作 之 合",
-        "按双方八字比对生肖、纳音、婚宫、用神、十神、桃花等十二项，逐条给出结论与合婚等级。"),
     HomeTile("手机号预测", "shuzi", Glyph.PHONE, "磁 场 数 理",
         "手机号八星磁场分析，延年、天医、生气为吉，六煞、五鬼、祸害、绝命为凶，逐位解读尾数与象义。")
 )

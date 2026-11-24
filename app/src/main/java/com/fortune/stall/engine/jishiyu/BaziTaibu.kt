@@ -410,7 +410,18 @@ object BaziTaibu {
      * 主排盘。dayBoundary: "midnight"(默认, sect2) / "zi"(子时换日, sect1)。
      */
     fun paipan(dt: LocalDateTime, isMan: Boolean, dayBoundary: String = "midnight", longitude: Double? = null): Result {
-        val lun = LunarCalendar.fromDateTime(dt)
+        // ① 真太阳时校正：北京时间以 120°E 为基准，每差 1° 差 4 分钟（东早西晚）。
+        //    例：经度 116.42° → (116.42-120)*4 = -14.3 分钟，即真太阳时比北京时间晚约 14 分钟。
+        val solarDt: LocalDateTime = if (longitude != null) dt.plusMinutes(((longitude - 120.0) * 4.0).toLong()) else dt
+
+        // ② 换日界（晚子时流派）：
+        //    "zi"(子时换日/sect1)：23:00–24:00 算次日 —— 日柱进位，时柱用次日日干起时；
+        //    "midnight"(午夜换日/sect2, 默认)：0 点才换日，晚子时仍算当天。
+        //    LunarCalendar 默认按公历日 0 点换日（即 midnight），故 zi 派需把日期顺延一天。
+        val effDate = if (dayBoundary == "zi" && solarDt.hour == 23) solarDt.toLocalDate().plusDays(1) else solarDt.toLocalDate()
+        val effDt = solarDt.with(effDate)
+
+        val lun = LunarCalendar.fromDateTime(effDt)
         val gz = listOf(lun.yearGanZhi, lun.monthGanZhi, lun.dayGanZhi, lun.hourGanZhi)
         val yG = gz[0][0].toString(); val yZ = gz[0][1].toString()
         val mG = gz[1][0].toString(); val mZ = gz[1][1].toString()
@@ -450,11 +461,12 @@ object BaziTaibu {
         val si = order[(wxOrder(mwx) + 2) % 5]
         val wangShuai = listOf(wang, xiang, xiu, qiu, si)
 
-        // 大运
-        val dy = buildDayun(dt, isMan, dG, gz, ctx, listOf(yZ, mZ, dZ, hZ))
+        // 大运（起运按真太阳时 effDt 计算节气，四柱已按 effDt 起好）
+        val dy = buildDayun(effDt, isMan, dG, gz, ctx, listOf(yZ, mZ, dZ, hZ))
 
         return Result(
-            solarText = dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")),
+            solarText = dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) +
+                (if (longitude != null) " · 真太阳时 ${solarDt.format(DateTimeFormatter.ofPattern("HH:mm"))}" else ""),
             lunarText = "农历${lun.month}月${lun.day}日",
             gender = if (isMan) "男" else "女",
             pillars = pillars, dayMaster = dG, kongWang = kw,
