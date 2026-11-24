@@ -61,6 +61,7 @@ import com.fortune.stall.ui.components.Starfield
 import com.fortune.stall.ui.theme.AppColors
 import com.fortune.stall.util.AiClient
 import com.fortune.stall.util.AiPreset
+import com.fortune.stall.util.ModelsResult
 import com.fortune.stall.util.AiResult
 import com.fortune.stall.util.AiSettings
 import com.fortune.stall.util.ChatMessage
@@ -390,6 +391,10 @@ private fun ApiConfigPanel() {
     var prompt by remember { mutableStateOf(AiSettings.systemPrompt.value) }
     var ctx by remember { mutableStateOf(AiSettings.contextChars.value.toString()) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var fetchedModels by remember { mutableStateOf<List<String>>(emptyList()) }
+    var showModelPicker by remember { mutableStateOf(false) }
+    var loadingModels by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     // 切换配置时，把编辑区重置为该配置的值
     LaunchedEffect(AiSettings.activeId.value) {
@@ -460,7 +465,44 @@ private fun ApiConfigPanel() {
         Spacer(Modifier.height(10.dp))
         AiField("API Key", apiKey, { apiKey = it }, singleLine = true)
         Spacer(Modifier.height(10.dp))
-        AiField("模型名", model, { model = it }, singleLine = true)
+        AiField("模型名（可手填，或读取接口列表选择）", model, { model = it }, singleLine = true)
+        Spacer(Modifier.height(8.dp))
+        // 读取模型列表：需当前 API 地址 + Key 组合有效
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.clip(RoundedCornerShape(12.dp))
+                    .background(if (loadingModels) AppColors.Shop2 else Color(0x12FFFFFF))
+                    .border(1.dp, AppColors.GoldLine.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                    .clickable {
+                        if (loadingModels) return@clickable
+                        if (endpoint.isBlank() || apiKey.isBlank()) {
+                            Toast.makeText(context, "请先填写 API 地址与 Key", Toast.LENGTH_SHORT).show()
+                            return@clickable
+                        }
+                        loadingModels = true
+                        scope.launch {
+                            when (val r = AiClient.fetchModels(endpoint.trim(), apiKey.trim())) {
+                                is ModelsResult.Ok -> {
+                                    fetchedModels = r.models
+                                    showModelPicker = true
+                                }
+                                is ModelsResult.Err ->
+                                    Toast.makeText(context, r.message, Toast.LENGTH_LONG).show()
+                            }
+                            loadingModels = false
+                        }
+                    }
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    if (loadingModels) "读取中…" else "⇩ 读取模型列表",
+                    color = if (loadingModels) AppColors.Muted else AppColors.Lantern,
+                    fontSize = 12.sp, fontWeight = FontWeight.Medium
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Text("需 API 地址 + Key 有效", color = AppColors.Dim, fontSize = 10.5.sp)
+        }
         Spacer(Modifier.height(10.dp))
         AiField("上下文字数上限", ctx, { ctx = it }, singleLine = true, numeric = true)
         Spacer(Modifier.height(10.dp))
@@ -500,6 +542,64 @@ private fun ApiConfigPanel() {
                 Toast.makeText(context, "已新增配置「${p.name}」", Toast.LENGTH_SHORT).show()
             }
         )
+    }
+
+    if (showModelPicker) {
+        ModelPickerDialog(
+            models = fetchedModels,
+            current = model,
+            onDismiss = { showModelPicker = false },
+            onSelect = { picked ->
+                model = picked
+                showModelPicker = false
+                Toast.makeText(context, "已选择模型：$picked（记得点保存配置）", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+}
+
+/** 模型列表选择弹窗：从接口读取到的可用模型，点选后填入模型名 */
+@Composable
+private fun ModelPickerDialog(
+    models: List<String>,
+    current: String,
+    onDismiss: () -> Unit,
+    onSelect: (String) -> Unit
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFF1C1B22))
+                .border(1.dp, AppColors.GoldLine, RoundedCornerShape(16.dp))
+                .padding(18.dp)
+        ) {
+            Text("可用模型（${models.size}）", color = AppColors.Paper, fontSize = 16.sp,
+                fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Text("由当前 API 地址 + Key 读取，点选填入", color = AppColors.Muted, fontSize = 11.sp)
+            Spacer(Modifier.height(12.dp))
+            LazyColumn(Modifier.heightIn(max = 360.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                items(models) { m ->
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                            .background(if (m == current) Color(0x33D9A441) else Color(0x10FFFFFF))
+                            .clickable { onSelect(m) }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(m, color = if (m == current) AppColors.Paper else AppColors.Lantern,
+                            fontSize = 12.5.sp, modifier = Modifier.weight(1f))
+                        if (m == current) Text("✓", color = AppColors.Lantern, fontSize = 13.sp)
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                .background(Color(0x12FFFFFF)).clickable { onDismiss() }
+                .padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
+                Text("关闭", color = AppColors.Muted, fontSize = 12.5.sp)
+            }
+        }
     }
 }
 

@@ -20,6 +20,12 @@ sealed class AiResult {
     data class Err(val message: String) : AiResult()
 }
 
+/** 拉取模型列表结果 */
+sealed class ModelsResult {
+    data class Ok(val models: List<String>) : ModelsResult()
+    data class Err(val message: String) : ModelsResult()
+}
+
 /**
  * OpenAI 兼容 chat/completions 客户端。
  * 不引入第三方网络库，直接用 JDK 的 HttpURLConnection（minSdk 24 可用），保证离线构建。
@@ -114,6 +120,81 @@ object AiClient {
             AiResult.Err(msg)
         } finally {
             conn?.disconnect()
+        }
+    }
+
+    /**
+     * 从接口读取可用模型列表（OpenAI 兼容 GET /models）。
+     * 由 chat/completions 端点推导出 /models 地址：
+     *   https://xxx/v1/chat/completions  →  https://xxx/v1/models
+     *   https://xxx/chat/completions     →  https://xxx/models
+     * 需 API 地址 + Key 组合有效才能返回。
+     */
+    suspend fun fetchModels(endpoint: String, apiKey: String): ModelsResult =
+        withContext(Dispatchers.IO) {
+            var conn: HttpURLConnection? = null
+            try {
+                val modelsUrl = toModelsUrl(endpoint)
+                conn = URL(modelsUrl).openConnection() as HttpURLConnection
+                conn.apply {
+                    requestMethod = "GET"
+                    connectTimeout = 20000
+                    readTimeout = 30000
+                    setRequestProperty("Authorization", "Bearer $apiKey")
+                    setRequestProperty("Accept", "application/json")
+                }
+                val code = conn.responseCode
+                val stream = if (code in 200..299) conn.inputStream else conn.errorStream
+                val text = BufferedReader(InputStreamReader(stream, StandardCharsets.UTF_8)).use { r ->
+                    val sb = StringBuilder()
+                    var line: String?
+                    while (r.readLine().also { line = it } != null) sb.append(line)
+                    sb.toString()
+                }
+                if (code !in 200..299) {
+                    val err = try {
+                        val e = JSONObject(text).optJSONObject("error")
+                        e?.optString("message")?.takeIf { it.isNotBlank() } ?: "HTTP $code"
+                    } catch (_: Exception) {
+                        "HTTP $code（请检查 API 地址与 Key 是否正确）"
+                    }
+                    return@withContext ModelsResult.Err(err)
+                }
+                val data = JSONObject(text).optJSONArray("data")
+                if (data == null || data.length() == 0) {
+                    return@withContext ModelsResult.Err("接口未返回模型列表")
+                }
+                val models = (0 until data.length()).mapNotNull { i ->
+                    data.optJSONObject(i)?.optString("id")?.takeIf { it.isNotBlank() }
+                }
+                if (models.isEmpty()) {
+                    ModelsResult.Err("模型列表为空")
+                } else {
+                    ModelsResult.Ok(models)
+                }
+            } catch (e: Exception) {
+                val msg = when (e) {
+                    is java.net.SocketTimeoutException -> "连接超时，请检查网络或接口地址"
+                    is java.net.UnknownHostException -> "无法解析域名，请检查网络"
+                    is javax.net.ssl.SSLException -> "SSL 连接失败，请检查接口地址"
+                    else -> e.message?.takeIf { it.isNotBlank() } ?: "读取失败"
+                }
+                ModelsResult.Err(msg)
+            } finally {
+                conn?.disconnect()
+            }
+        }
+
+    /** 由 chat/completions 端点推导 models 端点 */
+    private fun toModelsUrl(endpoint: String): String {
+        val trimmed = endpoint.trim().trimEnd('/')
+        return when {
+            trimmed.endsWith("/chat/completions") ->
+                trimmed.removeSuffix("/chat/completions") + "/models"
+            trimmed.contains("/chat/completions") ->
+                trimmed.substringBefore("/chat/completions") + "/models"
+            trimmed.endsWith("/models") -> trimmed
+            else -> "$trimmed/models"
         }
     }
 }
