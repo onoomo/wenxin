@@ -4,6 +4,7 @@ import com.fortune.stall.util.LunarCalendar
 import com.fortune.stall.util.SolarTerm
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
 /**
@@ -13,7 +14,7 @@ import java.time.temporal.ChronoUnit
  * 立成表采用《太乙金鏡式經》四库全书本卷三的阴/阳七十二局。
  * 规则版本 taiyi-skqs-modern-calendar-2026.10。
  *
- * 与现有 [Taiyi]（ji.js.cn 太乙三式）的区别：
+ * 与旧版太乙算法的区别：
  *  - 本类为「传统太乙神数」正统七十二局查表法（金镜本），积数纪元 1936557 / 10153917；
  *  - Taiyi 为三式合盘的太乙部分，积数为四柱乘积 + 转身数算法。两者流派不同，数值不同。
  *
@@ -73,6 +74,12 @@ object Taiyi72 {
 
     data class General(val count: Int, val general: Int, val assistant: Int)
 
+    /** 圆盘星将落点：name 星将名, position 十六方位字, tone 配色(0黑 1绿 2黄 3红) */
+    data class StarLanding(val name: String, val position: String, val tone: Int)
+
+    /** 干支旬空：甲子旬空戌亥、甲戌旬空申酉……按每柱自身干支取空亡 */
+    private fun xunKong(gz: String): String = JishiyuBase.queryKongwang(gz)
+
     data class Result(
         val mode: Mode,
         val tradition: Tradition,
@@ -94,11 +101,17 @@ object Taiyi72 {
         val home: General,
         val away: General,
         val palaces: List<Palace>,
+        // 圆盘星将落点（17星将，供圆形盘渲染）
+        val starLandings: List<StarLanding>,
+        // 四柱旬空
+        val kongWang: List<String>,
         // 上下文
         val siZhu: List<String>,
         val lunarText: String,
         val jieqi: String,
-        val solarText: String
+        val solarText: String,
+        val jieqiDetail: String = "",
+        val dateCn: String = ""
     ) {
         val dunLabel: String get() = if (yangDun) "阳遁" else "阴遁"
         val traditionLabel: String get() = tradition.label
@@ -229,8 +242,65 @@ object Taiyi72 {
             Palace(pos, GOD_NAMES.getOrNull(i) ?: "", starsByPos[pos] ?: emptyList())
         }
 
+        // ===== 圆盘17星将落点（供圆形盘渲染）=====
+        // 方位字 → 宫数映射（用于把吉凶星按宫数落位）
+        val palaceOfNumber = NUMBER_POSITION
+        fun posOfNum(n: Int) = palaceOfNumber[n] ?: "乾"
+        val landings = mutableListOf<StarLanding>()
+        fun land(name: String, pos: String, tone: Int = 0) { landings.add(StarLanding(name, pos, tone)) }
+        // 图片配色：太乙绿(1) 文昌黄(2) 始击红(3)，其余黑
+        land("太乙", NUMBER_POSITION[taiyiPalace] ?: "乾", 1)
+        land("文昌", wenChang, 2)
+        land("始击", shiJi, 3)
+        land("计神", jiShen)
+        land("合神", heShen)
+        land("太岁", taiSui)
+        land("主大将", posOfNum(home.general))
+        land("主参将", posOfNum(home.assistant))
+        land("客大将", posOfNum(away.general))
+        land("客参将", posOfNum(away.assistant))
+        // 用积数补算传统九星（君基/臣基/民基/五福/小游/四神/天乙/地乙/飞符）
+        val n = accumulatedNumber
+        fun cycZhi(seq: String, n0: Int): String { var x = n0; while (x > 12) x -= 12; while (x < 1) x += 12; return seq[x - 1].toString() }
+        val zhiSeq = "子丑寅卯辰巳午未申酉戌亥"
+        var junji = (positiveMod(n, 360) / 30) + 1
+        if (positiveMod(n, 360) % 30 > 0) junji += 1
+        var chenji = (positiveMod(n, 36) / 3) + 1
+        if (positiveMod(n, 36) % 3 > 0) chenji += 1
+        val minji = positiveMod(n, 12) + 1
+        var wufu = positiveMod(n / 45, 5) + 1
+        val xiaoyou = positiveMod(n / 24, 8) + 1
+        val yunxing = "亥午寅卯辰酉申子巳戌未丑"
+        var stdf = positiveMod(n, 36) % 3
+        var stdfs = positiveMod(n, 36) / 3 + 1
+        val sishen = cycZhi(yunxing, stdfs)
+        val tianyi = cycZhi(yunxing, stdfs + 5)
+        val diyi = cycZhi(yunxing, stdfs + 8)
+        val feifu = cycZhi(yunxing, stdfs + 4)
+        land("君基", cycZhi(zhiSeq, junji))
+        land("臣基", cycZhi(zhiSeq, chenji))
+        land("民基", cycZhi(zhiSeq, minji))
+        land("五福", posOfNum(wufu))
+        land("小游", posOfNum(xiaoyou))
+        land("四神", sishen)
+        land("天乙", tianyi)
+        land("地乙", diyi)
+        land("飞符", feifu)
+
+        val siZhuLocal = listOf(lun.yearGanZhi, lun.monthGanZhi, lun.dayGanZhi, lun.hourGanZhi)
+        val lunarTextLocal = "农历${lun.month}月${lun.day}日"
+        val kongWang = siZhuLocal.map { xunKong(it) }
         val range = SolarTerm.rangeAt(dt)
-        val jieqi = range?.let { "${it.from.name} ~ ${it.to.name}" } ?: ""
+        val jieqi = range?.let { r -> "${r.from.name} ~ ${r.to.name}" } ?: ""
+        val jieqiDetail = range?.let { r ->
+            "${r.from.name}${r.from.time.format(DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm"))} ~ " +
+            "${r.to.name}${r.to.time.format(DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm"))}"
+        } ?: ""
+        val dateCn = "${dt.year}年${dt.monthValue}月${dt.dayOfMonth}日 ${dt.hour}时${String.format("%02d", dt.minute)}分".let { base ->
+            // 用真实农历日替换（lunarText 形如 农历X月X日）
+            val ld = Regex("农历(\\d+)月(\\d+)日").find(lunarTextLocal)
+            if (ld != null) "$base(${ld.groupValues[1]}月${ld.groupValues[2]}日)" else base
+        }
         val solarText = "${dt.year}-${String.format("%02d", dt.monthValue)}-${String.format("%02d", dt.dayOfMonth)} " +
             "${String.format("%02d", dt.hour)}:${String.format("%02d", dt.minute)}"
 
@@ -253,10 +323,14 @@ object Taiyi72 {
             home = home,
             away = away,
             palaces = palaces,
-            siZhu = listOf(lun.yearGanZhi, lun.monthGanZhi, lun.dayGanZhi, lun.hourGanZhi),
-            lunarText = "农历${lun.month}月${lun.day}日",
+            starLandings = landings,
+            kongWang = kongWang,
+            siZhu = siZhuLocal,
+            lunarText = lunarTextLocal,
             jieqi = jieqi,
-            solarText = solarText
+            solarText = solarText,
+            jieqiDetail = jieqiDetail,
+            dateCn = dateCn
         )
     }
 }

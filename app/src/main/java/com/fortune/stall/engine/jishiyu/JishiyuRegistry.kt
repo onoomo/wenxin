@@ -14,7 +14,7 @@ object JishiyuRegistry {
 
     /** 全部模块（按移植批次与难度排序） */
     val modules: List<ModuleDef> = listOf(
-        chenggu(), shuZi(), shiShen(), yiZhangJing(), meiHuaTime(), meiHuaNum(), liuYao(), nineStar(), shensha(), daLiuRen(), taiyi(), qimen(), shanXiangQimen(), ziwei(),
+        chenggu(), shuZi(), shiShen(), yiZhangJing(), meiHuaTime(), meiHuaNum(), liuYao(), nineStar(), shensha(), daLiuRen(), qimen(), shanXiangQimen(), ziwei(),
         wanNianLi(), laoHuangLi()
     )
 
@@ -310,32 +310,6 @@ object JishiyuRegistry {
                 ), highlighted = true),
                 CastSection("九宫(天盘/九星/八门/八神/地盘)", rows = gongRows),
                 CastSection("洛书九宫图", rows = r.rows)
-            ))
-    }
-
-    // ===== 太乙 =====
-    private fun taiyi() = ModuleDef(
-        key = "taiyi", name = "太乙神数", eyebrow = "三 式 之 一",
-        desc = "积数定局、太乙宫位、主客算与十六神。局数填0自动，正数阳遁负数阴遁。",
-        fields = listOf(
-            InputField("dt", "起局时间", FieldType.DATETIME, LocalDateTime.now().format(fmt)),
-            InputField("isman", "性别", FieldType.GENDER, "男"),
-            InputField("jushu", "局数(0自动,正阳遁负阴遁)", FieldType.NUMBER, "0"),
-            InputField("ys", "用神天干(如 甲)", FieldType.TEXT, "甲")
-        )
-    ) { m ->
-        val r = Taiyi.paipan(
-            parseDt(m["dt"] ?: ""), m["isman"] != "女",
-            (m["jushu"] ?: "0").trim().toIntOrNull() ?: 0,
-            (m["ys"] ?: "甲").trim().ifEmpty { "甲" }
-        )
-        CastResult("太 乙 神 数", subtitle = "${if (r.yangDun) "阳遁" else "阴遁"}${r.jushu}局 · 积数${r.jishu}",
-            sections = listOf(
-                CastSection("基本信息", rows = listOf(
-                    "时间" to r.date, "四柱" to r.siZhu.joinToString(" "),
-                    "节气" to r.jieqi, "局式" to "${if (r.yangDun) "阳遁" else "阴遁"}${r.jushu}局"
-                ), highlighted = true),
-                CastSection("排盘明细", rows = r.lines)
             ))
     }
 

@@ -38,7 +38,6 @@ import androidx.compose.ui.window.Dialog
 import com.fortune.stall.data.FortuneDb
 import com.fortune.stall.engine.jishiyu.DaLiuRen
 import com.fortune.stall.engine.jishiyu.Qimen
-import com.fortune.stall.engine.jishiyu.Taiyi
 import com.fortune.stall.ui.theme.AppColors
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -46,14 +45,12 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 /**
- * 奇门穿壬 / 太乙三式 专用起卦页。
- * 奇门穿壬 = 奇门九宫 + 大六壬（贵神/月将/年煞/命宫）同盘；
- * 太乙三式 = 上述二式 + 太乙积数/主客算（三盘合一）。
+ * 奇门穿壬 专用起卦页。
+ * 奇门穿壬 = 奇门九宫 + 大六壬（贵神/月将/年煞/命宫）同盘。
  */
 @Composable
 fun CompositeCastScreen(db: FortuneDb, kind: String, onBack: () -> Unit) {
-    val threeBoard = kind == "taiyi3shi"
-    val title = if (threeBoard) "太 乙 三 式" else "奇 门 穿 壬"
+    val title = "奇 门 穿 壬"
     val dtFmt = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm") }
     var dtText by remember { mutableStateOf(LocalDateTime.now().format(dtFmt)) }
     var yearMingText by remember { mutableStateOf(LocalDateTime.now().year.toString()) }
@@ -71,7 +68,7 @@ fun CompositeCastScreen(db: FortuneDb, kind: String, onBack: () -> Unit) {
 
     if (prepared) {
         val dt = try { LocalDateTime.parse(dtText.trim(), dtFmt) } catch (e: Exception) { LocalDateTime.now() }
-        CompositeDetailScreen(db, threeBoard, dt, isMan, (yearMingText.toIntOrNull() ?: dt.year),
+        CompositeDetailScreen(db, dt, isMan, (yearMingText.toIntOrNull() ?: dt.year),
             guiMethod, yongGan + yongZhi, question, onBack)
         return
     }
@@ -181,23 +178,20 @@ internal fun BoardIntDialog(title: String, initial: Int, min: Int, max: Int, onD
 
 @Composable
 private fun CompositeDetailScreen(
-    db: FortuneDb, threeBoard: Boolean, dt: LocalDateTime, isMan: Boolean, yearMing: Int,
+    db: FortuneDb, dt: LocalDateTime, isMan: Boolean, yearMing: Int,
     guiMethod: Int, yongShen: String, question: String, onBack: () -> Unit
 ) {
     val ctx = LocalContext.current
     val q = remember(dt) { Qimen.paipan(dt, false) }
     val lr = remember(dt) { DaLiuRen.paipan(dt, isMan, yearMing, 1, guiMethod, 1, "", yongShen) }
-    val ty = remember(dt) { if (threeBoard) Taiyi.paipan(dt, isMan, 0, yongShen) else null }
 
     LaunchedEffect(Unit) {
-        val method = if (threeBoard) "taiyi3shi" else "chuanren"
-        val name = if (threeBoard) "太乙三式" else "奇门穿壬"
-        val face = threeBoardFaceText(threeBoard, q, lr, ty, yongShen, question)
-        db.insert(dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), question, method, name, face, q.jieqi)
+        val face = threeBoardFaceText(q, lr, yongShen, question)
+        db.insert(dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), question, "chuanren", "奇门穿壬", face, q.jieqi)
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).background(QD_BG)) {
-        BoardNavBar(if (threeBoard) "太乙三式" else "奇门穿壬", onBack)
+        BoardNavBar("奇门穿壬", onBack)
 
         // ===== 信息区：仿原版（灰蓝标签 + 黑值 + 竖排四柱）=====
         val infoLabel = Color(0xFF4A5A8A)
@@ -252,29 +246,10 @@ private fun CompositeDetailScreen(
                 }
             }
         }
-        // 太乙三式：积数/主算数/客算数/天马/太乙宫位 5列（原版灰底蓝头 + 黑值）
-        if (threeBoard && ty != null) {
-            Column(Modifier.fillMaxWidth()) {
-                Row(Modifier.fillMaxWidth().background(Color(0xFFE9E9E9)).padding(vertical = 7.dp)) {
-                    for (h in listOf("积数", "主算数", "客算数", "天马", "太乙宫位")) {
-                        Text(h, color = Color(0xFF2E4487), fontSize = 13.sp,
-                            modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                    }
-                }
-                Row(Modifier.fillMaxWidth().background(Color.White).padding(vertical = 7.dp)) {
-                    for (v in listOf(ty.jishu.toString(), ty.zhusuan.toString(), ty.keshuan.toString(), ty.tianma, "${ty.tygongwei}${ty.guan}")) {
-                        Text(v, color = Color(0xFF222222), fontSize = 14.sp,
-                            modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                    }
-                }
-            }
-        }
-        Spacer(Modifier.height(4.dp))
-
-        // 九宫盘：太乙三式用完整回字形四层盘；奇门穿壬用奇门内+六壬外围
+        // 九宫盘：奇门内 + 六壬外围
         Spacer(Modifier.height(6.dp))
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            if (threeBoard && ty != null) TaiyiFullBoard(q, lr, ty) else Q6Board(q, lr, showMa = true)
+            Q6Board(q, lr, showMa = true)
         }
         Spacer(Modifier.height(10.dp))
 
@@ -344,36 +319,22 @@ private fun CompositeDetailScreen(
                     Text("、", color = Color(0xFF555555), fontSize = 13.sp)
                     Text("建星", color = Color(0xFF008000), fontSize = 13.sp)
                 }
-                if (threeBoard) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("太乙地(人)盘：", color = Color(0xFF555555), fontSize = 13.sp)
-                        Box(Modifier.width(25.dp).height(15.dp).background(Color(0xFFE3E3E3))
-                            .border(1.dp, Color(0xFFAAAAAA), RoundedCornerShape(3.dp)))
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("太乙天(神)盘：", color = Color(0xFF555555), fontSize = 13.sp)
-                        Box(Modifier.width(25.dp).height(15.dp).background(Color(0xFFF7EECD))
-                            .border(1.dp, Color(0xFF888888), RoundedCornerShape(3.dp)))
-                    }
-                }
             }
         }
         Spacer(Modifier.height(12.dp))
         com.fortune.stall.ui.components.ResultActionBar(
-            faceText = threeBoardFaceText(threeBoard, q, lr, ty, yongShen, question)
+            faceText = threeBoardFaceText(q, lr, yongShen, question)
         )
     }
 }
 
-/** 完整三式盘面文本：供存档/卦账复制/问AI 统一使用 */
+/** 完整奇门穿壬盘面文本：供存档/卦账复制/问AI 统一使用 */
 private fun threeBoardFaceText(
-    threeBoard: Boolean, q: com.fortune.stall.engine.jishiyu.Qimen.Result,
+    q: com.fortune.stall.engine.jishiyu.Qimen.Result,
     lr: com.fortune.stall.engine.jishiyu.DaLiuRen.Result,
-    ty: com.fortune.stall.engine.jishiyu.Taiyi.Result?,
     yongShen: String, question: String
 ) = buildString {
-    val title = if (threeBoard) "太乙三式" else "奇门穿壬"
-    appendLine("【$title · 排盘】")
+    appendLine("【奇门穿壬 · 排盘】")
     if (question.isNotBlank()) appendLine("事项：$question")
     appendLine("时间：${q.date}　节气：${q.jieqi}")
     appendLine("四柱：${q.siZhu.joinToString(" ")}")
@@ -390,12 +351,6 @@ private fun threeBoardFaceText(
     appendLine("── 大六壬四课三传 ──")
     lr.fourKe.forEachIndexed { i, k -> appendLine("第${i + 1}课：${k.joinToString(" ")}") }
     appendLine("三传：${lr.threeChuan.map { it.joinToString(" ") }.joinToString(" → ")}")
-    if (ty != null) {
-        appendLine()
-        appendLine("── 太乙 ──")
-        appendLine("积数${ty.jishu} 主算${ty.zhusuan} 客算${ty.keshuan} 天马${ty.tianma} 太乙宫位${ty.tygongwei}${ty.guan}")
-        ty.lines.forEach { (k, v) -> appendLine("$k：$v") }
-    }
 }
 
 @Composable
