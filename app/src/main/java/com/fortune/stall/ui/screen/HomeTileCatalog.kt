@@ -10,6 +10,8 @@ data class HomeTile(
 
 /** 首页术法清单（默认顺序）。图标/详细两种模式、排序与隐藏设置共用这一份。 */
 val HOME_TILES = listOf(
+    HomeTile("八字命理", "bazi-paipan", Glyph.BAZI, "四 柱 命 理",
+        "以生辰八字排定年月日时四柱，配十神藏干、五行旺衰、神煞纳音与大运流年，看一生格局起伏与喜用取舍。"),
     HomeTile("命理奇门", "mingliqimen", Glyph.MINGLI, "终 身 奇 门",
         "以生辰起终身奇门盘，配大运流年逐限推移，看一生富贵吉凶与关键时刻的天地人三才格局。"),
     HomeTile("阴盘奇门", "yinpanqimen", Glyph.YINPAN, "阴 盘 起 局",
