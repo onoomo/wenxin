@@ -196,7 +196,7 @@ fun HomeScreen(
                 ) {
                     Text("编 辑 术 法", color = AppColors.Lantern, fontSize = 13.sp,
                         fontFamily = androidx.compose.ui.text.font.FontFamily.Serif, letterSpacing = 2.sp)
-                    Text("长按拖动可排序 · 点右上角 × 隐藏", color = AppColors.Muted, fontSize = 11.sp,
+                    Text("长按拖动可排序 · 点角标 × 隐藏 / ✓ 恢复显示", color = AppColors.Muted, fontSize = 11.sp,
                         modifier = Modifier.padding(top = 3.dp))
                     Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Box(Modifier.weight(1f).clip(RoundedCornerShape(18.dp))
@@ -227,13 +227,19 @@ fun HomeScreen(
 
             // 编辑态：由长按磁贴进入，或设置页「隐藏/排序术法」入口进入
             val editing by HomeTilesSettings.editMode
-            // 按自定义顺序 + 隐藏设置生成当前要显示的清单（两者模式共用）
+            // 编辑态显示全部术法（含隐藏项，角标点✓即可恢复显示）；非编辑态只显示可见项
             val allByKey = remember { HOME_TILES.associateBy { it.key } }
-            val displayedTiles = remember(HomeTilesSettings.revision.value) {
-                HomeTilesSettings.visibleKeys().mapNotNull { allByKey[it] }
+            val displayedTiles = remember(HomeTilesSettings.revision.value, HomeTilesSettings.editMode.value) {
+                val keys = if (HomeTilesSettings.editMode.value) {
+                    HomeTilesSettings.order.value
+                } else {
+                    HomeTilesSettings.visibleKeys()
+                }
+                keys.mapNotNull { allByKey[it] }
             }
 
-            if (DisplaySettings.iconMode.value) {
+            // 编辑态统一用图标网格（便于拖动排序、点角标隐藏/恢复），退出后按偏好恢复图标或详细模式
+            if (DisplaySettings.iconMode.value || editing) {
                 IconGridEditable(
                     tiles = displayedTiles,
                     editing = editing,
