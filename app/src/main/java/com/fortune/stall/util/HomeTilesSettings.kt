@@ -14,6 +14,13 @@ object HomeTilesSettings {
     private const val PREF = "home_tiles_settings"
     private const val KEY_ORDER = "order"
     private const val KEY_HIDDEN = "hidden"
+    private const val KEY_DEFAULT_HIDDEN_APPLIED = "default_hidden_applied_v1"
+
+    /**
+     * 首次安装默认隐藏的术法：山向奇门、玄空飞星、手机号预测。
+     * 用户可在「隐藏/排序术法」里手动恢复显示。
+     */
+    private val DEFAULT_HIDDEN = setOf("shanxiangqimen", "ninestar", "shuzi")
 
     private var prefs: SharedPreferences? = null
 
@@ -44,8 +51,17 @@ object HomeTilesSettings {
             order.value = merged
         }
         val savedHidden = prefs!!.getString(KEY_HIDDEN, null)
+        val defaultHiddenApplied = prefs!!.getBoolean(KEY_DEFAULT_HIDDEN_APPLIED, false)
         if (!savedHidden.isNullOrBlank()) {
             hidden.value = savedHidden.split("|").filter { it in defaultKeys }.toSet()
+        }
+        // 首次（含老用户升级）应用默认隐藏清单，之后只用户手动设置生效
+        if (!defaultHiddenApplied) {
+            hidden.value = (hidden.value + DEFAULT_HIDDEN).filter { it in defaultKeys }.toSet()
+            prefs!!.edit()
+                .putString(KEY_HIDDEN, hidden.value.joinToString("|"))
+                .putBoolean(KEY_DEFAULT_HIDDEN_APPLIED, true)
+                .apply()
         }
     }
 
@@ -87,10 +103,10 @@ object HomeTilesSettings {
 
     fun toggleHidden(key: String) = setHidden(key, !isHidden(key))
 
-    /** 恢复默认顺序与全部显示 */
+    /** 恢复默认顺序与默认隐藏项（山向奇门/玄空飞星/手机号预测隐藏，其余显示） */
     fun reset() {
         order.value = defaultKeys
-        hidden.value = emptySet()
+        hidden.value = DEFAULT_HIDDEN.toSet()
         persist()
     }
 

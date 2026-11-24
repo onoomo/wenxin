@@ -124,11 +124,14 @@ fun JiMingpanCastForm(
         // 弹窗上方黑色区域改为透明背景，点击即退出
         Box(Modifier.fillMaxSize().background(Color.Transparent).clickable { onBack() })
 
+        // 起卦页居中显示（不再贴底）：卡片上下左右留白，四角圆角，限高防溢出
         Box(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
+            Modifier.align(Alignment.Center).fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 24.dp)
+                .heightIn(max = 560.dp)
+                .clip(RoundedCornerShape(18.dp))
                 .background(cBg)
-                .border(1.dp, if (dark) cLine else Color.Transparent, RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
+                .border(1.dp, if (dark) cLine else Color.Transparent, RoundedCornerShape(18.dp))
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 14.dp)
         ) {
@@ -421,8 +424,10 @@ fun JiDialogShell(
     Box(Modifier.fillMaxSize()) {
         // 弹窗上方黑色区域改为透明背景，点击即退出
         Box(Modifier.fillMaxSize().background(Color.Transparent).clickable { onBack() })
-        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-            .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
+        // 起卦页居中显示（不再贴底）：卡片上下左右留白，四角圆角
+        Box(Modifier.align(Alignment.Center).fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 24.dp)
+            .clip(RoundedCornerShape(18.dp))
             .background(JiForm.WHITE)
             .padding(horizontal = 18.dp, vertical = 14.dp)) {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {

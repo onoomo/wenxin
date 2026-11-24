@@ -26,7 +26,7 @@ import com.fortune.stall.engine.jishiyu.DaLiuRen
 import com.fortune.stall.engine.jishiyu.Qimen
 
 /**
- * 奇门穿壬 / 太乙三式 共享的九宫盘（仿原版 qimen6ren_tpl.html）。
+ * 奇门穿壬 共享的九宫盘（仿原版 qimen6ren_tpl.html）。
  * 九宫每格 2 列 x 3 行：
  *   行1 左=八神+空亡〇  右=隐干(灰)
  *   行2 左=天盘干+寄宫  右=九星
@@ -122,8 +122,7 @@ private fun Q6Cell(gong: String, c: Qimen.Cell, modifier: Modifier, h: androidx.
 }
 
 /**
- * 穿壬/太乙 九宫盘 + 外围六壬标注。
- * @param extraRing 太乙时在九宫外围再显示16神（本函数用占位，太乙另做）
+ * 奇门穿壬 九宫盘 + 外围六壬标注。
  */
 @Composable
 internal fun Q6Board(q: Qimen.Result, lr: DaLiuRen.Result, showMa: Boolean = true) {

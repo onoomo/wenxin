@@ -39,7 +39,6 @@ import com.fortune.stall.ui.screen.FeixingCastScreen
 import com.fortune.stall.ui.screen.YizhangCastScreen
 import com.fortune.stall.ui.screen.QiduwengCastScreen
 import com.fortune.stall.ui.screen.CompositeCastScreen
-import com.fortune.stall.ui.screen.Taiyi72CastScreen
 import com.fortune.stall.ui.screen.LiuRenCastScreen
 import com.fortune.stall.ui.screen.MeiHuaCastScreen
 import com.fortune.stall.ui.screen.ZiweiCastScreen
@@ -91,7 +90,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Route { HOME, LINEAGE, CAST, CAST_RESULT, JIANG, JISHUYU_HUB, JISHUYU_CAST, LIUYAO_PAI, WANNIANLI, LAOHUANGLI, SHANXIANG, FEIXING, YIZHANG, QIDUWENG, CHUANREN, TAIYI3SHI, TAIYI72, DALIUREN, MEIHUA, YINPAN, MINGLI, ZIWEI, HEMING, QIANXU, ARCHIVE, LEDGER, FAVORITES, SETTINGS, SKILLS, AI_CHAT }
+private enum class Route { HOME, LINEAGE, CAST, CAST_RESULT, JIANG, JISHUYU_HUB, JISHUYU_CAST, LIUYAO_PAI, WANNIANLI, LAOHUANGLI, SHANXIANG, FEIXING, YIZHANG, QIDUWENG, CHUANREN, DALIUREN, MEIHUA, YINPAN, MINGLI, ZIWEI, HEMING, QIANXU, ARCHIVE, LEDGER, FAVORITES, SETTINGS, SKILLS, AI_CHAT }
 
 @Composable
 private fun AppNavigation(
@@ -138,8 +137,7 @@ private fun AppNavigation(
             "yizhangjing" -> go(Route.YIZHANG)
             "qiduweng" -> go(Route.QIDUWENG)
             "chuanren" -> go(Route.CHUANREN)
-            "taiyi3shi" -> go(Route.TAIYI3SHI)
-            "taiyi72", "taiyishenshu" -> go(Route.TAIYI72)
+            "taiyi3shi", "taiyi72", "taiyishenshu" -> go(Route.JISHUYU_HUB)
             "daliuren" -> go(Route.DALIUREN)
             "meihua", "meihua-time", "meihua-num" -> go(Route.MEIHUA)
             "yinpanqimen" -> go(Route.YINPAN)
@@ -159,7 +157,7 @@ private fun AppNavigation(
     // 视觉上成为浮在星空上的弹窗。结果/命盘页本身是不透明全屏，会自然盖住这层星空。
     val sheetRoutes = setOf(
         Route.SHANXIANG, Route.FEIXING, Route.YIZHANG, Route.QIDUWENG,
-        Route.CHUANREN, Route.TAIYI3SHI, Route.TAIYI72, Route.DALIUREN, Route.MEIHUA,
+        Route.CHUANREN, Route.DALIUREN, Route.MEIHUA,
         Route.YINPAN, Route.MINGLI, Route.ZIWEI, Route.HEMING,
         Route.JISHUYU_CAST
     )
@@ -213,8 +211,6 @@ private fun AppNavigation(
         Route.YIZHANG -> YizhangCastScreen(db = db, onBack = { back() })
         Route.QIDUWENG -> QiduwengCastScreen(db = db, onBack = { back() })
         Route.CHUANREN -> CompositeCastScreen(db = db, kind = "chuanren", onBack = { back() })
-        Route.TAIYI3SHI -> CompositeCastScreen(db = db, kind = "taiyi3shi", onBack = { back() })
-        Route.TAIYI72 -> Taiyi72CastScreen(db = db, onBack = { back() })
         Route.DALIUREN -> LiuRenCastScreen(db = db, onBack = { back() })
         Route.MEIHUA -> MeiHuaCastScreen(db = db, onBack = { back() })
         Route.YINPAN -> YinpanQimenCastScreen(db = db, onBack = { back() })
