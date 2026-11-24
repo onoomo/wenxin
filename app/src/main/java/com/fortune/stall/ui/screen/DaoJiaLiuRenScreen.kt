@@ -195,7 +195,7 @@ fun DaoJiaLiuRenScreen(db: FortuneDb, onBack: () -> Unit) {
                 }
             } else {
                 // ===== 结果页 =====
-                DJResult(result!!, question, expandedPalace) { expandedPalace = if (expandedPalace == it) null else it }
+                DJResult(result!!, question, method, expandedPalace) { expandedPalace = if (expandedPalace == it) null else it }
                 Spacer(Modifier.height(14.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     DJResultButton("重新起卦", false, Modifier.weight(1f)) { result = null }
@@ -244,7 +244,7 @@ private fun DJCard(content: @Composable () -> Unit) {
 
 @Composable
 private fun DJResult(
-    c: DaoJiaLiuRen.Chart, question: String, expanded: Int?, onExpand: (Int) -> Unit
+    c: DaoJiaLiuRen.Chart, question: String, method: Int, expanded: Int?, onExpand: (Int) -> Unit
 ) {
     // 时宫结果大卡
     val resultWx = c.palaces.first { it.isResult }.element
@@ -286,15 +286,21 @@ private fun DJResult(
     }
     Spacer(Modifier.height(12.dp))
 
-    // 历法信息
+    // 历法信息（对齐原版「时间信息」：起课/公历/农历/时辰 + 四柱四格 + 空亡四格）
     DJCard {
-        DJInfoRow("阳历", c.solarDisplay)
+        Text("时 间 信 息", color = DJ_GOLD, fontSize = 12.sp, fontFamily = FontFamily.Serif)
+        Spacer(Modifier.height(10.dp))
+        DJInfoRow("起课", "道家·" + listOf("时间起课", "数字起课", "随机起课").getOrElse(method) { "时间起课" })
         Spacer(Modifier.height(6.dp))
-        DJInfoRow("农历", c.lunarDisplay + " " + c.shichenDisplay)
+        DJInfoRow("公历", c.solarDisplay)
         Spacer(Modifier.height(6.dp))
-        DJInfoRow("干支", c.ganzhiDisplay)
+        DJInfoRow("农历", c.lunarDisplay)
         Spacer(Modifier.height(6.dp))
-        DJInfoRow("旬空", c.kongWang)
+        DJInfoRow("时辰", c.shichenDisplay)
+        Spacer(Modifier.height(12.dp))
+        DJPillarRow("四柱", listOf(c.yearGanZhi, c.monthGanZhi, c.dayGanZhi, c.hourGanZhi))
+        Spacer(Modifier.height(8.dp))
+        DJPillarRow("空亡", c.kongWangFour)
     }
 
     // 展开的宫位断语
@@ -330,7 +336,7 @@ private fun DJGrid(c: DaoJiaLiuRen.Chart, onClick: (Int) -> Unit) {
                     val id = order[row * 3 + col]
                     val p = c.palaces.first { it.id == id }
                     val tint = DJ_WX_COLOR[p.element] ?: DJ_GOLD
-                    Box(Modifier.weight(1f).height(104.dp).clip(RoundedCornerShape(10.dp))
+                    Box(Modifier.weight(1f).height(118.dp).clip(RoundedCornerShape(10.dp))
                         .background(if (p.isResult) Color(0xFFFFF3E0) else Color(0xFFF4EEE1))
                         .border(1.dp, if (p.isResult) DJ_RED else DJ_LINE, RoundedCornerShape(10.dp))
                         .clickable { onClick(id) }
@@ -344,13 +350,13 @@ private fun DJGrid(c: DaoJiaLiuRen.Chart, onClick: (Int) -> Unit) {
                                         fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
-                            Text(p.name, color = tint, fontSize = 17.sp,
+                            Text(p.name, color = tint, fontSize = 16.sp,
                                 fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
-                            Text("${p.heavenlyStem}${p.earthlyBranch}(${p.element})",
+                            Text("${p.earthlyBranch}(${p.element})",
                                 color = Color(0xFF6B5F4E), fontSize = 10.sp)
-                            Spacer(Modifier.height(4.dp))
-                            Text("${p.fiveStar} ${p.sixGod}", color = Color(0xFF8A7A62), fontSize = 8.5.sp)
-                            Text(p.sixKin, color = Color(0xFF8A7A62), fontSize = 8.5.sp)
+                            Spacer(Modifier.height(3.dp))
+                            Text("${p.fiveStar} ${p.sixGod}", color = Color(0xFF7A6C58), fontSize = 9.sp)
+                            Text(p.sixKin, color = Color(0xFF7A6C58), fontSize = 9.sp)
                         }
                     }
                 }
@@ -387,6 +393,27 @@ private fun DJDetailLine(label: String, text: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
         Text("$label：", color = DJ_GOLD, fontSize = 11.sp, fontWeight = FontWeight.Bold)
         Text(text, color = Color(0xFF5A5044), fontSize = 11.sp, lineHeight = 17.sp, modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun DJPillarRow(label: String, values: List<String>) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = DJ_GOLD, fontSize = 11.5.sp, modifier = Modifier.width(44.dp))
+        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            val labs = listOf("年", "月", "日", "时")
+            for (i in 0 until 4) {
+                Box(Modifier.weight(1f).clip(RoundedCornerShape(7.dp))
+                    .background(Color(0xFFF0E9DA)).border(1.dp, DJ_LINE, RoundedCornerShape(7.dp))
+                    .padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(labs[i], color = Color(0xFF9A8E7A), fontSize = 9.sp)
+                        Text(values.getOrElse(i) { "—" }, color = Color(0xFF4A4236),
+                            fontSize = 12.sp, fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
     }
 }
 

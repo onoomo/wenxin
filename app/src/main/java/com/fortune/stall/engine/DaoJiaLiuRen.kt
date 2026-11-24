@@ -107,7 +107,8 @@ object DaoJiaLiuRen {
         val palaces: List<PalaceInfo>,
         val solarDisplay: String, val lunarDisplay: String, val ganzhiDisplay: String,
         val shichenDisplay: String, val siZhuDisplay: String, val kongWang: String,
-        val yearGanZhi: String, val monthGanZhi: String, val dayGanZhi: String, val hourGanZhi: String
+        val yearGanZhi: String, val monthGanZhi: String, val dayGanZhi: String, val hourGanZhi: String,
+        val kongWangFour: List<String>
     )
 
     private val DIZHI = LunarCalendar.DIZHI
@@ -243,6 +244,7 @@ object DaoJiaLiuRen {
         val lunarMonthCn = LunarCalendar.cnNumber(lunarMonth)
         val lunarDayCn = LunarCalendar.cnNumber(lunarDay)
         val lunarText = "农历${lunarMonthCn}月${lunarDayCn}日"
+        val kwFour = listOf(lun.yearGanZhi, lun.monthGanZhi, lun.dayGanZhi, lun.hourGanZhi).map { kongWang(it) }
 
         return Chart(
             monthPalace = monthPalace, dayPalace = dayPalace, hourPalace = hourPalace,
@@ -253,6 +255,7 @@ object DaoJiaLiuRen {
             shichenDisplay = "${timeZhi}时",
             siZhuDisplay = "年柱${lun.yearGanZhi} 月柱${lun.monthGanZhi} 日柱${lun.dayGanZhi} 时柱${lun.hourGanZhi}",
             kongWang = "旬空" + kongWang(lun.dayGanZhi),
+            kongWangFour = kwFour,
             yearGanZhi = lun.yearGanZhi, monthGanZhi = lun.monthGanZhi,
             dayGanZhi = lun.dayGanZhi, hourGanZhi = lun.hourGanZhi
         )
@@ -262,7 +265,8 @@ object DaoJiaLiuRen {
     fun faceText(c: Chart): String = buildString {
         appendLine("【道家小六壬 · 六宫排盘】")
         appendLine("起卦：${c.solarDisplay}（${c.lunarDisplay} ${c.shichenDisplay}）")
-        appendLine("四柱：${c.siZhuDisplay}  ${c.kongWang}")
+        appendLine("四柱：年${c.yearGanZhi} 月${c.monthGanZhi} 日${c.dayGanZhi} 时${c.hourGanZhi}")
+        appendLine("空亡：年${c.kongWangFour.getOrElse(0) { "" }} 月${c.kongWangFour.getOrElse(1) { "" }} 日${c.kongWangFour.getOrElse(2) { "" }} 时${c.kongWangFour.getOrElse(3) { "" }}")
         appendLine("落宫：月→${palaceName(c.monthPalace)}  日→${palaceName(c.dayPalace)}  时→${palaceName(c.hourPalace)}")
         appendLine("时宫结果：${c.resultName} —— ${c.resultSummary}")
         appendLine()
