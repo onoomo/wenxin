@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -535,7 +536,7 @@ internal fun JiDateTimeDialog(
         ) {
             Text("选择日期时间", color = JiForm.RED, fontSize = 17.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
-            Text("点击数字可键盘输入，或用 − / + 调整", color = JiForm.SUB, fontSize = 10.sp)
+            Text("点击数字直接选择，或用 − / + 调整", color = JiForm.SUB, fontSize = 10.sp)
             Spacer(Modifier.height(10.dp))
             JiStepper("年", y, 1800, 2199) { y = it }
             JiStepper("月", m, 1, 12) { m = it }
@@ -559,43 +560,68 @@ internal fun JiDateTimeDialog(
     }
 }
 
-/** 白底单行步进器：− [数字/输入框] +，点击中间数字进入键盘输入。 */
+/** 白底单行步进器：− [数字] +，点击中间数字弹出滚轮选择（单击即生效，无需键盘）。 */
 @Composable
 private fun JiStepper(label: String, value: Int, min: Int, max: Int, onChange: (Int) -> Unit) {
-    var editing by remember { mutableStateOf(false) }
-    var buf by remember { mutableStateOf("") }
+    var showPicker by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, color = JiForm.TEXT, fontSize = 15.sp, modifier = Modifier.width(38.dp))
         Box(Modifier.clip(RoundedCornerShape(50)).background(JiForm.SELECT_BG)
-            .clickable { editing = false; onChange(maxOf(min, value - 1)) }.padding(12.dp)) {
+            .clickable { onChange(maxOf(min, value - 1)) }.padding(12.dp)) {
             Text("−", color = JiForm.RED, fontSize = 18.sp)
         }
         Spacer(Modifier.width(14.dp))
         Box(Modifier.width(72.dp).height(38.dp).clip(RoundedCornerShape(8.dp))
             .background(JiForm.INPUT_BG).border(1.dp, JiForm.LINE, RoundedCornerShape(8.dp))
-            .clickable { if (!editing) { buf = ""; editing = true } }, contentAlignment = Alignment.Center) {
-            if (editing) {
-                BasicTextField(
-                    value = buf,
-                    onValueChange = { raw ->
-                        val digits = raw.filter { it.isDigit() }.take(4)
-                        buf = digits
-                        digits.toIntOrNull()?.let { onChange(it.coerceIn(min, max)) }
-                    },
-                    singleLine = true,
-                    textStyle = TextStyle(color = JiForm.TEXT, fontSize = 18.sp,
-                        fontFamily = FontFamily.Monospace, textAlign = TextAlign.Center),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp)
-                )
-            } else {
-                Text("$value", color = JiForm.TEXT, fontSize = 18.sp, fontFamily = FontFamily.Monospace)
-            }
+            .clickable { showPicker = true }, contentAlignment = Alignment.Center) {
+            Text("$value", color = JiForm.TEXT, fontSize = 18.sp, fontFamily = FontFamily.Monospace)
         }
         Spacer(Modifier.width(14.dp))
         Box(Modifier.clip(RoundedCornerShape(50)).background(JiForm.SELECT_BG)
-            .clickable { editing = false; onChange(minOf(max, value + 1)) }.padding(12.dp)) {
+            .clickable { onChange(minOf(max, value + 1)) }.padding(12.dp)) {
             Text("＋", color = JiForm.RED, fontSize = 18.sp)
+        }
+    }
+    if (showPicker) {
+        JiWheelPicker(label, value, min, max, onPick = { onChange(it) }, onDismiss = { showPicker = false })
+    }
+}
+
+/** 白底滚轮选择器：单列滚动，点数字即选中；打开时自动定位到当前值。 */
+@Composable
+private fun JiWheelPicker(
+    label: String, value: Int, min: Int, max: Int,
+    onPick: (Int) -> Unit, onDismiss: () -> Unit
+) {
+    val itemsList = (min..max).toList()
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = (value - min).coerceAtLeast(0))
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.clip(RoundedCornerShape(14.dp)).background(JiForm.WHITE)
+                .border(1.dp, JiForm.LINE, RoundedCornerShape(14.dp))
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("选择$label", color = JiForm.RED, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            LazyColumn(Modifier.height(220.dp), state = listState) {
+                items(itemsList) { n ->
+                    val sel = n == value
+                    Box(Modifier.fillMaxWidth().height(44.dp)
+                        .background(if (sel) JiForm.SELECT_BG else Color.Transparent)
+                        .clickable { onPick(n); onDismiss() }
+                        .padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
+                        Text("$n", color = if (sel) JiForm.RED else JiForm.TEXT,
+                            fontSize = if (sel) 20.sp else 17.sp,
+                            fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal)
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Box(Modifier.clip(RoundedCornerShape(20.dp)).background(JiForm.SELECT_BG)
+                .clickable(onClick = onDismiss).padding(horizontal = 30.dp, vertical = 8.dp)) {
+                Text("取消", color = JiForm.SUB, fontSize = 14.sp)
+            }
         }
     }
 }
