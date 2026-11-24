@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -336,7 +337,7 @@ private fun DJGrid(c: DaoJiaLiuRen.Chart, onClick: (Int) -> Unit) {
                     val id = order[row * 3 + col]
                     val p = c.palaces.first { it.id == id }
                     val tint = DJ_WX_COLOR[p.element] ?: DJ_GOLD
-                    Box(Modifier.weight(1f).height(118.dp).clip(RoundedCornerShape(10.dp))
+                    Box(Modifier.weight(1f).heightIn(min = 126.dp).clip(RoundedCornerShape(10.dp))
                         .background(if (p.isResult) Color(0xFFFFF3E0) else Color(0xFFF4EEE1))
                         .border(1.dp, if (p.isResult) DJ_RED else DJ_LINE, RoundedCornerShape(10.dp))
                         .clickable { onClick(id) }
@@ -356,7 +357,7 @@ private fun DJGrid(c: DaoJiaLiuRen.Chart, onClick: (Int) -> Unit) {
                                 color = Color(0xFF6B5F4E), fontSize = 10.sp)
                             Spacer(Modifier.height(3.dp))
                             Text("${p.fiveStar} ${p.sixGod}", color = Color(0xFF7A6C58), fontSize = 9.sp)
-                            Text(p.sixKin, color = Color(0xFF7A6C58), fontSize = 9.sp)
+                            Text("六亲 ${p.sixKin}", color = DJ_RED, fontSize = 9.sp)
                         }
                     }
                 }

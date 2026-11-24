@@ -279,12 +279,6 @@ object DaoJiaLiuRen {
             ).joinToString(" ")
             appendLine("${p.name}（${p.element}）：$tg")
         }
-        appendLine()
-        appendLine("【断语】")
-        for (id in GRID_ORDER) {
-            val k = KNOWLEDGE[id] ?: continue
-            appendLine("${palaceName(id)}：${k.song}")
-        }
     }
 
     fun palaceName(id: Int): String = PALACES.firstOrNull { it.id == id }?.name ?: ""
