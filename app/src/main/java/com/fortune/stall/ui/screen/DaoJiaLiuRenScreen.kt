@@ -138,7 +138,7 @@ fun DaoJiaLiuRenScreen(db: FortuneDb, onBack: () -> Unit) {
                     Spacer(Modifier.height(14.dp))
                     when (method) {
                         0 -> {
-                            Text("起卦时间", color = DJ_GOLD, fontSize = 12.sp)
+                            Text("公历时间", color = DJ_GOLD, fontSize = 12.sp)
                             Spacer(Modifier.height(8.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(dt.format(DJ_DT_FMT), color = Color(0xFF3A3226), fontSize = 15.sp,
@@ -147,6 +147,24 @@ fun DaoJiaLiuRenScreen(db: FortuneDb, onBack: () -> Unit) {
                                 Spacer(Modifier.width(8.dp))
                                 Text("↻", color = DJ_RED, fontSize = 18.sp,
                                     modifier = Modifier.clickable { dt = LocalDateTime.now() })
+                                Spacer(Modifier.width(8.dp))
+                                Text("选时", color = DJ_GOLD, fontSize = 11.sp,
+                                    modifier = Modifier.clickable { showTime = true })
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            val preview = DaoJiaLiuRen.cast(dt)
+                            Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFFF0E9DA)).padding(12.dp)) {
+                                Column {
+                                    Text("时间推算", color = DJ_GOLD, fontSize = 11.sp,
+                                        fontFamily = FontFamily.Serif)
+                                    Spacer(Modifier.height(6.dp))
+                                    Text("农历 ${preview.lunarDisplay} ${preview.shichenDisplay}",
+                                        color = Color(0xFF4A4236), fontSize = 13.sp)
+                                    Spacer(Modifier.height(4.dp))
+                                    Text("干支 ${preview.ganzhiDisplay}",
+                                        color = Color(0xFF4A4236), fontSize = 12.sp)
+                                }
                             }
                         }
                         1 -> {
@@ -219,7 +237,7 @@ fun DaoJiaLiuRenScreen(db: FortuneDb, onBack: () -> Unit) {
 
 @Composable
 private fun DJCard(content: @Composable () -> Unit) {
-    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
         .background(DJ_CARD).border(1.dp, DJ_LINE, RoundedCornerShape(14.dp))
         .padding(16.dp)) { content() }
 }
@@ -303,45 +321,36 @@ private fun DJPathStep(label: String, name: String, highlight: Boolean = false) 
 
 @Composable
 private fun DJGrid(c: DaoJiaLiuRen.Chart, onClick: (Int) -> Unit) {
-    // 原版九宫式显示顺序 2,3,4 / 1,(中),6 / 5 —— 这里用 3x3 网格，中格留作时宫标识
-    val order = listOf(2, 3, 4, 1, 0, 6, 5, -1, -1)
-    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        for (row in 0 until 3) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+    // 原版为两行六宫：NO.2 NO.3 NO.4 / NO.1 NO.6 NO.5
+    val order = DaoJiaLiuRen.GRID_ORDER
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        for (row in 0 until 2) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 for (col in 0 until 3) {
                     val id = order[row * 3 + col]
-                    Box(Modifier.weight(1f).height(74.dp)) {
-                        when {
-                            id == 0 -> {
-                                Box(Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp))
-                                    .background(Color(0x12D9A441)), contentAlignment = Alignment.Center) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("时宫", color = DJ_GOLD, fontSize = 10.sp)
-                                        Text(DaoJiaLiuRen.palaceName(c.hourPalace), color = DJ_RED,
-                                            fontSize = 14.sp, fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
-                                    }
+                    val p = c.palaces.first { it.id == id }
+                    val tint = DJ_WX_COLOR[p.element] ?: DJ_GOLD
+                    Box(Modifier.weight(1f).height(104.dp).clip(RoundedCornerShape(10.dp))
+                        .background(if (p.isResult) Color(0xFFFFF3E0) else Color(0xFFF4EEE1))
+                        .border(1.dp, if (p.isResult) DJ_RED else DJ_LINE, RoundedCornerShape(10.dp))
+                        .clickable { onClick(id) }
+                        .padding(horizontal = 7.dp, vertical = 8.dp)) {
+                        Column(Modifier.fillMaxWidth()) {
+                            Row(Modifier.fillMaxWidth()) {
+                                Text(p.code, color = Color(0xFF9A8E7A), fontSize = 8.sp,
+                                    modifier = Modifier.weight(1f))
+                                if (p.tags.isNotEmpty()) {
+                                    Text(p.tags.joinToString(""), color = DJ_RED,
+                                        fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
-                            id > 0 -> {
-                                val p = c.palaces.first { it.id == id }
-                                val tint = DJ_WX_COLOR[p.element] ?: DJ_GOLD
-                                Box(Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp))
-                                    .background(if (p.isResult) Color(0xFFFFF3E0) else Color(0xFFF4EEE1))
-                                    .border(1.dp, if (p.isResult) DJ_RED else DJ_LINE, RoundedCornerShape(10.dp))
-                                    .clickable { onClick(id) }.padding(6.dp)) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(p.name, color = tint, fontSize = 14.sp,
-                                            fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
-                                        Spacer(Modifier.height(2.dp))
-                                        Text("${p.heavenlyStem}${p.earthlyBranch} · ${p.sixKin}", color = Color(0xFF6B5F4E), fontSize = 9.5.sp)
-                                        Text("${p.sixGod} ${p.fiveStar}", color = Color(0xFF8A7A62), fontSize = 8.5.sp)
-                                    }
-                                    if (p.tags.isNotEmpty()) {
-                                        Text(p.tags.joinToString(""), color = DJ_RED, fontSize = 9.sp,
-                                            modifier = Modifier.align(Alignment.TopEnd).padding(3.dp))
-                                    }
-                                }
-                            }
+                            Text(p.name, color = tint, fontSize = 17.sp,
+                                fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
+                            Text("${p.heavenlyStem}${p.earthlyBranch}(${p.element})",
+                                color = Color(0xFF6B5F4E), fontSize = 10.sp)
+                            Spacer(Modifier.height(4.dp))
+                            Text("${p.fiveStar} ${p.sixGod}", color = Color(0xFF8A7A62), fontSize = 8.5.sp)
+                            Text(p.sixKin, color = Color(0xFF8A7A62), fontSize = 8.5.sp)
                         }
                     }
                 }
