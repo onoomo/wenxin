@@ -3,9 +3,8 @@ package com.fortune.stall.ui.screen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -115,7 +114,7 @@ private fun ZwStepper(label: String, value: Int, min: Int, max: Int, onChange: (
         Box(Modifier.width(72.dp).height(38.dp).clip(RoundedCornerShape(8.dp))
             .background(ZwFormTheme.PANEL).border(1.dp, ZwFormTheme.LINE, RoundedCornerShape(8.dp))
             .clickable { showPicker = true }, contentAlignment = Alignment.Center) {
-            Text("$value", color = Color.White, fontSize = 18.sp, fontFamily = FontFamily.Monospace)
+            Text("%02d".format(value), color = Color.White, fontSize = 18.sp, fontFamily = FontFamily.Monospace)
         }
         Spacer(Modifier.width(14.dp))
         Box(Modifier.clip(RoundedCornerShape(50)).background(ZwFormTheme.BTN)
@@ -128,37 +127,39 @@ private fun ZwStepper(label: String, value: Int, min: Int, max: Int, onChange: (
     }
 }
 
-/** 深金滚轮选择器：单列滚动，点数字即选中；打开时自动定位到当前值。 */
+/** 深金数字网格选择器：一次铺开全部取值（时 00–23 / 分 00–59），点数字即选中。 */
 @Composable
 private fun ZwWheelPicker(
     label: String, value: Int, min: Int, max: Int,
     onPick: (Int) -> Unit, onDismiss: () -> Unit
 ) {
-    val itemsList = (min..max).toList()
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = (value - min).coerceAtLeast(0))
     Dialog(onDismissRequest = onDismiss) {
         Column(
             Modifier.clip(RoundedCornerShape(18.dp)).background(ZwFormTheme.BG)
                 .border(1.dp, ZwFormTheme.LINE, RoundedCornerShape(18.dp))
-                .padding(horizontal = 18.dp, vertical = 16.dp),
+                .padding(horizontal = 18.dp, vertical = 16.dp)
+                .heightIn(max = 520.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("选择$label", color = ZwFormTheme.GOLD, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            LazyColumn(Modifier.height(220.dp), state = listState) {
-                items(itemsList) { n ->
+            Text("选择$label（${"%02d".format(min)}–${"%02d".format(max)}）",
+                color = ZwFormTheme.GOLD, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(12.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                for (n in min..max) {
                     val sel = n == value
-                    Box(Modifier.fillMaxWidth().height(44.dp)
-                        .background(if (sel) ZwFormTheme.BTN else Color.Transparent)
-                        .clickable { onPick(n); onDismiss() }
-                        .padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
-                        Text("$n", color = if (sel) ZwFormTheme.GOLD else ZwFormTheme.TEXT,
-                            fontSize = if (sel) 20.sp else 17.sp,
+                    Box(Modifier.width(52.dp).height(40.dp).clip(RoundedCornerShape(8.dp))
+                        .background(if (sel) ZwFormTheme.GOLD else ZwFormTheme.PANEL)
+                        .border(1.dp, ZwFormTheme.LINE, RoundedCornerShape(8.dp))
+                        .clickable { onPick(n); onDismiss() }, contentAlignment = Alignment.Center) {
+                        Text("%02d".format(n),
+                            color = if (sel) ZwFormTheme.BG else ZwFormTheme.TEXT,
+                            fontSize = 15.sp, fontFamily = FontFamily.Monospace,
                             fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal)
                     }
                 }
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
             Box(Modifier.clip(RoundedCornerShape(20.dp)).background(ZwFormTheme.BTN)
                 .clickable(onClick = onDismiss).padding(horizontal = 30.dp, vertical = 8.dp)) {
                 Text("取消", color = ZwFormTheme.SUB, fontSize = 14.sp)

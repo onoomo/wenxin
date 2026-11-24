@@ -574,7 +574,7 @@ private fun JiStepper(label: String, value: Int, min: Int, max: Int, onChange: (
         Box(Modifier.width(72.dp).height(38.dp).clip(RoundedCornerShape(8.dp))
             .background(JiForm.INPUT_BG).border(1.dp, JiForm.LINE, RoundedCornerShape(8.dp))
             .clickable { showPicker = true }, contentAlignment = Alignment.Center) {
-            Text("$value", color = JiForm.TEXT, fontSize = 18.sp, fontFamily = FontFamily.Monospace)
+            Text("%02d".format(value), color = JiForm.TEXT, fontSize = 18.sp, fontFamily = FontFamily.Monospace)
         }
         Spacer(Modifier.width(14.dp))
         Box(Modifier.clip(RoundedCornerShape(50)).background(JiForm.SELECT_BG)
@@ -587,37 +587,40 @@ private fun JiStepper(label: String, value: Int, min: Int, max: Int, onChange: (
     }
 }
 
-/** 白底滚轮选择器：单列滚动，点数字即选中；打开时自动定位到当前值。 */
+/** 白底数字网格选择器：一次铺开全部取值（时 00–23 / 分 00–59），点数字即选中。 */
 @Composable
 private fun JiWheelPicker(
     label: String, value: Int, min: Int, max: Int,
     onPick: (Int) -> Unit, onDismiss: () -> Unit
 ) {
-    val itemsList = (min..max).toList()
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = (value - min).coerceAtLeast(0))
     Dialog(onDismissRequest = onDismiss) {
         Column(
             Modifier.clip(RoundedCornerShape(14.dp)).background(JiForm.WHITE)
                 .border(1.dp, JiForm.LINE, RoundedCornerShape(14.dp))
-                .padding(horizontal = 18.dp, vertical = 16.dp),
+                .padding(horizontal = 18.dp, vertical = 16.dp)
+                .heightIn(max = 520.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("选择$label", color = JiForm.RED, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            LazyColumn(Modifier.height(220.dp), state = listState) {
-                items(itemsList) { n ->
+            Text("选择$label（${"%02d".format(min)}–${"%02d".format(max)}）",
+                color = JiForm.RED, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(12.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                for (n in min..max) {
                     val sel = n == value
-                    Box(Modifier.fillMaxWidth().height(44.dp)
-                        .background(if (sel) JiForm.SELECT_BG else Color.Transparent)
-                        .clickable { onPick(n); onDismiss() }
-                        .padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
-                        Text("$n", color = if (sel) JiForm.RED else JiForm.TEXT,
-                            fontSize = if (sel) 20.sp else 17.sp,
+                    Box(Modifier.width(52.dp).height(40.dp).clip(RoundedCornerShape(8.dp))
+                        .background(if (sel) JiForm.RED else JiForm.INPUT_BG)
+                        .border(1.dp, if (sel) JiForm.RED else JiForm.LINE, RoundedCornerShape(8.dp))
+                        .clickable { onPick(n); onDismiss() }, contentAlignment = Alignment.Center) {
+                        Text("%02d".format(n),
+                            color = if (sel) Color.White else JiForm.TEXT,
+                            fontSize = 15.sp, fontFamily = FontFamily.Monospace,
                             fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal)
                     }
                 }
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
             Box(Modifier.clip(RoundedCornerShape(20.dp)).background(JiForm.SELECT_BG)
                 .clickable(onClick = onDismiss).padding(horizontal = 30.dp, vertical = 8.dp)) {
                 Text("取消", color = JiForm.SUB, fontSize = 14.sp)
