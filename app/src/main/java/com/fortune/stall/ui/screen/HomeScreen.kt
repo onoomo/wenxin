@@ -30,6 +30,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,6 +41,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
+import kotlinx.coroutines.delay
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -97,6 +102,36 @@ fun HomeScreen(
         ).toDp()
     }
     val context = LocalContext.current
+
+    // ===== 开场动画：问心处 → 心形 → 消失（只播放一次）=====
+    // phase 0 文字停留 → 1 文字淡出+心形淡入 → 2 心形放大淡出 → 3 完成(标题区收起)
+    var animPhase by remember { mutableStateOf(0) }
+    var introDone by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(700);  animPhase = 1   // 文字停留 0.7s 后开始变身
+        delay(560);  animPhase = 2   // 心形成形后再停留
+        delay(520);  animPhase = 3   // 心形消散
+        delay(520);  introDone = true // 标题区彻底收起，露出图1布局
+    }
+    val textAlpha by animateFloatAsState(
+        targetValue = if (animPhase == 0) 1f else 0f,
+        animationSpec = tween(520), label = "textAlpha")
+    val textScale by animateFloatAsState(
+        targetValue = if (animPhase == 0) 1f else 1.18f,
+        animationSpec = tween(520), label = "textScale")
+    val heartAlpha by animateFloatAsState(
+        targetValue = when (animPhase) { 1 -> 1f; 2 -> 1f; else -> 0f },
+        animationSpec = tween(440), label = "heartAlpha")
+    val heartScale by animateFloatAsState(
+        targetValue = when (animPhase) { 1 -> 0.55f; 2 -> 1.35f; else -> 1.6f },
+        animationSpec = tween(560), label = "heartScale")
+    // 标题占位高度：动画完成后收为 0，让副标题上移（图1效果）
+    // 用 Float 动画再乘 density 转 Dp，避免依赖完整 animation 包
+    val heroHeightFrac by animateFloatAsState(
+        targetValue = if (introDone) 0f else 1f,
+        animationSpec = tween(360), label = "heroHeight")
+    val heroHeight = with(density) { (84f * heroHeightFrac).dp }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Starfield(Modifier.fillMaxSize())
         Column(
@@ -108,15 +143,32 @@ fun HomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(Modifier.height(topInset))
-            // Hero
-            Text(
-                "问心处",
-                color = AppColors.Paper,
-                fontSize = 46.sp, letterSpacing = 10.sp,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 14.dp, bottom = 10.dp)
-            )
+            // Hero：问心处 → 心形 → 消失
+            Box(
+                modifier = Modifier.fillMaxWidth().height(heroHeight),
+                contentAlignment = Alignment.Center
+            ) {
+                // 「问心处」文字：phase0 显示，之后淡出并轻微放大
+                Text(
+                    "问心处",
+                    color = AppColors.Paper,
+                    fontSize = 46.sp, letterSpacing = 10.sp,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.alpha(textAlpha).scale(textScale)
+                )
+                // 心形图案：phase1/2 淡入、放大，phase3 淡出消失
+                if (!introDone) {
+                    Canvas(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .alpha(heartAlpha)
+                            .scale(heartScale)
+                    ) {
+                        drawHeart(AppColors.Paper)
+                    }
+                }
+            }
             Text(
                 "自家夜市的算卦小摊 · 卦面即印章",
                 color = AppColors.Muted, fontSize = 12.5.sp, letterSpacing = 1.sp,
@@ -200,6 +252,19 @@ fun HomeScreen(
             onOpenSettings = onOpenSettings
         )
     }
+}
+
+/** 在 DrawScope 中画一颗实心心形（用于开场「问心处 → 心 → 消失」动画）。 */
+private fun DrawScope.drawHeart(color: Color) {
+    val w = size.width
+    val h = size.height
+    val path = Path().apply {
+        moveTo(w * 0.5f, h * 0.92f)                 // 心尖
+        cubicTo(w * 1.12f, h * 0.52f, w * 0.98f, h * 0.02f, w * 0.5f, h * 0.28f) // 右半
+        cubicTo(w * 0.02f, h * 0.02f, w * -0.12f, h * 0.52f, w * 0.5f, h * 0.92f) // 左半
+        close()
+    }
+    drawPath(path = path, color = color)
 }
 
 /** 底部悬浮胶囊栏：两个入口合并在一块玻璃质感胶囊里，中间竖线分隔 */
