@@ -212,6 +212,13 @@ fun SettingsScreen(
                 modifier = Modifier.weight(1f), onClick = onOpenSkills
             ) { CardArrow() }
         }
+        Spacer(Modifier.height(18.dp))
+        Text(
+            "问心处 · v1.0.1 · 谷雨八字版",
+            color = AppColors.Muted, fontSize = 11.sp,
+            modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(6.dp))
     }
 }
 
