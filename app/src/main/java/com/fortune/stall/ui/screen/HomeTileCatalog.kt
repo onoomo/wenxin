@@ -12,8 +12,8 @@ data class HomeTile(
 val HOME_TILES = listOf(
     HomeTile("八字排盘", "bazi-paipan", Glyph.BAZI, "四 柱 命 理",
         "按出生年月日时排定四柱干支，标注十神、藏干、纳音与神煞，起大运流年，断一生格局与起伏。"),
-    HomeTile("八字·寻壬", "xunren-bazi", Glyph.BAZI, "四 柱 细 盘",
-        "寻壬观吉风格八字结果页：藏青主题、生肖圆章、基本信息与专业细盘三页，四柱十神藏干纳音神煞俱全。"),
+    HomeTile("八字·谷雨", "guyu-bazi", Glyph.BAZI, "四 柱 细 盘",
+        "谷雨风格八字工作台：四柱九行明细、五行旺衰、神煞落点、大运流年逐级钻取，真太阳时按出生地经度校正。"),
     HomeTile("命理奇门", "mingliqimen", Glyph.MINGLI, "终 身 奇 门",
         "以生辰起终身奇门盘，配大运流年逐限推移，看一生富贵吉凶与关键时刻的天地人三才格局。"),
     HomeTile("阴盘奇门", "yinpanqimen", Glyph.YINPAN, "阴 盘 起 局",

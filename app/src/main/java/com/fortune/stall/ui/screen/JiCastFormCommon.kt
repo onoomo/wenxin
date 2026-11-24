@@ -289,7 +289,7 @@ fun JiMingpanCastForm(
 
 /** 省/市/区县 三栏选择入口 */
 @Composable
-private fun PlacePicker3(
+internal fun PlacePicker3(
     province: String, city: String, district: String,
     labels: List<String>,
     cText: Color, cSub: Color, cLine: Color, cInputBg: Color,
@@ -315,7 +315,7 @@ private fun PlacePicker3(
 
 /** 通用单列选项弹窗（省市选择复用） */
 @Composable
-private fun JiOptionDialog(
+internal fun JiOptionDialog(
     title: String, options: List<String>, dark: Boolean,
     onDismiss: () -> Unit, onSelect: (String) -> Unit
 ) {
