@@ -93,20 +93,12 @@ object AiClient {
                 return@withContext AiResult.Err(err)
             }
 
-            val reply = try {
-                val data = JSONObject(text)
-                val choices = data.optJSONArray("choices")
-                if (choices != null && choices.length() > 0) {
-                    choices.getJSONObject(0).optJSONObject("message")?.optString("content") ?: ""
-                } else {
-                    ""
-                }
-            } catch (e: Exception) {
-                ""
-            }
+            val reply = extractReply(text)
 
             if (reply.isBlank()) {
-                AiResult.Err("AI 返回为空，请检查模型名与接口是否正确")
+                // 回显服务原始响应片段，便于定位是模型名、接口路径还是返回格式问题
+                val preview = text.trim().take(200).replace(Regex("\\s+"), " ")
+                AiResult.Err("AI 返回为空。服务响应：$preview")
             } else {
                 AiResult.Ok(reply.trim())
             }
@@ -184,6 +176,66 @@ object AiClient {
                 conn?.disconnect()
             }
         }
+
+    /**
+     * 从响应体提取回复文本，兼容多种本地服务返回格式：
+     *  - 标准 OpenAI：choices[0].message.content
+     *  - reasoning 模型：choices[0].message.reasoning_content / content 在 reasoning 字段
+     *  - 老式/text：choices[0].text
+     *  - 顶层直返：{content:...} / {response:...} / {answer:...}
+     *  - 纯文本或非 JSON：原样返回
+     */
+    private fun extractReply(text: String): String {
+        if (text.isBlank()) return ""
+        // 非 JSON（纯文本/SSE data 块）直接返回，交给调用方判断
+        val trimmed = text.trim()
+        if (!trimmed.startsWith("{")) {
+            // SSE 流：拼接所有 data: 的 content
+            val sseParts = trimmed.lineSequence().mapNotNull { line ->
+                val d = line.removePrefix("data:").trim()
+                if (d.isBlank() || d == "[DONE]") return@mapNotNull null
+                try {
+                    JSONObject(d).optJSONArray("choices")?.optJSONObject(0)
+                        ?.optJSONObject("delta")?.optString("content")?.takeIf { it.isNotBlank() }
+                } catch (_: Exception) { null }
+            }.toList()
+            if (sseParts.isNotEmpty()) return sseParts.joinToString("")
+            return trimmed
+        }
+        return try {
+            val data = JSONObject(trimmed)
+            // 1) 标准 choices 数组
+            val choices = data.optJSONArray("choices")
+            if (choices != null && choices.length() > 0) {
+                val first = choices.optJSONObject(0)
+                if (first != null) {
+                    val msg = first.optJSONObject("message")
+                    if (msg != null) {
+                        val c = msg.optString("content", "")
+                        if (c.isNotBlank()) return c
+                        // reasoning 模型：思考结果可能在 reasoning_content
+                        val r = msg.optString("reasoning_content", "")
+                        if (r.isNotBlank()) return r
+                    }
+                    val t = first.optString("text", "")
+                    if (t.isNotBlank()) return t
+                }
+            }
+            // 2) 顶层直返字段
+            for (key in arrayOf("content", "response", "answer", "result", "output")) {
+                val v = data.optString(key, "")
+                if (v.isNotBlank()) return v
+            }
+            // 3) 顶层 message 对象
+            data.optJSONObject("message")?.let { m ->
+                val c = m.optString("content", "")
+                if (c.isNotBlank()) return c
+            }
+            ""
+        } catch (_: Exception) {
+            ""
+        }
+    }
 
     /** 由 chat/completions 端点推导 models 端点 */
     private fun toModelsUrl(endpoint: String): String {
