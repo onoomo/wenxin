@@ -105,9 +105,9 @@ private val DX_BEASTS = arrayOf("蟠泥 青龙", "安巢 朱雀", "禄印 勾陈
 fun DongXuanScreen(db: FortuneDb, onBack: () -> Unit) {
     var chart by remember { mutableStateOf<DongXuan.Chart?>(null) }
     if (chart == null) {
-        DongXuanForm(onBack = onBack) { ns, dt ->
+        DongXuanForm(onBack = onBack) { ns, dt, pan ->
             try {
-                val c = DongXuan.chart(ns, dt)
+                val c = DongXuan.chart(ns, dt, pan)
                 chart = c
                 val now = LocalDateTime.now()
                 val id = db.insert(
@@ -127,13 +127,14 @@ fun DongXuanScreen(db: FortuneDb, onBack: () -> Unit) {
 
 /* ============================ 起卦页（图1） ============================ */
 @Composable
-private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) -> Unit) {
+private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime, String) -> Unit) {
     val ctx = LocalContext.current
     val focusManager = LocalFocusManager.current
     var question by remember { mutableStateOf("") }
     var numText by remember { mutableStateOf("") }          // 单个输入框：三个数连写，如 458 / 4 5 8 / 4,5,8
     val numFocus = remember { FocusRequester() }            // 点击整框聚焦，修复输入法不弹出
     var selDt by remember { mutableStateOf(LocalDateTime.now()) }
+    var pan by remember { mutableStateOf("auto") }     // 盘式：auto/yang/yin
     var showDt by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
@@ -189,6 +190,28 @@ private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) 
                     .background(DX_RED).padding(vertical = 13.dp), contentAlignment = Alignment.Center) {
                     Text("数字起卦", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 }
+                Spacer(Modifier.height(14.dp))
+
+                // 盘式选择：自动 / 阳盘 / 阴盘
+                Text("盘式", color = DX_GOLD, fontSize = 12.sp)
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val modes = listOf("auto" to "自动", "yang" to "阳盘", "yin" to "阴盘")
+                    modes.forEach { (key, label) ->
+                        val selected = pan == key
+                        Box(Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
+                            .background(if (selected) DX_RED else Color(0x14FFFFFF))
+                            .border(1.dp, if (selected) DX_RED else Color(0x52D9A441), RoundedCornerShape(8.dp))
+                            .clickable { pan = key }.padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
+                            Text(label, color = if (selected) Color.White else Color(0xFFD9D0BE),
+                                fontSize = 13.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(when (pan) { "yang" -> "阳盘：地支子寅辰午申戌"; "yin" -> "阴盘：地支丑卯巳未酉亥"; else -> "自动：按时支阴阳定盘" },
+                    color = Color(0xFF9A8E7A), fontSize = 10.sp, modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center)
                 Spacer(Modifier.height(16.dp))
 
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -260,7 +283,7 @@ private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) 
                     if (nums == null) {
                         Toast.makeText(ctx, "请输入 1-999 的报数", Toast.LENGTH_SHORT).show()
                     } else {
-                        onCast(nums, selDt)
+                        onCast(nums, selDt, pan)
                     }
                 }.padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
                 Text("起 卦 排 盘", color = Color.White, fontSize = 17.sp,
@@ -576,9 +599,14 @@ private fun DXCellCard(cell: DongXuan.Cell, modifier: Modifier) {
         Box(Modifier.fillMaxWidth().heightIn(min = 40.dp)) {
             Text(cell.nayin, color = dxWxColor(nayinWx), fontSize = 11.sp, fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center), maxLines = 1)
-            Text(DX_ZHI_CANG[cell.zhi] ?: "", color = DX_INK, fontSize = 11.sp,
+            Text(cell.ganText, color = DX_INK, fontSize = 11.sp,
                 fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold, lineHeight = 13.sp,
                 modifier = Modifier.align(Alignment.TopEnd))
+        }
+        // ②' 丁X 字段（仅阴盘有：丁生/丁藏/丁长/丁止/乙长/丙藏），右对齐贴近右上干；阳盘为空不占位
+        if (cell.dingX.isNotBlank()) {
+            Text(cell.dingX, color = DX_INK, fontSize = 12.sp, fontFamily = FontFamily.Serif,
+                modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
         }
         // ③ 旺衰（状态色，单独一行）
         Text(cell.wangshuai, color = dxWangColor(cell.wangshuai), fontSize = 10.sp,
@@ -588,7 +616,7 @@ private fun DXCellCard(cell: DongXuan.Cell, modifier: Modifier) {
             Text(cell.zhi, color = DX_INK, fontSize = 24.sp, fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold)
             Spacer(Modifier.width(1.dp))
-            Text(DX_ZHI_XIU[cell.zhi] ?: "", color = Color(0xFF7E766C), fontSize = 9.sp,
+            Text(cell.jianchuXiu, color = Color(0xFF7E766C), fontSize = 9.sp,
                 fontFamily = FontFamily.Serif)
             Spacer(Modifier.width(2.dp))
             if (cell.isDay) Text("对", color = Color(0xFFC0392B), fontSize = 13.sp,

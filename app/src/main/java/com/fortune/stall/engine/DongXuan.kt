@@ -38,6 +38,9 @@ object DongXuan {
         val gan: String,
         val zhi: String,
         val zhiStar: String,
+        val ganText: String,      // 右上角天干（竖排，如「旬空\n甲」「甲\n丙」）
+        val dingX: String,        // 纳音下方「丁X」字段（阴盘：丁生/丁藏/丁长/丁止/乙长/丙藏；阳盘空）
+        val jianchuXiu: String,   // 地支旁的建除+宿（阴盘两字如「闭鬼」；阳盘单宿字如「星」）
         val wangshuai: String,
         val liuqin: String,
         val changsheng: String,
@@ -60,6 +63,7 @@ object DongXuan {
         val yearKong: String, val monthKong: String, val dayKong: String, val hourKong: String,
         val dayGan: String,
         val monthZhi: String,
+        val pan: String,
         val faceText: String
     )
 
@@ -86,6 +90,25 @@ object DongXuan {
     private val ZHI_CANG = mapOf(
         "子" to "癸", "丑" to "己癸", "寅" to "甲丙", "卯" to "乙", "辰" to "戊乙", "巳" to "丙戊",
         "午" to "丁己", "未" to "己丁", "申" to "庚壬", "酉" to "辛", "戌" to "戊辛", "亥" to "壬甲"
+    )
+
+    /** 右上角天干（竖排两字，按地支；阳支/阴支两套，对齐原版图1/图2） */
+    private val GAN_TEXT_BY_ZHI = mapOf(
+        "子" to "旬空\n甲", "丑" to "辛\n癸", "寅" to "甲\n丙", "卯" to "癸\n乙",
+        "辰" to "丙\n戊", "巳" to "旬空\n乙", "午" to "戊\n庚", "未" to "乙\n丁",
+        "申" to "庚\n壬", "酉" to "丁\n己", "戌" to "壬\n壬", "亥" to "己\n辛"
+    )
+
+    /** 纳音下方「丁X」字段（仅阴盘/阴支有：丁生/丁藏/丁长/丁止/乙长/丙藏；阳盘为空） */
+    private val DING_X_BY_ZHI = mapOf(
+        "丑" to "丁生", "卯" to "丁藏", "巳" to "丁长", "未" to "丁止",
+        "酉" to "乙长", "亥" to "丙藏"
+    )
+
+    /** 地支旁的建除+宿（阴支为建除两字如「闭鬼」；阳支为单宿字如「星」） */
+    private val JIANCHU_XIU_BY_ZHI = mapOf(
+        "子" to "虚", "寅" to "元", "辰" to "尾", "午" to "星", "申" to "奎", "戌" to "崩",
+        "丑" to "危室", "卯" to "收房", "巳" to "闭鬼", "未" to "除翼", "酉" to "平昴", "亥" to "执斗"
     )
 
     /** 顶部六兽基准序列（按 PALACES 宫序），整体随时支旋转 */
@@ -156,9 +179,10 @@ object DongXuan {
 
     /**
      * 起盘。@param numbers 报数（个数不限，整体作一个数，如 52 / 458）；@param dt 起卦时刻。
+     * @param pan 盘式："auto" 按起卦时支自动判断 / "yang" 强制阳盘 / "yin" 强制阴盘。
      * 报数 n → 对宫 = (n-1)%6；时支 → 身宫；地盘自身宫隔位顺排。
      */
-    fun chart(numbers: List<Int>, dt: LocalDateTime): Chart {
+    fun chart(numbers: List<Int>, dt: LocalDateTime, pan: String = "auto"): Chart {
         val ns = numbers.map { it.coerceIn(1, 999) }
         require(ns.isNotEmpty()) { "至少一个数字" }
         val lunar = LunarCalendar.fromDateTime(dt)
@@ -168,11 +192,19 @@ object DongXuan {
         // 对宫：初一在大安，顺数到报数 → (n-1)%6（报52→3赤口；报11→4小吉）
         val dayIdx = ((report - 1) % 6 + 6) % 6
         val bodyZhiIdx = DIZHI.indexOf(timeZhi).let { if (it >= 0) it else 0 }
-        // 身宫：由时支确定。三图交叉验证：bodyIdx = (dayIdx + 时支地支序号) % 6
-        // 报52巳时(巳=5)→(3+5)%6=2速喜；报11酉时(酉=9)→(4+9)%6=1留连；报458戌时(戌=10)→(1+10)%6=5空亡
+        // 身宫位置：由时支与对宫共同确定，与盘式无关
         val bodyIdx = ((dayIdx + bodyZhiIdx) % 6 + 6) % 6
-        // 地盘起点 base：使身宫地支 = 时支（每宫隔一位 +2）
-        val base = ((bodyZhiIdx - 2 * bodyIdx) % 12 + 12) % 12
+
+        // 盘式：auto 依时支阴阳（子寅辰午申戌=阳 / 丑卯巳未酉亥=阴）；手动可强制整套盘式样式
+        val isYang = when (pan) {
+            "yang" -> true
+            "yin" -> false
+            else -> bodyZhiIdx % 2 == 0
+        }
+        // 地盘起点 base：使身宫地支落在所选盘式的地支集上（阳盘0,2,4,6,8,10 / 阴盘1,3,5,7,9,11）
+        // 阳盘地支集合 = 时支归到阳支，阴盘 = 归到阴支；base = 身宫地支序号 - 2×身宫
+        val bodyPalaceZhiIdx = if (isYang) (bodyZhiIdx / 2) * 2 else (bodyZhiIdx / 2) * 2 + 1
+        val base = ((bodyPalaceZhiIdx - 2 * bodyIdx) % 12 + 12) % 12
         val zhiByPalace = (0 until 6).map { DIZHI[(base + 2 * it) % 12] }
 
         val dayGan = lunar.dayGanZhi.take(1)
@@ -185,9 +217,7 @@ object DongXuan {
         // 顶兽旋转量：图2巳时对宫赤口 → 大安朱雀；基准序列[青龙朱雀勾陈白虎玄武腾蛇]，朱雀在index1
         // 使身宫(速喜 idx2)=白虎(基准idx3)，故 shift 使 p+shift落基准：shift = 3 - bodyIdx
         val godShift = ((3 - bodyIdx) % 6 + 6) % 6
-        // 底部三要素（地分/主事/六兽）：阳支盘(子寅辰午申戌)用图1那套、阴支盘(丑卯巳未酉亥)用图2那套
-        // 由时支阴阳决定，避免阳盘套用阴盘表导致全错
-        val isYang = bodyZhiIdx % 2 == 0
+        // 底部三要素（地分/主事/六兽）：阳支盘/阴支盘两套，由所选盘式决定
         val difen = if (isYang) DIFEN_YANG else DIFEN_YIN
         val zhushi = if (isYang) ZHUSHI_YANG else ZHUSHI_YIN
         val beastA = if (isYang) BEAST_YANG else BEAST_YIN
@@ -207,6 +237,9 @@ object DongXuan {
                 gan = difen[p],
                 zhi = zhi,
                 zhiStar = ZHI_CANG[zhi] ?: "",
+                ganText = GAN_TEXT_BY_ZHI[zhi] ?: "",
+                dingX = DING_X_BY_ZHI[zhi] ?: "",
+                jianchuXiu = JIANCHU_XIU_BY_ZHI[zhi] ?: "",
                 wangshuai = wangshuai(gongWx, monthWx),
                 liuqin = liuqinOf(dayGan, dayGanWx, zhi, gongWx),
                 changsheng = CS_BY_ZHI[zhi] ?: "长生",
@@ -231,7 +264,7 @@ object DongXuan {
             dayGz = lunar.dayGanZhi, hourGz = lunar.hourGanZhi,
             yearKong = kongOf(lunar.yearGanZhi), monthKong = kongOf(lunar.monthGanZhi),
             dayKong = kongOf(lunar.dayGanZhi), hourKong = kongOf(lunar.hourGanZhi),
-            dayGan = dayGan, monthZhi = monthZhi, faceText = ""
+            dayGan = dayGan, monthZhi = monthZhi, pan = pan, faceText = ""
         )
         return result.copy(faceText = renderFace(result))
     }
@@ -250,7 +283,9 @@ object DongXuan {
             val row = (0..2).map { col ->
                 val cell = c.cells[DISPLAY_ORDER[r * 3 + col]]
                 "${cell.palace}: ${cell.god}/${cell.godAlias} ${cell.nayin} ${cell.star} " +
-                    "${cell.gan}${cell.zhi} ${cell.wangshuai} ${cell.liuqin} ${cell.changsheng} ${cell.gua} ${cell.zhushi}"
+                    "${cell.ganText.replace("\n", "")} ${cell.dingX} " +
+                    "${cell.gan}${cell.zhi}(${cell.jianchuXiu}) ${cell.wangshuai} " +
+                    "${cell.liuqin} ${cell.changsheng} ${cell.gua} ${cell.zhushi} ${cell.liuShen}"
             }
             L.add(row.joinToString("  |  "))
         }
