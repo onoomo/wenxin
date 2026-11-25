@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -543,7 +544,7 @@ private fun DXGrid(c: DongXuan.Chart) {
     Column(Modifier.fillMaxWidth().background(Color.White).border(1.dp, DX_LINE)) {
         for (r in 0..1) {
             if (r > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(DX_LINE))
-            Row(Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max)) {
                 for (col in 0..2) {
                     if (col > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(DX_LINE))
                     DXCellCard(c.cells[order[r * 3 + col]], Modifier.weight(1f))
