@@ -122,7 +122,7 @@ object DongXuan {
         "朱雀" to "掩面", "青龙" to "游江", "腾蛇" to "露齿"
     )
 
-    /** 六亲：先按五行生克，若宫地支藏干含日干则记为兄弟（对齐图2赤口未藏丁→兄弟） */
+    /** 六亲：原版以「时支五行」为我（非日干！日干仅在恰好与时支同五行时碰巧对上），按五行生克；四土宫藏干含同我五行则记兄弟 */
     private val SHENG = mapOf("木" to "火", "火" to "土", "土" to "金", "金" to "水", "水" to "木")
     private val KE = mapOf("木" to "土", "土" to "水", "水" to "火", "火" to "金", "金" to "木")
     private val GAN_WX = LunarCalendar.GAN_WUXING
@@ -130,14 +130,16 @@ object DongXuan {
         "子" to "癸", "丑" to "己癸辛", "寅" to "甲丙戊", "卯" to "乙", "辰" to "戊乙癸", "巳" to "丙戊庚",
         "午" to "丁己", "未" to "己丁乙", "申" to "庚壬戊", "酉" to "辛", "戌" to "戊辛丁", "亥" to "壬甲"
     )
-    private fun liuqinOf(dayGan: String, dayGanWx: String, zhi: String, gongWx: String): String {
-        if (ZANG_GAN[zhi]?.contains(dayGan) == true && gongWx != dayGanWx) return "兄弟"
+    private val ZANG_WX = ZANG_GAN.mapValues { (_, s) -> s.map { c -> GAN_WX[c.toString()] ?: "" } }
+    private val TU_ZHI = setOf("辰", "戌", "丑", "未")
+    private fun liuqinOf(woWx: String, zhi: String, gongWx: String): String {
+        if (zhi in TU_ZHI && ZANG_WX[zhi]?.contains(woWx) == true) return "兄弟"
         return when {
-            gongWx == dayGanWx -> "兄弟"
-            SHENG[gongWx] == dayGanWx -> "父母"
-            SHENG[dayGanWx] == gongWx -> "子孙"
-            KE[dayGanWx] == gongWx -> "妻财"
-            KE[gongWx] == dayGanWx -> "官鬼"
+            gongWx == woWx -> "兄弟"
+            SHENG[gongWx] == woWx -> "父母"
+            SHENG[woWx] == gongWx -> "子孙"
+            KE[woWx] == gongWx -> "妻财"
+            KE[gongWx] == woWx -> "官鬼"
             else -> "兄弟"
         }
     }
@@ -241,7 +243,7 @@ object DongXuan {
                 dingX = DING_X_BY_ZHI[zhi] ?: "",
                 jianchuXiu = JIANCHU_XIU_BY_ZHI[zhi] ?: "",
                 wangshuai = wangshuai(gongWx, monthWx),
-                liuqin = liuqinOf(dayGan, dayGanWx, zhi, gongWx),
+                liuqin = liuqinOf(ZHI_WX[timeZhi] ?: "火", zhi, gongWx),
                 changsheng = CS_BY_ZHI[zhi] ?: "长生",
                 gua = GUA_BY_ZHI[zhi] ?: "",
                 zhushi = zhushi[p],
