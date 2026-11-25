@@ -7,12 +7,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,6 +22,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,6 +30,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -83,9 +88,10 @@ private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) 
     var n1 by remember { mutableStateOf("") }
     var n2 by remember { mutableStateOf("") }
     var n3 by remember { mutableStateOf("") }
-    val now = remember { LocalDateTime.now() }
-    val solar = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
-    val lunarNow = remember { com.fortune.stall.util.LunarCalendar.fromDateTime(now) }
+    var selDt by remember { mutableStateOf(LocalDateTime.now()) }
+    var showDt by remember { mutableStateOf(false) }
+    val solar = selDt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+    val lunarNow = com.fortune.stall.util.LunarCalendar.fromDateTime(selDt)
 
     Box(Modifier.fillMaxSize()) {
         Starfield(Modifier.fillMaxSize())
@@ -138,12 +144,18 @@ private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) 
                 }
                 Spacer(Modifier.height(16.dp))
 
-                Text("公历时间", color = DX_GOLD, fontSize = 13.sp)
-                Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("公历时间", color = DX_GOLD, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                    Text("点击编辑", color = Color(0xFF9A8E7A), fontSize = 10.sp)
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                    .background(Color(0x0AFFFFFF)).border(1.dp, Color(0x52D9A441), RoundedCornerShape(10.dp))
+                    .clickable { showDt = true }
+                    .padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(solar, color = Color(0xFFF0E8D8), fontSize = 16.sp,
                         fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f))
-                    Text("当前时刻", color = Color(0xFF9A8E7A), fontSize = 11.sp)
+                    Text("✎", color = DX_GOLD, fontSize = 14.sp)
                 }
                 Spacer(Modifier.height(8.dp))
                 Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
@@ -182,13 +194,144 @@ private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) 
                     if (nums.any { it == null || it !in 1..10 }) {
                         Toast.makeText(ctx, "请输入三个 1-10 的数字", Toast.LENGTH_SHORT).show()
                     } else {
-                        onCast(nums.map { it!! }, LocalDateTime.now())
+                        onCast(nums.map { it!! }, selDt)
                     }
                 }.padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
                 Text("起 卦 排 盘", color = Color.White, fontSize = 17.sp,
                     fontWeight = FontWeight.Bold, letterSpacing = 4.sp)
             }
             Spacer(Modifier.height(30.dp))
+        }
+        if (showDt) {
+            DXDateTimeDialog(
+                initial = selDt,
+                onDismiss = { showDt = false },
+                onConfirm = { dt -> selDt = dt; showDt = false }
+            )
+        }
+    }
+}
+
+/* ============================ 起局时间快捷编辑弹窗 ============================ */
+@Composable
+private fun DXDateTimeDialog(
+    initial: LocalDateTime,
+    onDismiss: () -> Unit,
+    onConfirm: (LocalDateTime) -> Unit
+) {
+    var y by remember { mutableStateOf(initial.year) }
+    var mo by remember { mutableStateOf(initial.monthValue) }
+    var d by remember { mutableStateOf(initial.dayOfMonth) }
+    var h by remember { mutableStateOf(initial.hour) }
+    var mi by remember { mutableStateOf(initial.minute) }
+    val now = LocalDateTime.now()
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0xFF241E16))
+            .border(1.dp, Color(0x52D9A441), RoundedCornerShape(16.dp))
+            .padding(20.dp).verticalScroll(rememberScrollState())) {
+            Text("选择起局时间", color = DX_GOLD, fontSize = 16.sp, fontFamily = FontFamily.Serif)
+            Spacer(Modifier.height(4.dp))
+            Text("点击数字直接输入，或用 − / + 微调", color = Color(0xFF9A8E7A), fontSize = 10.sp)
+            Spacer(Modifier.height(12.dp))
+
+            // 快捷项
+            Text("快捷", color = Color(0xFF9A8E7A), fontSize = 11.sp)
+            Spacer(Modifier.height(6.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                DXQuickChip("现在") { y = now.year; mo = now.monthValue; d = now.dayOfMonth; h = now.hour; mi = now.minute }
+                DXQuickChip("今天") { h = now.hour; mi = now.minute }
+                DXQuickChip("去年") { y = now.year - 1 }
+                DXQuickChip("整点") { mi = 0 }
+                listOf("1980", "1990", "2000", "2010", "2020").forEach { yr ->
+                    DXQuickChip(yr) { y = yr.toInt() }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            // 十二时辰快捷（子23 丑1 … 亥21）
+            val hourMap = listOf("子" to 23, "丑" to 1, "寅" to 3, "卯" to 5, "辰" to 7, "巳" to 9,
+                "午" to 11, "未" to 13, "申" to 15, "酉" to 17, "戌" to 19, "亥" to 21)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                hourMap.forEach { (zhi, hh) -> DXQuickChip("${zhi}时") { h = hh; mi = 0 } }
+            }
+            Spacer(Modifier.height(14.dp))
+
+            DXNumStepper("年", y, 1900, 2100) { y = it }
+            DXNumStepper("月", mo, 1, 12) { mo = it }
+            DXNumStepper("日", d, 1, 31) { d = it }
+            DXNumStepper("时", h, 0, 23) { h = it }
+            DXNumStepper("分", mi, 0, 59) { mi = it }
+            Spacer(Modifier.height(16.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(Color(0x14FFFFFF))
+                    .clickable(onClick = onDismiss).padding(vertical = 13.dp), contentAlignment = Alignment.Center) {
+                    Text("取消", color = Color(0xFFB8AE9A), fontSize = 14.sp)
+                }
+                Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(DX_RED)
+                    .clickable {
+                        val dim = java.time.YearMonth.of(y, mo).lengthOfMonth()
+                        onConfirm(LocalDateTime.of(y, mo, kotlin.math.min(d, dim), h, mi))
+                    }.padding(vertical = 13.dp), contentAlignment = Alignment.Center) {
+                    Text("确定", color = Color.White, fontSize = 14.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DXQuickChip(text: String, onClick: () -> Unit) {
+    Box(Modifier.clip(RoundedCornerShape(14.dp)).background(Color(0x14FFFFFF))
+        .border(1.dp, Color(0x52D9A441), RoundedCornerShape(14.dp))
+        .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 6.dp)) {
+        Text(text, color = Color(0xFFD9D0BE), fontSize = 11.sp)
+    }
+}
+
+/** 深色单行步进器：− [数字] +，点击中间数字可直接键盘输入。 */
+@Composable
+private fun DXNumStepper(label: String, value: Int, min: Int, max: Int, onChange: (Int) -> Unit) {
+    var editing by remember { mutableStateOf(false) }
+    var buf by remember { mutableStateOf("") }
+    val fr = remember { FocusRequester() }
+    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = DX_GOLD, fontSize = 13.sp, modifier = Modifier.width(34.dp))
+        Box(Modifier.size(34.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x14FFFFFF))
+            .clickable { onChange((value - 1).coerceAtLeast(min)) }, contentAlignment = Alignment.Center) {
+            Text("−", color = DX_GOLD, fontSize = 18.sp)
+        }
+        Spacer(Modifier.width(10.dp))
+        Box(Modifier.weight(1f).clip(RoundedCornerShape(8.dp)).background(Color(0x14FFFFFF))
+            .border(1.dp, Color(0x52D9A441), RoundedCornerShape(8.dp))
+            .clickable { editing = true; buf = value.toString() }
+            .padding(horizontal = 10.dp, vertical = 6.dp), contentAlignment = Alignment.Center) {
+            if (editing) {
+                BasicTextField(
+                    value = buf,
+                    onValueChange = { raw ->
+                        buf = raw.filter { it.isDigit() }.take(4)
+                        val p = buf.toIntOrNull()
+                        if (p != null && p in min..max) onChange(p)
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    textStyle = TextStyle(color = Color(0xFFF0E8D8), fontSize = 16.sp,
+                        fontFamily = FontFamily.Monospace, textAlign = TextAlign.Center),
+                    modifier = Modifier.fillMaxWidth().focusRequester(fr)
+                )
+                LaunchedEffect(Unit) {
+                    try { fr.requestFocus() } catch (_: Exception) {}
+                }
+            } else {
+                Text(value.toString(), color = Color(0xFFF0E8D8), fontSize = 16.sp,
+                    fontFamily = FontFamily.Monospace)
+            }
+        }
+        Spacer(Modifier.width(10.dp))
+        Box(Modifier.size(34.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x14FFFFFF))
+            .clickable { onChange((value + 1).coerceAtMost(max)) }, contentAlignment = Alignment.Center) {
+            Text("＋", color = DX_GOLD, fontSize = 18.sp)
         }
     }
 }
