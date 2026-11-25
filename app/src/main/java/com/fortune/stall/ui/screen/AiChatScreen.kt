@@ -471,6 +471,7 @@ private fun ApiConfigPanel() {
                 PresetChip(p.name, active = endpoint == p.endpoint) {
                     endpoint = p.endpoint
                     model = p.model
+                    apiPathField = p.apiPath
                 }
             }
         }
@@ -479,6 +480,12 @@ private fun ApiConfigPanel() {
         AiField("API 地址", endpoint, { endpoint = it }, singleLine = true)
         Spacer(Modifier.height(10.dp))
         AiField("接口路径（如 /chat/completions，留空则用上方完整地址）", apiPathField, { apiPathField = it }, singleLine = true)
+        // 当前服务商的接口协议标识（如 OpenAI 兼容 = openai-completions）
+        val curProtocol = AiSettings.PRESETS.firstOrNull { it.endpoint == endpoint }?.protocol.orEmpty()
+        if (curProtocol.isNotBlank()) {
+            Spacer(Modifier.height(4.dp))
+            Text("接口协议：$curProtocol", color = AppColors.Lantern, fontSize = 10.5.sp)
+        }
         Spacer(Modifier.height(10.dp))
         AiField("API Key", apiKey, { apiKey = it }, singleLine = true)
         Spacer(Modifier.height(10.dp))

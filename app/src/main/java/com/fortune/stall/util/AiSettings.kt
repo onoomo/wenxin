@@ -80,7 +80,10 @@ object AiSettings {
         AiPreset("Kimi", "https://api.moonshot.cn/v1/chat/completions", "kimi-k2.6"),
         AiPreset("豆包", "https://ark.cn-beijing.volces.com/api/v3/chat/completions", "doubao-pro-32k"),
         AiPreset("文心", "https://qianfan.baidubce.com/v2/chat/completions", "ernie-4.5-8k"),
-        AiPreset("混元", "https://api.hunyuan.cloud.tencent.com/v1/chat/completions", "hunyuan-turbos-latest")
+        AiPreset("混元", "https://api.hunyuan.cloud.tencent.com/v1/chat/completions", "hunyuan-turbos-latest"),
+        // OpenAI 兼容：本地/自建中转常用，接口协议 openai-completions，
+        // 地址填主机，路径单独填 /chat/completions，模型名由网关实际列表决定
+        AiPreset("OpenAI 兼容", "http://127.0.0.1:8765/v1", "", "/chat/completions", "openai-completions")
     )
 
     private var prefs: SharedPreferences? = null
@@ -276,7 +279,8 @@ object AiSettings {
             apiKey = "",
             model = preset?.model ?: DEFAULT_MODEL,
             systemPrompt = DEFAULT_PROMPT,
-            contextChars = 6000
+            contextChars = 6000,
+            apiPath = preset?.apiPath ?: ""
         )
         configs.add(cfg)
         persist(configs)
@@ -341,7 +345,13 @@ object AiSettings {
 }
 
 /** 一个 AI 服务商预设：名称 + OpenAI 兼容接口地址 + 推荐模型名 */
-data class AiPreset(val name: String, val endpoint: String, val model: String)
+data class AiPreset(
+    val name: String,
+    val endpoint: String,
+    val model: String,
+    val apiPath: String = "",
+    val protocol: String = ""
+)
 
 /** 一个断卦师人设预设：名称 + System Prompt */
 data class PromptPreset(val name: String, val text: String)
