@@ -323,21 +323,21 @@ object AiSettings {
 
     /**
      * 把「API 地址」与用户自填的「接口路径」拼成最终请求地址。
-     * - apiPath 为空：返回 endpoint 原样（兼容现有完整地址与所有预设）。
      * - apiPath 以 http:// 或 https:// 开头：视为完整地址，直接采用。
-     * - 否则取 endpoint 的 scheme://authority，接上 apiPath（自动补前导 /）。
+     * - apiPath 为空且地址已是 chat/completions 端点：原样，不重复追加。
+     * - apiPath 为空：在地址后补标准 /chat/completions（兼容只填主机/v1 的本地网关）。
+     * - 否则：把 apiPath 追加到完整地址之后，保留 /v1 等前缀，不截断。
      */
     fun buildEndpoint(endpoint: String, apiPath: String): String {
-        val ep = endpoint.trim()
+        val ep = endpoint.trim().trimEnd('/')
         val p = apiPath.trim()
-        if (p.isBlank()) return ep
+        // 自填路径是完整 URL，直接用
         if (p.startsWith("http://") || p.startsWith("https://")) return p
-        val schemeIdx = ep.indexOf("://")
-        if (schemeIdx < 0) return ep
-        val restStart = schemeIdx + 3
-        val slash = ep.indexOf('/', restStart)
-        val origin = if (slash >= 0) ep.substring(0, slash) else ep
-        return origin + if (p.startsWith("/")) p else "/$p"
+        // 地址本身已是完整 chat/completions 端点且未另填路径 → 原样，避免重复追加
+        if (p.isBlank() && (ep.contains("/chat/completions") || ep.contains("/completions"))) return ep
+        // 在地址后追加路径：路径留空则补标准 /chat/completions；
+        // 有路径则追加到完整地址之后（保留 /v1 等前缀，不截断）
+        return if (p.isBlank()) "$ep/chat/completions" else ep + "/" + p.trimStart('/')
     }
 
     /** 用当前镜像的 endpoint + apiPath 得到最终请求地址 */
