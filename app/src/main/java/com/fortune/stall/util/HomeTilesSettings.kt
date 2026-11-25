@@ -53,6 +53,12 @@ object HomeTilesSettings {
                 merged.remove("bazi-paipan")
                 merged.add(0, "bazi-paipan")
             }
+            // 东玄为新增术法：老用户升级时插到八字之后（第二位），而非追加末尾
+            if ("dongxuan" !in parsed && "dongxuan" in defaultKeys) {
+                merged.remove("dongxuan")
+                val insertAt = merged.indexOf("bazi-paipan").let { if (it >= 0) it + 1 else 0 }
+                merged.add(insertAt.coerceAtMost(merged.size), "dongxuan")
+            }
             order.value = merged
         }
         val savedHidden = prefs!!.getString(KEY_HIDDEN, null)
