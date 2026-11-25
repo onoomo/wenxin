@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,6 +52,8 @@ import com.fortune.stall.data.FortuneDb
 import com.fortune.stall.engine.DongXuan
 import com.fortune.stall.ui.components.Starfield
 import com.fortune.stall.util.AiBridge
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -130,13 +134,15 @@ private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) 
     val numFocus = remember { FocusRequester() }            // 点击整框聚焦，修复输入法不弹出
     var selDt by remember { mutableStateOf(LocalDateTime.now()) }
     var showDt by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
     val solar = selDt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
     val lunarNow = com.fortune.stall.util.LunarCalendar.fromDateTime(selDt)
 
     Box(Modifier.fillMaxSize()) {
         Starfield(Modifier.fillMaxSize())
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp),
+            Modifier.fillMaxSize().verticalScroll(scrollState).imePadding().padding(horizontal = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(Modifier.height(24.dp))
@@ -217,7 +223,10 @@ private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) 
                 Spacer(Modifier.height(10.dp))
                 Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
                     .background(Color(0x0AFFFFFF)).border(1.dp, Color(0x52D9A441), RoundedCornerShape(10.dp))
-                    .clickable { numFocus.requestFocus() }
+                    .clickable {
+                        numFocus.requestFocus()
+                        scope.launch { delay(150); scrollState.animateScrollTo(scrollState.maxValue) }
+                    }
                     .padding(horizontal = 14.dp, vertical = 14.dp)) {
                     if (numText.isEmpty()) Text("输入三个数，如 458 或 4 5 8", color = Color(0xFF9A8E7A), fontSize = 15.sp)
                     BasicTextField(
@@ -561,12 +570,13 @@ private fun DXCellCard(cell: DongXuan.Cell, modifier: Modifier) {
             Text(cell.star, color = dxWxColor(starWx), fontSize = 11.sp, fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold)
         }
-        // ② 纳音（居中，五行色）+ 右上角干（竖排两字）
-        Box(Modifier.fillMaxWidth().height(30.dp)) {
+        // ② 纳音（居中，五行色）+ 右上角干（竖排两字，完整显示）
+        Box(Modifier.fillMaxWidth().heightIn(min = 40.dp)) {
             Text(cell.nayin, color = dxWxColor(nayinWx), fontSize = 11.sp, fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center), maxLines = 1)
-            Text(DX_ZHI_CANG[cell.zhi] ?: "", color = Color(0xFF6B6258), fontSize = 8.sp,
-                fontFamily = FontFamily.Serif, modifier = Modifier.align(Alignment.TopEnd))
+            Text(DX_ZHI_CANG[cell.zhi] ?: "", color = DX_INK, fontSize = 11.sp,
+                fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold, lineHeight = 13.sp,
+                modifier = Modifier.align(Alignment.TopEnd))
         }
         // ③ 旺衰（状态色，单独一行）
         Text(cell.wangshuai, color = dxWangColor(cell.wangshuai), fontSize = 10.sp,
@@ -589,9 +599,9 @@ private fun DXCellCard(cell: DongXuan.Cell, modifier: Modifier) {
         }
         // ⑤ 长生（灰）
         Text(cell.changsheng, color = Color(0xFF9A9288), fontSize = 9.sp, fontFamily = FontFamily.Serif)
-        // ⑥ 卦象
+        // ⑥ 卦象（居中）
         Text(cell.gua, color = Color(0xFF4A4238), fontSize = 10.sp, fontFamily = FontFamily.Serif,
-            maxLines = 1)
+            modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, maxLines = 1)
         Spacer(Modifier.height(2.dp))
         // ⑦ 地分 + 主事
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -601,12 +611,13 @@ private fun DXCellCard(cell: DongXuan.Cell, modifier: Modifier) {
                 modifier = Modifier.weight(1f), maxLines = 1)
         }
         Spacer(Modifier.height(1.dp))
-        // ⑧ 底行：宫名大字（彩色）+ 底部六兽（灰小字）
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        // ⑧ 底行：宫名大字（彩色，居中）+ 底部六兽（灰小字，右侧）
+        Box(Modifier.fillMaxWidth()) {
             Text(cell.palace, color = dxShenColor(cell.palace), fontSize = 16.sp,
-                fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.weight(1f))
-            Text(beast, color = Color(0xFF9A9288), fontSize = 9.sp, fontFamily = FontFamily.Serif)
+                fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.Center))
+            Text(beast, color = Color(0xFF9A9288), fontSize = 9.sp, fontFamily = FontFamily.Serif,
+                modifier = Modifier.align(Alignment.CenterEnd))
         }
     }
 }
