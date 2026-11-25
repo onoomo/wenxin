@@ -213,13 +213,13 @@ private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) 
                 Spacer(Modifier.height(18.dp))
 
                 // 单个数字输入框：三个数连写，如 458 / 4 5 8 / 4,5,8
-                Text("报三个数（1-10）", color = DX_GOLD, fontSize = 13.sp)
+                Text("报三个数（1-999）", color = DX_GOLD, fontSize = 13.sp)
                 Spacer(Modifier.height(10.dp))
                 Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
                     .background(Color(0x0AFFFFFF)).border(1.dp, Color(0x52D9A441), RoundedCornerShape(10.dp))
                     .clickable { numFocus.requestFocus() }
                     .padding(horizontal = 14.dp, vertical = 14.dp)) {
-                    if (numText.isEmpty()) Text("输入三个数，如 458", color = Color(0xFF9A8E7A), fontSize = 15.sp)
+                    if (numText.isEmpty()) Text("输入三个数，如 458 或 4 5 8", color = Color(0xFF9A8E7A), fontSize = 15.sp)
                     BasicTextField(
                         value = numText,
                         onValueChange = { raw -> numText = raw.filter { it.isDigit() || it == ' ' || it == ',' }.take(12) },
@@ -235,7 +235,7 @@ private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) 
                     )
                 }
                 Spacer(Modifier.height(8.dp))
-                Text("报三个数1-10，可连写 458 或空格分开", color = Color(0xFF9A8E7A), fontSize = 10.sp,
+                Text("报三个数1-999，可连写 458 或用空格 / 逗号分隔大数", color = Color(0xFF9A8E7A), fontSize = 10.sp,
                     modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
             }
             Spacer(Modifier.height(22.dp))
@@ -247,7 +247,7 @@ private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) 
                     focusManager.clearFocus()
                     val nums = parseThreeNumbers(numText)
                     if (nums == null) {
-                        Toast.makeText(ctx, "请输入三个 1-10 的数字", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(ctx, "请输入三个 1-999 的数字", Toast.LENGTH_SHORT).show()
                     } else {
                         onCast(nums, selDt)
                     }
@@ -391,7 +391,7 @@ private fun DXNumStepper(label: String, value: Int, min: Int, max: Int, onChange
     }
 }
 
-/** 解析三个报数：支持「458」「4 5 8」「4,5,8」；连写按单字符(1-9)，分隔可含 10。非法返回 null */
+/** 解析三个报数（1-999）：含空格/逗号则按其分隔（支持多位数，如「4 58 999」）；纯连写按单字符(1-9)兼容旧习惯。非法返回 null */
 private fun parseThreeNumbers(raw: String): List<Int>? {
     val t = raw.trim()
     if (t.isEmpty()) return null
@@ -400,7 +400,7 @@ private fun parseThreeNumbers(raw: String): List<Int>? {
     } else {
         t.map { it.toString().toIntOrNull() ?: return null }
     }
-    if (nums.size != 3 || nums.any { it !in 1..10 }) return null
+    if (nums.size != 3 || nums.any { it !in 1..999 }) return null
     return nums
 }
 

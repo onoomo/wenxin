@@ -7,7 +7,7 @@ import java.time.format.DateTimeFormatter
 /**
  * 东玄 · 三数六宫排盘引擎。
  *
- * 以问事者所报三个数字（1-10）配合起卦时刻起局：
+ * 以问事者所报三个数字（1-999，取模归宫）配合起卦时刻起局：
  * - 三数之和定「日宫」A，时辰定「身宫」B（沿用江氏小六壬数字起课框架）
  * - 四值（年月日时干支）与四柱旬空由本地历法精确推算
  * - 六宫按 [留连 速喜 赤口 / 大安 空亡 小吉] 排布，每宫融八神、九星、纳音、
@@ -174,10 +174,10 @@ object DongXuan {
     private val DIFEN_BY_PALACE = arrayOf("寅", "戊", "午", "申", "子", "辰")
 
     /**
-     * 起盘。@param numbers 三个数（1-10）；@param dt 起卦时刻（默认当前）。
+     * 起盘。@param numbers 三个数（1-999）；@param dt 起卦时刻（默认当前）。
      */
     fun chart(numbers: List<Int>, dt: LocalDateTime): Chart {
-        val ns = numbers.take(3).map { it.coerceIn(1, 10) }
+        val ns = numbers.take(3).map { it.coerceIn(1, 999) }
         require(ns.size == 3) { "需要三个数字" }
         val lunar = LunarCalendar.fromDateTime(dt)
         val hour = dt.hour
