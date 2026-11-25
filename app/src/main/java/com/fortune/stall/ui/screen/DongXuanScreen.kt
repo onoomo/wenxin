@@ -87,18 +87,18 @@ private fun dxShenColor(s: String): Color = when (s) {
     "空亡" -> Color(0xFF8A5A2B)
     else -> Color(0xFF222222)
 }
-/** 地支 → 二十八宿简称（随图2：寅元 辰尾 午星 子虚 戌崩 申奎） */
+/** 地支 → 二十八宿简称（对齐原版图2：丑室 卯房 巳鬼 未翼 酉昴 亥斗） */
 private val DX_ZHI_XIU = mapOf(
-    "子" to "虚", "丑" to "牛", "寅" to "元", "卯" to "房",
-    "辰" to "尾", "巳" to "翼", "午" to "星", "未" to "柳",
-    "申" to "奎", "酉" to "昴", "戌" to "崩", "亥" to "室")
-/** 宫地支 → 右上角天干小字（对齐原版图，竖排两字；大安子="旬空甲"、空亡戌="壬壬"） */
+    "子" to "虚", "丑" to "室", "寅" to "元", "卯" to "房",
+    "辰" to "尾", "巳" to "鬼", "午" to "星", "未" to "翼",
+    "申" to "奎", "酉" to "昴", "戌" to "崩", "亥" to "斗")
+/** 宫地支 → 右上角天干小字（对齐原版图2，竖排两字：丑辛癸 卯癸乙 巳乙 未乙丁 酉丁己 亥己辛） */
 private val DX_ZHI_CANG = mapOf(
-    "子" to "旬空\n甲", "丑" to "己", "寅" to "甲\n丙", "卯" to "乙",
-    "辰" to "丙\n戊", "巳" to "丙", "午" to "戊\n庚", "未" to "己",
-    "申" to "庚\n壬", "酉" to "辛", "戌" to "壬\n壬", "亥" to "壬")
-/** 底部六兽小字（按 PALACES 顺序，对齐原版：大安散发玄武 留连乘云青龙 速喜投网朱雀 赤口反目勾陈 小吉衔剑腾蛇 空亡落井白虎） */
-private val DX_BEASTS = arrayOf("散发 玄武", "乘云 青龙", "投网 朱雀", "反目 勾陈", "衔剑 腾蛇", "落井 白虎")
+    "子" to "癸", "丑" to "辛\n癸", "寅" to "甲", "卯" to "癸\n乙",
+    "辰" to "戊", "巳" to "乙", "午" to "丁", "未" to "乙\n丁",
+    "申" to "庚", "酉" to "丁\n己", "戌" to "戊", "亥" to "己\n辛")
+/** 底部六兽小字（按 PALACES 顺序，对齐图2：大安青龙 留连朱雀 速喜勾陈 赤口腾蛇 小吉白虎 空亡玄武） */
+private val DX_BEASTS = arrayOf("蟠泥 青龙", "安巢 朱雀", "禄印 勾陈", "入林 腾蛇", "临门 白虎", "伏藏 玄武")
 
 /** 东玄 · 三数六宫排盘（起卦页 + 排盘页） */
 @Composable
@@ -207,7 +207,7 @@ private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) 
                 Spacer(Modifier.height(16.dp))
 
                 // 单个数字输入框：三个数连写，如 458 / 4 5 8 / 4,5,8
-                Text("报三个数（1-999）", color = DX_GOLD, fontSize = 13.sp)
+                Text("报数（1-999，个数不限）", color = DX_GOLD, fontSize = 13.sp)
                 Spacer(Modifier.height(10.dp))
                 Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
                     .background(Color(0x0AFFFFFF)).border(1.dp, Color(0x52D9A441), RoundedCornerShape(10.dp))
@@ -216,7 +216,7 @@ private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) 
                         scope.launch { delay(150); scrollState.animateScrollTo(scrollState.maxValue) }
                     }
                     .padding(horizontal = 14.dp, vertical = 14.dp)) {
-                    if (numText.isEmpty()) Text("输入三个数，如 458 或 4 5 8", color = Color(0xFF9A8E7A), fontSize = 15.sp)
+                    if (numText.isEmpty()) Text("输入报数，如 11 或 4 5 8", color = Color(0xFF9A8E7A), fontSize = 15.sp)
                     BasicTextField(
                         value = numText,
                         onValueChange = { raw -> numText = raw.filter { it.isDigit() || it == ' ' || it == ',' }.take(12) },
@@ -232,7 +232,7 @@ private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) 
                     )
                 }
                 Spacer(Modifier.height(8.dp))
-                Text("报三个数1-999，可连写 458 或用空格 / 逗号分隔大数", color = Color(0xFF9A8E7A), fontSize = 10.sp,
+                Text("报数 1-999，个数不限；单个如 11，多个用空格 / 逗号分隔", color = Color(0xFF9A8E7A), fontSize = 10.sp,
                     modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
 
                 Spacer(Modifier.height(16.dp))
@@ -256,9 +256,9 @@ private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) 
                 .background(Brush.horizontalGradient(listOf(Color(0xFFC1542E), Color(0xFFD2693E))))
                 .clickable {
                     focusManager.clearFocus()
-                    val nums = parseThreeNumbers(numText)
+                    val nums = parseNumbers(numText)
                     if (nums == null) {
-                        Toast.makeText(ctx, "请输入三个 1-999 的数字", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(ctx, "请输入 1-999 的报数", Toast.LENGTH_SHORT).show()
                     } else {
                         onCast(nums, selDt)
                     }
@@ -402,16 +402,16 @@ private fun DXNumStepper(label: String, value: Int, min: Int, max: Int, onChange
     }
 }
 
-/** 解析三个报数（1-999）：含空格/逗号则按其分隔（支持多位数，如「4 58 999」）；纯连写按单字符(1-9)兼容旧习惯。非法返回 null */
-private fun parseThreeNumbers(raw: String): List<Int>? {
+/** 解析报数（个数不限，每个 1-999）：无分隔符时整体作为一个数（如「11」「458」）；有空格/逗号按其分隔为多个数。非法返回 null */
+private fun parseNumbers(raw: String): List<Int>? {
     val t = raw.trim()
     if (t.isEmpty()) return null
     val nums = if (t.contains(' ') || t.contains(',')) {
         t.split(' ', ',').filter { it.isNotEmpty() }.map { it.toIntOrNull() ?: return null }
     } else {
-        t.map { it.toString().toIntOrNull() ?: return null }
+        listOf(t.toIntOrNull() ?: return null)
     }
-    if (nums.size != 3 || nums.any { it !in 1..999 }) return null
+    if (nums.isEmpty() || nums.any { it !in 1..999 }) return null
     return nums
 }
 
