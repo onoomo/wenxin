@@ -44,6 +44,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import com.fortune.stall.data.FortuneDb
 import com.fortune.stall.engine.jishiyu.BaziCascade
 import com.fortune.stall.engine.jishiyu.BaziChuangong
@@ -63,11 +65,32 @@ private val BZ_RED = Color(0xFFB0392E)
 private val BZ_GOLD = Color(0xFFD9A441)
 private val BZ_LINE = Color(0x52D9A441)
 private val BZ_CARD = Color(0x14FFFFFF)
+// 生肖章五行色： Saturation 高、深色底对比明显（对齐原版五行色边框）
+private val ZODIAC_WX_COLOR = mapOf(
+    "木" to Color(0xFF4DB6AC), "火" to Color(0xFFEF5350), "土" to Color(0xFFE6A23C),
+    "金" to Color(0xFFF0C05A), "水" to Color(0xFF42A5F5)
+)
 
 private val BZ_GAN = "甲乙丙丁戊己庚辛壬癸"
 private val BZ_ZHI = "子丑寅卯辰巳午未申酉戌亥"
 private val BZ_ZHI_WX = mapOf("子" to "水", "丑" to "土", "寅" to "木", "卯" to "木", "辰" to "土", "巳" to "火",
     "午" to "火", "未" to "土", "申" to "金", "酉" to "金", "戌" to "土", "亥" to "水")
+// 生肖章：按年支五行着色（边框+淡填充），深色底上对比明显，对齐原版五行色圆章
+@Composable
+private fun BzZodiacBadge(zodiac: String, yearZhi: String, size: Dp, emojiSp: TextUnit) {
+    val wx = BZ_ZHI_WX[yearZhi] ?: "土"
+    val tint = ZODIAC_WX_COLOR[wx] ?: BZ_GOLD
+    Box(
+        Modifier.size(size)
+            .clip(RoundedCornerShape(10.dp))
+            .background(tint.copy(alpha = 0.18f))
+            .border(2.dp, tint, RoundedCornerShape(10.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(zodiac, fontSize = emojiSp)
+    }
+}
+
 // 神煞简称 → 全称（基本信息页神煞区）
 private val BZ_SHEN_FULL = mapOf(
     "天乙" to "天乙贵人", "太极" to "太极贵人", "文昌" to "文昌贵人", "福星" to "福星贵人",
@@ -688,8 +711,7 @@ private fun BzBasicPage(c: BaziChart.Chart, f: BaziFull.Data?) {
         // 顶部身份卡（仿原版：头像 + 农历时辰 + 乾造 + 公历）
         BzDarkCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(52.dp).clip(RoundedCornerShape(10.dp)).border(1.5.dp, BZ_GOLD, RoundedCornerShape(10.dp)),
-                    contentAlignment = Alignment.Center) { Text(c.shengXiao, fontSize = 30.sp) }
+                BzZodiacBadge(c.shengXiao, c.pillars[0].zhi, 52.dp, 30.sp)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text("命主八字", color = Color(0xFFF0ECE0), fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -925,8 +947,7 @@ private fun BzMingpanPage(c: BaziChart.Chart, f: BaziFull.Data?, onDetail: (BzDe
         // 顶部信息
         Column(Modifier.fillMaxWidth().background(Color(0xFF1E2330)).padding(12.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                Box(Modifier.size(56.dp).clip(RoundedCornerShape(10.dp)).border(1.5.dp, BZ_RED, RoundedCornerShape(10.dp)),
-                    contentAlignment = Alignment.Center) { Text(c.shengXiao, fontSize = 32.sp) }
+                BzZodiacBadge(c.shengXiao, c.pillars[0].zhi, 56.dp, 32.sp)
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     BzInfo("农历", (f?.nongliFull ?: c.lunar) + "  (" + (if (c.gender == "男") "乾造" else "坤造") + ")")
@@ -1050,10 +1071,7 @@ private fun BzDetailPage(c: BaziChart.Chart, f: BaziFull.Data?, xp: BaziXiangpan
     Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
         // 顶部信息卡：生肖 + 农历 + 北京时间/真太阳时 + 胎命身/串宫开关
         Row(Modifier.fillMaxWidth().background(Color(0xFF1E2330)).padding(12.dp), verticalAlignment = Alignment.Top) {
-            Box(Modifier.size(56.dp).clip(RoundedCornerShape(10.dp)).border(1.5.dp, BZ_RED, RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center) {
-                Text(c.shengXiao, fontSize = 32.sp)
-            }
+            BzZodiacBadge(c.shengXiao, c.pillars[0].zhi, 56.dp, 32.sp)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 BzInfo("农历", (f?.nongliFull ?: c.lunar) + "  " + (if (c.gender == "男") "(乾造)" else "(坤造)"))
