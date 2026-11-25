@@ -82,8 +82,8 @@ object AiSettings {
         AiPreset("文心", "https://qianfan.baidubce.com/v2/chat/completions", "ernie-4.5-8k"),
         AiPreset("混元", "https://api.hunyuan.cloud.tencent.com/v1/chat/completions", "hunyuan-turbos-latest"),
         // OpenAI 兼容：本地/自建中转常用，接口协议 openai-completions，
-        // 地址填主机，路径单独填 /chat/completions，模型名由网关实际列表决定
-        AiPreset("OpenAI 兼容", "http://127.0.0.1:8765/v1", "", "/chat/completions", "openai-completions")
+        // 地址默认留空，由用户自行填写主机，路径单独填 /chat/completions，模型名由网关实际列表决定
+        AiPreset("OpenAI 兼容", "", "", "/chat/completions", "openai-completions")
     )
 
     private var prefs: SharedPreferences? = null

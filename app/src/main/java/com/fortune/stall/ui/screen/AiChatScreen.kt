@@ -27,11 +27,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
@@ -41,8 +43,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -103,6 +107,11 @@ fun AiChatScreen(
     var selected by remember { mutableStateOf(initialSession) }
     var showPicker by remember { mutableStateOf(false) }
     val sessions = remember { db.recent() }
+    // 对话状态提升到 Tab 之外：切到 API 配置再切回不丢，只有退出本界面（组合销毁）才清空
+    val messages = remember { mutableStateListOf<ChatMessage>() }
+    val inputState = remember { mutableStateOf("") }
+    val busyState = remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
 
     Box(Modifier.fillMaxSize()) {
         Starfield(Modifier.fillMaxSize())
@@ -181,7 +190,11 @@ fun AiChatScreen(
             Spacer(Modifier.height(10.dp))
 
             if (tab == 0) {
-                ChatPanel(session = selected, directContext = directContext, bottomInset = bottomInset)
+                ChatPanel(
+                    session = selected, directContext = directContext, bottomInset = bottomInset,
+                    messages = messages, inputState = inputState, busyState = busyState,
+                    listState = listState
+                )
             } else {
                 ApiConfigPanel()
             }
@@ -206,13 +219,19 @@ private fun TabChip(label: String, active: Boolean, modifier: Modifier = Modifie
 
 /** 对话解读面板 */
 @Composable
-private fun ChatPanel(session: Session?, directContext: String?, bottomInset: androidx.compose.ui.unit.Dp) {
+private fun ChatPanel(
+    session: Session?,
+    directContext: String?,
+    bottomInset: androidx.compose.ui.unit.Dp,
+    messages: SnapshotStateList<ChatMessage>,
+    inputState: MutableState<String>,
+    busyState: MutableState<Boolean>,
+    listState: LazyListState
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val messages = remember { mutableStateListOf<ChatMessage>() }
-    var input by remember { mutableStateOf("") }
-    var busy by remember { mutableStateOf(false) }
-    val listState = rememberLazyListState()
+    var input by inputState
+    var busy by busyState
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
@@ -276,17 +295,9 @@ private fun ChatPanel(session: Session?, directContext: String?, bottomInset: an
     }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp).imePadding()) {
-        // 会话工具行：新对话 / 当前配置名 · 模型名（由 API 配置提供，切换即时更新）
+        // 会话工具行：对话仅在退出本界面后清空，当前配置名 · 模型名（由 API 配置提供，切换即时更新）
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.clip(RoundedCornerShape(14.dp))
-                    .background(Color(0x12FFFFFF))
-                    .border(1.dp, AppColors.GoldLine.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
-                    .clickable { messages.clear() }
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Text("＋ 新对话", color = AppColors.Lantern, fontSize = 11.5.sp)
-            }
+            Text("对话保留至退出", color = AppColors.Dim, fontSize = 10.5.sp)
             Spacer(Modifier.weight(1f))
             // 读 revision 让配置切换/重命名后即时重组，模型名直接取当前激活配置
             AiSettings.revision.value
@@ -369,6 +380,7 @@ private fun ChatPanel(session: Session?, directContext: String?, bottomInset: an
 @Composable
 private fun ChatBubble(m: ChatMessage) {
     val isUser = m.role == "user"
+    val context = LocalContext.current
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
@@ -381,10 +393,22 @@ private fun ChatBubble(m: ChatMessage) {
                 .border(1.dp, AppColors.GoldLine.copy(alpha = 0.25f), RoundedCornerShape(14.dp))
                 .padding(horizontal = 13.dp, vertical = 10.dp)
         ) {
-            Text(if (isUser) "我" else "AI", color = AppColors.Lantern, fontSize = 10.sp,
-                fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(if (isUser) "我" else "AI", color = AppColors.Lantern, fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold, letterSpacing = 2.sp,
+                    modifier = Modifier.weight(1f))
+                Text("复制", color = AppColors.Lantern, fontSize = 10.sp,
+                    modifier = Modifier.clickable {
+                        val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        cm.setPrimaryClip(android.content.ClipData.newPlainText("对话内容", m.content))
+                        Toast.makeText(context, "已复制", Toast.LENGTH_SHORT).show()
+                    })
+            }
             Spacer(Modifier.height(4.dp))
-            Text(m.content, color = AppColors.Paper, fontSize = 13.sp, lineHeight = 21.sp)
+            // SelectionContainer：长按可选中并复制整段解读文本
+            SelectionContainer {
+                Text(m.content, color = AppColors.Paper, fontSize = 15.sp, lineHeight = 24.sp)
+            }
         }
     }
 }
