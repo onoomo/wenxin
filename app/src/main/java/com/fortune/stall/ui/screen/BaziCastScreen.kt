@@ -943,6 +943,7 @@ private fun BzShenChip(name: String, src: String) {
 /* ============================ 命盘页（图2） ============================ */
 @Composable
 private fun BzMingpanPage(c: BaziChart.Chart, f: BaziFull.Data?, onDetail: (BzDetailTarget) -> Unit) {
+    var shenExpand by remember { mutableStateOf(false) }   // 神煞展开：默认折叠
     Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
         // 顶部信息
         Column(Modifier.fillMaxWidth().background(Color(0xFF1E2330)).padding(12.dp)) {
@@ -989,14 +990,28 @@ private fun BzMingpanPage(c: BaziChart.Chart, f: BaziFull.Data?, onDetail: (BzDe
             BzTableRow("自坐", c.pillars.map { it.ziZuo }) { Color(0xFFE8E4DA) to 12.sp }
             BzTableRow("空亡", c.pillars.map { it.kongWang }) { Color(0xFFE8E4DA) to 12.sp }
             BzTableRow("纳音", c.pillars.map { it.naYin }, detailType = "纳音", onDetail = onDetail) { Color(0xFF1565C0) to 12.sp }
-            // 神煞（每行多个，竖排，可点击查看详情）
+            // 神煞（每行多个，竖排，默认折叠前3个；全称显示，点击看详情）
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-                Text("神煞", color = Color(0xFF9A93A8), fontSize = 11.sp, modifier = Modifier.weight(0.72f), textAlign = TextAlign.Center)
+                Column(Modifier.weight(0.72f), horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center) {
+                    Text("神煞", color = Color(0xFFD9A441), fontSize = 11.sp,
+                        modifier = Modifier.clickable { shenExpand = !shenExpand })
+                    Text(if (shenExpand) "收起▴" else "展开▾", color = Color(0xFF7E7888), fontSize = 8.sp,
+                        modifier = Modifier.clickable { shenExpand = !shenExpand })
+                }
                 c.pillars.forEach { p ->
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                        p.shenSha.split("、", "·").filter { it.isNotBlank() && it != "无" }.forEach {
-                            Text(it, color = Color(0xFF3F51B5), fontSize = 10.sp, lineHeight = 15.sp,
-                                modifier = Modifier.clickable { onDetail(BzDetailTarget("神煞", it)) })
+                        val shortList = p.shenSha.split("、", "·").filter { it.isNotBlank() && it != "无" }
+                        val fullList = shortList.map { BZ_SHEN_FULL[it] ?: it }
+                        if (fullList.isEmpty()) Text("无", color = Color(0xFF7E7888), fontSize = 10.sp)
+                        else {
+                            val idxs = if (shenExpand) fullList.indices.toList() else fullList.indices.take(3)
+                            idxs.forEach { i ->
+                                Text(fullList[i], color = Color(0xFF6C8FE0), fontSize = 10.sp, lineHeight = 14.sp,
+                                    modifier = Modifier.clickable { onDetail(BzDetailTarget("神煞", shortList[i])) })
+                            }
+                            if (!shenExpand && fullList.size > 3)
+                                Text("…共${fullList.size}个", color = Color(0xFF7E7888), fontSize = 8.sp)
                         }
                     }
                 }
@@ -1064,6 +1079,7 @@ private fun BzDetailPage(c: BaziChart.Chart, f: BaziFull.Data?, xp: BaziXiangpan
     var taimingOn by remember { mutableStateOf(false) }   // 胎命身：开=左列换胎元/命宫/身宫
     var chuangongOn by remember { mutableStateOf(false) } // 串宫：开=显示干支串宫两行
     var taisuiType by remember { mutableIntStateOf(1) }   // 起太岁：1流年 2大运 3日干
+    var shenExpand by remember { mutableStateOf(false) }   // 神煞展开：默认折叠
     // 顶部"流年/大运"列随下方大运选区联动（默认第一步大运 + 其首流年）
     var topDy by remember { mutableIntStateOf(0) }
     var topLn by remember { mutableIntStateOf(0) }
@@ -1126,35 +1142,43 @@ private fun BzDetailPage(c: BaziChart.Chart, f: BaziFull.Data?, xp: BaziXiangpan
                         Box(Modifier.fillMaxWidth().height(42.dp), contentAlignment = Alignment.Center) { Text("地支", color = Color(0xFF7E7888), fontSize = 10.sp) }
                         if (chuangongOn) Box(Modifier.fillMaxWidth().height(22.dp).clickable { taisuiType = taisuiType % 3 + 1 },
                             contentAlignment = Alignment.Center) { Text("串宫", color = Color(0xFFC62828), fontSize = 9.sp) }
-                        listOf("藏干","地势","自坐","空亡","纳音","神煞").forEach { lbl ->
-                            Box(Modifier.fillMaxWidth().height(if (lbl=="藏干") 84.dp else if (lbl=="神煞") 96.dp else 34.dp),
+                        listOf("藏干","地势","自坐","空亡","纳音").forEach { lbl ->
+                            Box(Modifier.fillMaxWidth().height(if (lbl=="藏干") 84.dp else 34.dp),
                                 contentAlignment = Alignment.Center) { Text(lbl, color = Color(0xFF7E7888), fontSize = 10.sp) }
+                        }
+                        // 神煞行标签：点击展开/折叠全部列
+                        Box(Modifier.fillMaxWidth().height(96.dp).clickable { shenExpand = !shenExpand },
+                            contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("神煞", color = Color(0xFFD9A441), fontSize = 10.sp)
+                                Text(if (shenExpand) "收起▴" else "展开▾", color = Color(0xFF7E7888), fontSize = 8.sp)
+                            }
                         }
                     }
                     // 胎命身开=胎元/命宫/身宫；关=流年/大运（与原版一致）
                     if (taimingOn) {
-                        XpColCard(tyCol, "胎元", sg.taiyuan, showGods = chuangongOn,
+                        XpColCard(tyCol, "胎元", sg.taiyuan, showGods = chuangongOn, shenExpand = shenExpand,
                             ganGod = gods(sg.taiyuan).gan, zhiGod = gods(sg.taiyuan).zhi)
-                        XpColCard(mgCol, "命宫", sg.minggong, showGods = chuangongOn,
+                        XpColCard(mgCol, "命宫", sg.minggong, showGods = chuangongOn, shenExpand = shenExpand,
                             ganGod = gods(sg.minggong).gan, zhiGod = gods(sg.minggong).zhi)
-                        XpColCard(shCol, "身宫", sg.shengong, showGods = chuangongOn,
+                        XpColCard(shCol, "身宫", sg.shengong, showGods = chuangongOn, shenExpand = shenExpand,
                             ganGod = gods(sg.shengong).gan, zhiGod = gods(sg.shengong).zhi)
                     } else {
-                        if (liunianCol != null) XpColCard(liunianCol, "流年", "${selLiunian!!.year}", showGods = chuangongOn,
+                        if (liunianCol != null) XpColCard(liunianCol, "流年", "${selLiunian!!.year}", showGods = chuangongOn, shenExpand = shenExpand,
                             ganGod = gods(liunianCol.ganzhi).gan, zhiGod = gods(liunianCol.ganzhi).zhi)
-                        if (dayunCol != null) XpColCard(dayunCol, "大运", "${selDayun!!.startYear}", divider = true, showGods = chuangongOn,
+                        if (dayunCol != null) XpColCard(dayunCol, "大运", "${selDayun!!.startYear}", divider = true, showGods = chuangongOn, shenExpand = shenExpand,
                             ganGod = gods(dayunCol.ganzhi).gan, zhiGod = gods(dayunCol.ganzhi).zhi)
                     }
                     // 年月日时四柱
-                    XpColCard(xp.year, "年柱", c.lunar.replace("日",""), showGods = chuangongOn,
+                    XpColCard(xp.year, "年柱", c.lunar.replace("日",""), showGods = chuangongOn, shenExpand = shenExpand,
                         ganGod = gods(xp.year.ganzhi).gan, zhiGod = gods(xp.year.ganzhi).zhi,
                         hiGan = chuangongOn && taisuiType==3, onDetail = onDetail)
-                    XpColCard(xp.month, "月柱", "十月", showGods = chuangongOn,
+                    XpColCard(xp.month, "月柱", "十月", showGods = chuangongOn, shenExpand = shenExpand,
                         ganGod = gods(xp.month.ganzhi).gan, zhiGod = gods(xp.month.ganzhi).zhi, onDetail = onDetail)
-                    XpColCard(xp.day, "日柱", "十四", showGods = chuangongOn,
+                    XpColCard(xp.day, "日柱", "十四", showGods = chuangongOn, shenExpand = shenExpand,
                         ganGod = gods(xp.day.ganzhi).gan, zhiGod = gods(xp.day.ganzhi).zhi,
                         hiGan = chuangongOn && taisuiType==3, onDetail = onDetail)
-                    XpColCard(xp.hour, "时柱", "辰时", showGods = chuangongOn,
+                    XpColCard(xp.hour, "时柱", "辰时", showGods = chuangongOn, shenExpand = shenExpand,
                         ganGod = gods(xp.hour.ganzhi).gan, zhiGod = gods(xp.hour.ganzhi).zhi, onDetail = onDetail)
                 }
             }
@@ -1217,7 +1241,7 @@ private fun BzDetailPage(c: BaziChart.Chart, f: BaziFull.Data?, xp: BaziXiangpan
 private fun XpColCard(
     col: BaziXiangpan.Col, head1: String, head2: String, divider: Boolean = false,
     showGods: Boolean = false, ganGod: String = "", zhiGod: String = "",
-    hiGan: Boolean = false, onDetail: (BzDetailTarget) -> Unit = {}
+    hiGan: Boolean = false, shenExpand: Boolean = false, onDetail: (BzDetailTarget) -> Unit = {}
 ) {
     Column(
         Modifier.width(52.dp)
@@ -1270,13 +1294,26 @@ private fun XpColCard(
         }, contentAlignment = Alignment.Center) {
             Text(col.naYin, color = Color(0xFF1565C0), fontSize = 11.sp)
         }
-        // 神煞（竖排多个，与表头 96.dp 对齐）
-        Column(Modifier.fillMaxWidth().height(96.dp), horizontalAlignment = Alignment.CenterHorizontally,
+        // 神煞（竖排，默认折叠前3个，展开显示全部；全称显示，点击看详情）
+        Column(Modifier.fillMaxWidth().heightIn(min = 96.dp).padding(vertical = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center) {
-            val ss = col.shenSha.split("、", "·").filter { it.isNotBlank() && it != "无" }
-            if (ss.isEmpty()) Text("无", color = Color(0xFF7E7888), fontSize = 9.sp)
-            else ss.forEach { Text(it, color = Color(0xFF3F51B5), fontSize = 9.sp, lineHeight = 13.sp,
-                modifier = Modifier.clickable { onDetail(BzDetailTarget("神煞", it)) }) }
+            val ssFull = col.shenSha.split("、", "·").filter { it.isNotBlank() && it != "无" }
+                .map { BZ_SHEN_FULL[it] ?: it }
+            val shortKey = col.shenSha.split("、", "·").filter { it.isNotBlank() && it != "无" }
+            if (ssFull.isEmpty()) Text("无", color = Color(0xFF7E7888), fontSize = 9.sp)
+            else {
+                val shown = if (shenExpand) ssFull else ssFull.take(3)
+                shown.forEachIndexed { idx, full ->
+                    Text(full, color = Color(0xFF6C8FE0), fontSize = 9.sp, lineHeight = 12.sp,
+                        modifier = Modifier.clickable {
+                            val key = shortKey.getOrNull(idx) ?: full
+                            if (key.isNotBlank()) onDetail(BzDetailTarget("神煞", key))
+                        })
+                }
+                if (!shenExpand && ssFull.size > 3)
+                    Text("…共${ssFull.size}个", color = Color(0xFF7E7888), fontSize = 8.sp)
+            }
         }
     }
 }
