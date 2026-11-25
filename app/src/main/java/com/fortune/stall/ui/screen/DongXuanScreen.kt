@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -35,6 +37,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -121,10 +124,10 @@ fun DongXuanScreen(db: FortuneDb, onBack: () -> Unit) {
 @Composable
 private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) -> Unit) {
     val ctx = LocalContext.current
+    val focusManager = LocalFocusManager.current
     var question by remember { mutableStateOf("") }
-    var n1 by remember { mutableStateOf("") }
-    var n2 by remember { mutableStateOf("") }
-    var n3 by remember { mutableStateOf("") }
+    var numText by remember { mutableStateOf("") }          // 单个输入框：三个数连写，如 458 / 4 5 8 / 4,5,8
+    val numFocus = remember { FocusRequester() }            // 点击整框聚焦，修复输入法不弹出
     var selDt by remember { mutableStateOf(LocalDateTime.now()) }
     var showDt by remember { mutableStateOf(false) }
     val solar = selDt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
@@ -209,16 +212,30 @@ private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) 
                 }
                 Spacer(Modifier.height(18.dp))
 
-                // 三个数字输入
+                // 单个数字输入框：三个数连写，如 458 / 4 5 8 / 4,5,8
                 Text("报三个数（1-10）", color = DX_GOLD, fontSize = 13.sp)
                 Spacer(Modifier.height(10.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    DXNumberBox("一", n1, Modifier.weight(1f)) { n1 = it }
-                    DXNumberBox("二", n2, Modifier.weight(1f)) { n2 = it }
-                    DXNumberBox("三", n3, Modifier.weight(1f)) { n3 = it }
+                Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                    .background(Color(0x0AFFFFFF)).border(1.dp, Color(0x52D9A441), RoundedCornerShape(10.dp))
+                    .clickable { numFocus.requestFocus() }
+                    .padding(horizontal = 14.dp, vertical = 14.dp)) {
+                    if (numText.isEmpty()) Text("输入三个数，如 458", color = Color(0xFF9A8E7A), fontSize = 15.sp)
+                    BasicTextField(
+                        value = numText,
+                        onValueChange = { raw -> numText = raw.filter { it.isDigit() || it == ' ' || it == ',' }.take(12) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number,
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                            onDone = { focusManager.clearFocus() }
+                        ),
+                        textStyle = TextStyle(color = Color(0xFFF0E8D8), fontSize = 20.sp,
+                            fontFamily = FontFamily.Monospace, textAlign = TextAlign.Center),
+                        modifier = Modifier.fillMaxWidth().focusRequester(numFocus)
+                    )
                 }
                 Spacer(Modifier.height(8.dp))
-                Text("报三个数1-10", color = Color(0xFF9A8E7A), fontSize = 11.sp,
+                Text("报三个数1-10，可连写 458 或空格分开", color = Color(0xFF9A8E7A), fontSize = 10.sp,
                     modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
             }
             Spacer(Modifier.height(22.dp))
@@ -227,11 +244,12 @@ private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) 
             Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
                 .background(Brush.horizontalGradient(listOf(Color(0xFFC1542E), Color(0xFFD2693E))))
                 .clickable {
-                    val nums = listOf(n1, n2, n3).map { it.toIntOrNull() }
-                    if (nums.any { it == null || it !in 1..10 }) {
+                    focusManager.clearFocus()
+                    val nums = parseThreeNumbers(numText)
+                    if (nums == null) {
                         Toast.makeText(ctx, "请输入三个 1-10 的数字", Toast.LENGTH_SHORT).show()
                     } else {
-                        onCast(nums.map { it!! }, selDt)
+                        onCast(nums, selDt)
                     }
                 }.padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
                 Text("起 卦 排 盘", color = Color.White, fontSize = 17.sp,
@@ -373,6 +391,19 @@ private fun DXNumStepper(label: String, value: Int, min: Int, max: Int, onChange
     }
 }
 
+/** 解析三个报数：支持「458」「4 5 8」「4,5,8」；连写按单字符(1-9)，分隔可含 10。非法返回 null */
+private fun parseThreeNumbers(raw: String): List<Int>? {
+    val t = raw.trim()
+    if (t.isEmpty()) return null
+    val nums = if (t.contains(' ') || t.contains(',')) {
+        t.split(' ', ',').filter { it.isNotEmpty() }.map { it.toIntOrNull() ?: return null }
+    } else {
+        t.map { it.toString().toIntOrNull() ?: return null }
+    }
+    if (nums.size != 3 || nums.any { it !in 1..10 }) return null
+    return nums
+}
+
 @Composable
 private fun DXNumberBox(label: String, value: String, modifier: Modifier, onChange: (String) -> Unit) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -504,7 +535,7 @@ private fun DXGrid(c: DongXuan.Chart) {
             if (r > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(DX_LINE))
             Row(Modifier.fillMaxWidth()) {
                 for (col in 0..2) {
-                    if (col > 0) Box(Modifier.width(1.dp).height(196.dp).background(DX_LINE))
+                    if (col > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(DX_LINE))
                     DXCellCard(c.cells[order[r * 3 + col]], Modifier.weight(1f))
                 }
             }
@@ -519,10 +550,10 @@ private fun DXCellCard(cell: DongXuan.Cell, modifier: Modifier) {
     val nayinWx = cell.nayin.lastOrNull()?.toString() ?: ""
     val palIdx = DongXuan.PALACES.indexOf(cell.palace).coerceAtLeast(0)
     val beast = DX_BEASTS.getOrElse(palIdx) { "" }
-    Column(modifier.height(196.dp).background(Color.White).padding(horizontal = 5.dp, vertical = 5.dp)) {
-        // ① 八神六兽（黑）+ 别称（灰）｜纳音（五行色）+ 九星（五行色）
+    Column(modifier.heightIn(min = 186.dp).background(Color.White).padding(horizontal = 4.dp, vertical = 3.dp)) {
+        // ① 顶行：八神（黑）+ 别称（灰）｜九星（五行色）
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(cell.god, color = DX_INK, fontSize = 11.sp, fontFamily = FontFamily.Serif,
+            Text(cell.god, color = DX_INK, fontSize = 10.sp, fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold)
             Spacer(Modifier.width(2.dp))
             Text(cell.godAlias, color = Color(0xFF9A9288), fontSize = 8.sp,
@@ -530,22 +561,19 @@ private fun DXCellCard(cell: DongXuan.Cell, modifier: Modifier) {
             Text(cell.star, color = dxWxColor(starWx), fontSize = 11.sp, fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold)
         }
-        Row(Modifier.fillMaxWidth()) {
-            Text(cell.nayin, color = dxWxColor(nayinWx), fontSize = 10.sp, fontFamily = FontFamily.Serif,
-                modifier = Modifier.weight(1f), maxLines = 1)
-            Text(DX_ZHI_CANG[cell.zhi] ?: "", color = Color(0xFF6B6258), fontSize = 9.sp,
-                fontFamily = FontFamily.Serif)
+        // ② 纳音（居中，五行色）+ 右上角干（竖排两字）
+        Box(Modifier.fillMaxWidth().height(30.dp)) {
+            Text(cell.nayin, color = dxWxColor(nayinWx), fontSize = 11.sp, fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center), maxLines = 1)
+            Text(DX_ZHI_CANG[cell.zhi] ?: "", color = Color(0xFF6B6258), fontSize = 8.sp,
+                fontFamily = FontFamily.Serif, modifier = Modifier.align(Alignment.TopEnd))
         }
-        Spacer(Modifier.height(4.dp))
-
-        // ② 旺衰（状态色）
+        // ③ 旺衰（状态色，单独一行）
         Text(cell.wangshuai, color = dxWangColor(cell.wangshuai), fontSize = 10.sp,
             fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif)
-        Spacer(Modifier.height(2.dp))
-
-        // ③ 地支大字 + 地支字（如 寅·元）｜六亲（黑大字，日宫标红"对"、身宫标红"身"）
+        // ④ 地支大字 + 宿字 + 对/身红标 ｜ 六亲
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(cell.zhi, color = DX_INK, fontSize = 25.sp, fontFamily = FontFamily.Serif,
+            Text(cell.zhi, color = DX_INK, fontSize = 24.sp, fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold)
             Spacer(Modifier.width(1.dp))
             Text(DX_ZHI_XIU[cell.zhi] ?: "", color = Color(0xFF7E766C), fontSize = 9.sp,
@@ -556,33 +584,29 @@ private fun DXCellCard(cell: DongXuan.Cell, modifier: Modifier) {
             if (cell.isBody) Text("身", color = Color(0xFFC0392B), fontSize = 13.sp,
                 fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
-            Text(cell.liuqin, color = DX_INK, fontSize = 16.sp, fontFamily = FontFamily.Serif,
+            Text(cell.liuqin, color = DX_INK, fontSize = 15.sp, fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold, maxLines = 1)
         }
-        // ④ 长生（灰）
+        // ⑤ 长生（灰）
         Text(cell.changsheng, color = Color(0xFF9A9288), fontSize = 9.sp, fontFamily = FontFamily.Serif)
-        Spacer(Modifier.height(3.dp))
-
-        // ⑤ 卦象
+        // ⑥ 卦象
         Text(cell.gua, color = Color(0xFF4A4238), fontSize = 10.sp, fontFamily = FontFamily.Serif,
             maxLines = 1)
-        Spacer(Modifier.weight(1f))
-
-        // ⑥ 天干 + 主事
+        Spacer(Modifier.height(2.dp))
+        // ⑦ 地分 + 主事
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(cell.gan, color = Color(0xFF6B6258), fontSize = 10.sp, fontFamily = FontFamily.Serif)
             Spacer(Modifier.width(3.dp))
             Text(cell.zhushi, color = Color(0xFF7E766C), fontSize = 9.sp,
                 modifier = Modifier.weight(1f), maxLines = 1)
         }
-        Spacer(Modifier.height(3.dp))
-
-        // ⑦ 六神（彩色大字：留连/速喜/赤口/大安/空亡/小吉）+ 底部六兽（灰小字）
+        Spacer(Modifier.height(1.dp))
+        // ⑧ 底行：宫名大字（彩色）+ 底部六兽（灰小字）
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(cell.palace, color = dxShenColor(cell.palace), fontSize = 17.sp,
+            Text(cell.palace, color = dxShenColor(cell.palace), fontSize = 16.sp,
                 fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
-            Text(beast, color = Color(0xFF9A9288), fontSize = 10.sp, fontFamily = FontFamily.Serif)
+            Text(beast, color = Color(0xFF9A9288), fontSize = 9.sp, fontFamily = FontFamily.Serif)
         }
     }
 }
