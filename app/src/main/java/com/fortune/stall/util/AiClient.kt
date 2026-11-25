@@ -79,7 +79,9 @@ object AiClient {
             val text = BufferedReader(InputStreamReader(stream, StandardCharsets.UTF_8)).use { r ->
                 val sb = StringBuilder()
                 var line: String?
-                while (r.readLine().also { line = it } != null) sb.append(line)
+                // 必须保留换行：本地 hub 即使收到 stream:false 也可能按 SSE 帧返回，
+                // 每帧是独立 JSON；拼接掉换行会让 data: 帧糊成一整段无法解析。
+                while (r.readLine().also { line = it } != null) sb.append(line).append('\n')
                 sb.toString()
             }
 
@@ -190,24 +192,51 @@ object AiClient {
      */
     private fun extractReply(text: String): String {
         if (text.isBlank()) return ""
-        // 非 JSON（纯文本/SSE data 块）直接返回，交给调用方判断
         val trimmed = text.trim()
-        if (!trimmed.startsWith("{")) {
-            // SSE 流：拼接所有 data: 的 content
-            val sseParts = trimmed.lineSequence().mapNotNull { line ->
+
+        // A) SSE 流：逐行解析 data: 帧（本地 hub 即使 stream:false 也可能按流返回）。
+        //    规则对齐 OpenAI 兼容帧：delta.content 为正文，delta.reasoning_content 为思考。
+        if (trimmed.contains("data:")) {
+            val contentParts = StringBuilder()
+            val reasoningParts = StringBuilder()
+            var sawData = false
+            for (rawLine in trimmed.lineSequence()) {
+                val line = rawLine.trim()
+                if (!line.startsWith("data:")) continue
+                sawData = true
                 val d = line.removePrefix("data:").trim()
-                if (d.isBlank() || d == "[DONE]") return@mapNotNull null
-                try {
-                    JSONObject(d).optJSONArray("choices")?.optJSONObject(0)
-                        ?.optJSONObject("delta")?.optString("content")?.takeIf { it.isNotBlank() }
-                } catch (_: Exception) { null }
-            }.toList()
-            if (sseParts.isNotEmpty()) return sseParts.joinToString("")
-            return trimmed
+                if (d.isBlank() || d == "[DONE]") continue
+                val chunk = try { JSONObject(d) } catch (_: Exception) { continue }
+                val first = chunk.optJSONArray("choices")?.optJSONObject(0) ?: continue
+                // 流式帧：delta
+                val delta = first.optJSONObject("delta")
+                if (delta != null) {
+                    val r = delta.optString("reasoning_content", "")
+                    if (r.isNotBlank()) reasoningParts.append(r)
+                    val c = delta.optString("content", "")
+                    if (c.isNotBlank()) contentParts.append(c)
+                    continue
+                }
+                // 个别 hub 每帧带 message（非流式结构）
+                val msg = first.optJSONObject("message")
+                if (msg != null) {
+                    val r = msg.optString("reasoning_content", "")
+                    if (r.isNotBlank()) reasoningParts.append(r)
+                    val c = msg.optString("content", "")
+                    if (c.isNotBlank()) contentParts.append(c)
+                }
+            }
+            if (sawData) {
+                val body = contentParts.toString()
+                if (body.isNotBlank()) return body
+                // 没有正文但有思考内容（纯推理模型）时返回思考
+                return reasoningParts.toString()
+            }
         }
+
+        // B) 整段聚合 JSON（标准非流式响应）
         return try {
             val data = JSONObject(trimmed)
-            // 1) 标准 choices 数组
             val choices = data.optJSONArray("choices")
             if (choices != null && choices.length() > 0) {
                 val first = choices.optJSONObject(0)
@@ -216,7 +245,6 @@ object AiClient {
                     if (msg != null) {
                         val c = msg.optString("content", "")
                         if (c.isNotBlank()) return c
-                        // reasoning 模型：思考结果可能在 reasoning_content
                         val r = msg.optString("reasoning_content", "")
                         if (r.isNotBlank()) return r
                     }
@@ -224,12 +252,10 @@ object AiClient {
                     if (t.isNotBlank()) return t
                 }
             }
-            // 2) 顶层直返字段
             for (key in arrayOf("content", "response", "answer", "result", "output")) {
                 val v = data.optString(key, "")
                 if (v.isNotBlank()) return v
             }
-            // 3) 顶层 message 对象
             data.optJSONObject("message")?.let { m ->
                 val c = m.optString("content", "")
                 if (c.isNotBlank()) return c
