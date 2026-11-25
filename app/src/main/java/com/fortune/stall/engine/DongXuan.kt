@@ -87,8 +87,15 @@ object DongXuan {
         "白虎" to "登山", "玄武" to "失路", "腾蛇" to "飞空",
         "勾陈" to "投机", "朱雀" to "投网", "青龙" to "伤鳞"
     )
-    /** 九星按 A宫(日宫)序排布：木辅/火英/土芮/金柱/水蓬/天空 */
-    private val STAR_BY_ORDER = arrayOf("辅木", "英火", "芮土", "柱金", "蓬水", "天空")
+    /** 九星按宫固定排布（对齐原版：大安天空/留连辅木/速喜英火/赤口芮土/小吉柱金/空亡蓬水） */
+    private val STAR_BY_PALACE = arrayOf("天空", "辅木", "英火", "芮土", "柱金", "蓬水")
+    /** 六宫固定地盘（对齐原版：大安子/留连寅/速喜辰/赤口午/小吉申/空亡戌） */
+    private val ZHI_BY_PALACE = arrayOf("子", "寅", "辰", "午", "申", "戌")
+    /** 长生按地支固定（对齐原版：子沐浴/寅长生/辰冠带/午沐浴/申长生/戌冠带） */
+    private val CHANGSHENG_BY_ZHI = mapOf(
+        "子" to "沐浴", "丑" to "冠带", "寅" to "长生", "卯" to "沐浴",
+        "辰" to "冠带", "巳" to "临官", "午" to "沐浴", "未" to "冠带",
+        "申" to "长生", "酉" to "沐浴", "戌" to "冠带", "亥" to "临官")
     /** 纳音按宫地支固定配（每宫地支不同，取该支代表纳音） */
     private val NAYIN_BY_ZHI = mapOf(
         "子" to "海中金", "丑" to "海中金", "寅" to "炉中火", "卯" to "炉中火",
@@ -117,11 +124,11 @@ object DongXuan {
         "大安" to "官命", "留连" to "奴仆", "速喜" to "婚姻",
         "赤口" to "朋友", "小吉" to "子女", "空亡" to "父母"
     )
-    /** 地支 → 八卦卦象 */
+    /** 地支 → 八卦卦象（对齐图3排盘） */
     private val GUA_BY_ZHI = mapOf(
-        "子" to "坎→水雷屯", "丑" to "艮→天山遁", "寅" to "坎→山水蒙", "卯" to "震→雷风恒",
+        "子" to "震→水雷屯", "丑" to "艮→天山遁", "寅" to "坎→山水蒙", "卯" to "震→雷风恒",
         "辰" to "离→风火家人", "巳" to "离→火天大有", "午" to "乾→火天大有", "未" to "坤→地风升",
-        "申" to "巽→地风升", "酉" to "兑→泽水困", "戌" to "乾→天山遁", "亥" to "坎→水雷屯"
+        "申" to "巽→地风升", "酉" to "兑→泽水困", "戌" to "艮→天山遁", "亥" to "坎→水雷屯"
     )
     /** 十二长生：阳干顺行、阴干逆行，宫地支相对日干 */
     private val CS_YANG = arrayOf("长生", "沐浴", "冠带", "临官", "帝旺", "衰", "病", "死", "墓", "绝", "胎", "养")
@@ -172,23 +179,18 @@ object DongXuan {
         val hour = dt.hour
         val timeZhi = LunarCalendar.hourToZhi(hour)
 
-        // A宫（日宫）：三数之和定宫；B宫（身宫/时宫）：A宫顺行时支序数
+        // A宫（日宫/"对"）：三数之和定宫；身宫（"身"）：时支所在宫
         val sum = ns.sum()
         val aIdx = (sum - 3) % 6                       // 每数最小1，三数和最小3
-        val shiOrd = LunarCalendar.zhiOrdinal(timeZhi) // 子=1..亥=12
-        val bIdx = (aIdx + shiOrd - 1) % 6
+        val bodyIdx = ZHI_BY_PALACE.indexOf(timeZhi).let { if (it >= 0) it else 0 }
 
-        // 宫地支：以身支阴阳分组，从身宫起顺排六宫（江氏规则）
-        val yang = setOf("子", "寅", "辰", "午", "申", "戌")
-        val group = if (timeZhi in yang) arrayOf("子", "寅", "辰", "午", "申", "戌")
-                    else arrayOf("丑", "卯", "巳", "未", "酉", "亥")
-        val v = group.indexOf(timeZhi).coerceAtLeast(0)
-        val zhiByPalace = Array(6) { "" }
-        for (m in 0 until 6) zhiByPalace[(bIdx + m) % 6] = group[(v + m) % 6]
+        // 六宫地支：固定地盘（大安子/留连寅/速喜辰/赤口午/小吉申/空亡戌），不随时辰报数变
+        val zhiByPalace = ZHI_BY_PALACE
 
         val dayGan = lunar.dayGanZhi.take(1)
+        val yearGan = lunar.yearGanZhi.take(1)
         val monthZhi = lunar.monthGanZhi.takeLast(1)
-        val monthWx = ZHI_WX[monthZhi] ?: "木"
+        val monthWx = GAN_WX[yearGan] ?: (ZHI_WX[monthZhi] ?: "木")  // 旺衰以年干五行为准（对齐图3）
         val gods = GOD_BY_SHEN[timeZhi] ?: GOD_BY_SHEN["子"]!!
 
         val cells = (0 until 6).map { p ->
@@ -202,18 +204,18 @@ object DongXuan {
                 god = god,
                 godAlias = GOD_ALIAS[god] ?: "",
                 nayin = NAYIN_BY_ZHI[zhi] ?: "",
-                star = STAR_BY_ORDER[(p - aIdx + 6) % 6],
+                star = STAR_BY_PALACE[p],
                 gan = ZHI_GAN[zhi] ?: "甲",
                 zhi = zhi,
-                zhiStar = ZHI_STAR_BY_ORDER[p],
+                zhiStar = "${zhi}${ZHI_STAR_BY_ORDER[p].takeLast(1)}",
                 wangshuai = wangshuai(gongWx, monthWx),
                 liuqin = lq,
-                changsheng = changsheng(dayGan, zhi),
+                changsheng = CHANGSHENG_BY_ZHI[zhi] ?: changsheng(dayGan, zhi),
                 gua = GUA_BY_ZHI[zhi] ?: "",
                 zhushi = ZHUSHI[PALACES[p]] ?: "",
                 liuShen = god,
                 isDay = p == aIdx,
-                isBody = p == bIdx
+                isBody = p == bodyIdx
             )
         }
 
