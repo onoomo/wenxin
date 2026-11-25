@@ -103,11 +103,14 @@ object AiClient {
                 AiResult.Ok(reply.trim())
             }
         } catch (e: Exception) {
+            val loopbackHint = if (endpoint.contains("127.0.0.1") || endpoint.contains("localhost"))
+                "；注意：手机上的 127.0.0.1 指向手机自身，若服务在电脑上请改用电脑局域网 IP" else ""
             val msg = when (e) {
-                is java.net.SocketTimeoutException -> "连接超时，请检查网络或接口地址"
-                is java.net.UnknownHostException -> "无法解析域名，请检查网络"
-                is javax.net.ssl.SSLException -> "SSL 连接失败，请检查接口地址"
-                else -> e.message?.takeIf { it.isNotBlank() } ?: "请求失败"
+                is java.net.SocketTimeoutException -> "服务已连接但 90 秒内未返回内容（本地模型推理较慢或服务未响应）$loopbackHint"
+                is java.net.UnknownHostException -> "无法解析域名，请检查网络$loopbackHint"
+                is javax.net.ssl.SSLException -> "SSL 连接失败，请检查接口地址$loopbackHint"
+                is java.net.ConnectException -> "连接被拒绝：地址或端口不可达$loopbackHint"
+                else -> (e.message?.takeIf { it.isNotBlank() } ?: "请求失败") + loopbackHint
             }
             AiResult.Err(msg)
         } finally {

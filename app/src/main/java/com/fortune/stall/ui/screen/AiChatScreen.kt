@@ -226,6 +226,7 @@ private fun ChatPanel(session: Session?, directContext: String?, bottomInset: an
         messages.add(ChatMessage("user", text))
         busy = true
         scope.launch {
+          try {
             // 组装 system 指令 + 当前排盘上下文 + 历史对话
             val sys = buildString {
                 append(AiSettings.systemPrompt.value)
@@ -263,7 +264,11 @@ private fun ChatPanel(session: Session?, directContext: String?, bottomInset: an
                 is AiResult.Ok -> messages.add(ChatMessage("assistant", result.text))
                 is AiResult.Err -> messages.add(ChatMessage("assistant", "⚠ ${result.message}"))
             }
+          } catch (e: Exception) {
+            messages.add(ChatMessage("assistant", "⚠ 发送失败：${e.message ?: e.javaClass.simpleName}"))
+          } finally {
             busy = false
+          }
         }
     }
 
@@ -319,7 +324,7 @@ private fun ChatPanel(session: Session?, directContext: String?, bottomInset: an
                                     color = AppColors.Lantern
                                 )
                                 Spacer(Modifier.width(8.dp))
-                                Text("AI 正在推演…", color = AppColors.Muted, fontSize = 11.5.sp)
+                                Text("AI 正在推演…（最长约 90 秒）", color = AppColors.Muted, fontSize = 11.5.sp)
                             }
                         }
                     }
@@ -470,6 +475,15 @@ private fun ApiConfigPanel() {
         Spacer(Modifier.height(10.dp))
         AiField("API Key", apiKey, { apiKey = it }, singleLine = true)
         Spacer(Modifier.height(10.dp))
+        // 模型名上方显示当前接口路径（如 /chat/completions），随地址输入实时更新
+        val apiPath = remember(endpoint) {
+            val s = endpoint.trim()
+            val afterScheme = s.substringAfter("://", s)
+            val slash = afterScheme.indexOf('/')
+            if (slash >= 0) afterScheme.substring(slash) else "/"
+        }
+        Text("接口路径：$apiPath", color = AppColors.Dim, fontSize = 10.5.sp)
+        Spacer(Modifier.height(4.dp))
         AiField("模型名（可手填，或读取接口列表选择）", model, { model = it }, singleLine = true)
         Spacer(Modifier.height(8.dp))
         // 读取模型列表：需当前 API 地址 + Key 组合有效
