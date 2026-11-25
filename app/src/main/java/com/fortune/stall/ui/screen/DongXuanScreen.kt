@@ -203,20 +203,7 @@ private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) 
                         fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f))
                     Text("✎", color = DX_GOLD, fontSize = 14.sp)
                 }
-                Spacer(Modifier.height(8.dp))
-                Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-                    .background(Color(0x14FFFFFF)).padding(12.dp)) {
-                    Column {
-                        Text("时间推算", color = DX_GOLD, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(6.dp))
-                        Text("农历 ${lunarNow.month}月${lunarNow.day}日 ${lunarNow.hourZhi}时",
-                            color = Color(0xFFD9D0BE), fontSize = 12.sp)
-                        Spacer(Modifier.height(4.dp))
-                        Text("干支 ${lunarNow.yearGanZhi}年 ${lunarNow.monthGanZhi}月 ${lunarNow.dayGanZhi}日 ${lunarNow.hourGanZhi}时",
-                            color = Color(0xFFD9D0BE), fontSize = 12.sp)
-                    }
-                }
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(16.dp))
 
                 // 单个数字输入框：三个数连写，如 458 / 4 5 8 / 4,5,8
                 Text("报三个数（1-999）", color = DX_GOLD, fontSize = 13.sp)
@@ -246,6 +233,20 @@ private fun DongXuanForm(onBack: () -> Unit, onCast: (List<Int>, LocalDateTime) 
                 Spacer(Modifier.height(8.dp))
                 Text("报三个数1-999，可连写 458 或用空格 / 逗号分隔大数", color = Color(0xFF9A8E7A), fontSize = 10.sp,
                     modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+
+                Spacer(Modifier.height(16.dp))
+                Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                    .background(Color(0x14FFFFFF)).padding(12.dp)) {
+                    Column {
+                        Text("时间推算", color = DX_GOLD, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(6.dp))
+                        Text("农历 ${lunarNow.month}月${lunarNow.day}日 ${lunarNow.hourZhi}时",
+                            color = Color(0xFFD9D0BE), fontSize = 12.sp)
+                        Spacer(Modifier.height(4.dp))
+                        Text("干支 ${lunarNow.yearGanZhi}年 ${lunarNow.monthGanZhi}月 ${lunarNow.dayGanZhi}日 ${lunarNow.hourGanZhi}时",
+                            color = Color(0xFFD9D0BE), fontSize = 12.sp)
+                    }
+                }
             }
             Spacer(Modifier.height(22.dp))
 
@@ -602,22 +603,28 @@ private fun DXCellCard(cell: DongXuan.Cell, modifier: Modifier) {
         // ⑥ 卦象（居中）
         Text(cell.gua, color = Color(0xFF4A4238), fontSize = 10.sp, fontFamily = FontFamily.Serif,
             modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, maxLines = 1)
-        Spacer(Modifier.height(2.dp))
-        // ⑦ 地分 + 主事
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(cell.gan, color = Color(0xFF6B6258), fontSize = 10.sp, fontFamily = FontFamily.Serif)
-            Spacer(Modifier.width(3.dp))
-            Text(cell.zhushi, color = Color(0xFF7E766C), fontSize = 9.sp,
-                modifier = Modifier.weight(1f), maxLines = 1)
-        }
-        Spacer(Modifier.height(1.dp))
-        // ⑧ 底行：宫名大字（彩色，居中）+ 底部六兽（灰小字，右侧）
-        Box(Modifier.fillMaxWidth()) {
-            Text(cell.palace, color = dxShenColor(cell.palace), fontSize = 16.sp,
-                fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.Center))
-            Text(beast, color = Color(0xFF9A9288), fontSize = 9.sp, fontFamily = FontFamily.Serif,
-                modifier = Modifier.align(Alignment.CenterEnd))
+        Spacer(Modifier.height(3.dp))
+        // ⑦ 底行三列：左(地分小字在上/主事大字在下) ｜ 中(宫名彩色大字) ｜ 右(别称小字在上/兽名大字在下)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+            // 左：地分（小，上）+ 主事（大，下）—— 移到宫名左边
+            Column(Modifier.weight(1f)) {
+                Text(cell.gan, color = Color(0xFF6B6258), fontSize = 9.sp, fontFamily = FontFamily.Serif, maxLines = 1)
+                Text(cell.zhushi, color = Color(0xFF6B6258), fontSize = 13.sp,
+                    fontFamily = FontFamily.Serif, maxLines = 1)
+            }
+            // 中：宫名彩色大字，居中
+            Box(Modifier.weight(1.2f), contentAlignment = Alignment.BottomCenter) {
+                Text(cell.palace, color = dxShenColor(cell.palace), fontSize = 17.sp,
+                    fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
+            }
+            // 右：六兽别称（小，上）+ 兽名（大，下）—— 别称在兽名上方
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                val parts = beast.split(" ")
+                Text(parts.getOrElse(0) { "" }, color = Color(0xFF9A9288), fontSize = 9.sp,
+                    fontFamily = FontFamily.Serif, maxLines = 1)
+                Text(parts.getOrElse(1) { "" }, color = Color(0xFF6B6258), fontSize = 13.sp,
+                    fontFamily = FontFamily.Serif, maxLines = 1)
+            }
         }
     }
 }
