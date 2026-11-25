@@ -53,7 +53,44 @@ import java.time.format.DateTimeFormatter
 private val DX_GOLD = Color(0xFFD9A441)
 private val DX_RED = Color(0xFFB0392E)
 private val DX_INK = Color(0xFF222222)
-private val DX_LINE = Color(0xFF000000)
+private val DX_LINE = Color(0xFFCFCAC0)
+
+/** 五行 → 原版配色（木绿 火红 土黄 金秋 水蓝） */
+private fun dxWxColor(wx: String): Color = when (wx) {
+    "木" -> Color(0xFF3F8A34)
+    "火" -> Color(0xFFC0392B)
+    "土" -> Color(0xFFB07D1E)
+    "金" -> Color(0xFFB8912A)
+    "水" -> Color(0xFF2E5C9E)
+    else -> Color(0xFF8A8276)
+}
+/** 旺相休囚死配色（旺红 相黄 休囚死蓝） */
+private fun dxWangColor(w: String): Color = when (w) {
+    "旺" -> Color(0xFFC0392B)
+    "相" -> Color(0xFFB07D1E)
+    "休", "囚", "死" -> Color(0xFF2E5C9E)
+    else -> Color(0xFF8A8276)
+}
+/** 小六壬六神配色（大安留连小吉绿 速喜红 赤口灰 空亡棕） */
+private fun dxShenColor(s: String): Color = when (s) {
+    "大安", "留连", "小吉" -> Color(0xFF2E8B57)
+    "速喜" -> Color(0xFFC0392B)
+    "赤口" -> Color(0xFF9A9288)
+    "空亡" -> Color(0xFF8A5A2B)
+    else -> Color(0xFF222222)
+}
+/** 地支 → 二十八宿简称（随图2：寅元 辰尾 午星 子虚 戌崩 申奎） */
+private val DX_ZHI_XIU = mapOf(
+    "子" to "虚", "丑" to "牛", "寅" to "元", "卯" to "房",
+    "辰" to "尾", "巳" to "翼", "午" to "星", "未" to "柳",
+    "申" to "奎", "酉" to "昴", "戌" to "崩", "亥" to "室")
+/** 宫地支 → 右上角天干小字（对齐图2：寅甲丙 辰丙戊 午戊庚 申庚壬） */
+private val DX_ZHI_CANG = mapOf(
+    "子" to "壬", "丑" to "己", "寅" to "甲丙", "卯" to "乙",
+    "辰" to "丙戊", "巳" to "丙", "午" to "戊庚", "未" to "己",
+    "申" to "庚壬", "酉" to "辛", "戌" to "戊", "亥" to "壬")
+/** 底部六兽小字（按 PALACES 顺序：大安玄武 留连青龙 速喜朱雀 赤口勾陈 小吉腾蛇 空亡白虎） */
+private val DX_BEASTS = arrayOf("玄武", "青龙", "朱雀", "勾陈", "腾蛇", "白虎")
 
 /** 东玄 · 三数六宫排盘（起卦页 + 排盘页） */
 @Composable
@@ -409,18 +446,22 @@ private fun DongXuanResult(c: DongXuan.Chart, onBack: () -> Unit) {
             // 四值 / 旬空 信息条
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFFECEAE3)).padding(horizontal = 14.dp, vertical = 12.dp)) {
-                Row(Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("四值", color = Color(0xFF2E4A7A), fontSize = 15.sp,
                         fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold,
                         modifier = Modifier.width(52.dp))
+                    Box(Modifier.width(1.dp).height(18.dp).background(Color(0xFF2E4A7A)))
+                    Spacer(Modifier.width(10.dp))
                     Text(c.ganZhi, color = Color(0xFF19356B), fontSize = 16.sp,
                         fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
                 }
                 Spacer(Modifier.height(8.dp))
-                Row(Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("旬空", color = Color(0xFF2E4A7A), fontSize = 15.sp,
                         fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold,
                         modifier = Modifier.width(52.dp))
+                    Box(Modifier.width(1.dp).height(18.dp).background(Color(0xFF2E4A7A)))
+                    Spacer(Modifier.width(10.dp))
                     Text("${c.yearKong} · ${c.monthKong} · ${c.dayKong} · ${c.hourKong}",
                         color = Color(0xFF19356B), fontSize = 15.sp, fontFamily = FontFamily.Serif)
                 }
@@ -463,7 +504,7 @@ private fun DXGrid(c: DongXuan.Chart) {
             if (r > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(DX_LINE))
             Row(Modifier.fillMaxWidth()) {
                 for (col in 0..2) {
-                    if (col > 0) Box(Modifier.width(1.dp).height(180.dp).background(DX_LINE))
+                    if (col > 0) Box(Modifier.width(1.dp).height(196.dp).background(DX_LINE))
                     DXCellCard(c.cells[order[r * 3 + col]], Modifier.weight(1f))
                 }
             }
@@ -473,51 +514,74 @@ private fun DXGrid(c: DongXuan.Chart) {
 
 @Composable
 private fun DXCellCard(cell: DongXuan.Cell, modifier: Modifier) {
-    Column(modifier.height(180.dp).background(Color.White).padding(horizontal = 4.dp, vertical = 4.dp)) {
-        // 行1：八神(黑) + 别称(灰) + 纳音(彩) + 九星(彩) + 天干
-        Row(Modifier.fillMaxWidth()) {
+    // 五行判定：取九星/纳音末字
+    val starWx = cell.star.lastOrNull()?.toString() ?: ""
+    val nayinWx = cell.nayin.lastOrNull()?.toString() ?: ""
+    val palIdx = DongXuan.PALACES.indexOf(cell.palace).coerceAtLeast(0)
+    val beast = DX_BEASTS.getOrElse(palIdx) { "" }
+    Column(modifier.height(196.dp).background(Color.White).padding(horizontal = 5.dp, vertical = 5.dp)) {
+        // ① 八神六兽（黑）+ 别称（灰）｜纳音（五行色）+ 九星（五行色）
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(cell.god, color = DX_INK, fontSize = 11.sp, fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold)
-            Spacer(Modifier.width(3.dp))
-            Text(cell.godAlias, color = Color(0xFF9A9288), fontSize = 9.sp)
+            Spacer(Modifier.width(2.dp))
+            Text(cell.godAlias, color = Color(0xFF9A9288), fontSize = 8.sp,
+                modifier = Modifier.weight(1f), maxLines = 1)
+            Text(cell.star, color = dxWxColor(starWx), fontSize = 11.sp, fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Bold)
         }
         Row(Modifier.fillMaxWidth()) {
-            Text(cell.nayin, color = Color(0xFF8A5A2B), fontSize = 10.sp, fontFamily = FontFamily.Serif,
-                modifier = Modifier.weight(1f))
-            Text(cell.star, color = Color(0xFF5A8A3A), fontSize = 10.sp, fontFamily = FontFamily.Serif)
+            Text(cell.nayin, color = dxWxColor(nayinWx), fontSize = 10.sp, fontFamily = FontFamily.Serif,
+                modifier = Modifier.weight(1f), maxLines = 1)
+            Text(DX_ZHI_CANG[cell.zhi] ?: "", color = Color(0xFF6B6258), fontSize = 9.sp,
+                fontFamily = FontFamily.Serif)
         }
+        Spacer(Modifier.height(4.dp))
+
+        // ② 旺衰（状态色）
+        Text(cell.wangshuai, color = dxWangColor(cell.wangshuai), fontSize = 10.sp,
+            fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif)
         Spacer(Modifier.height(2.dp))
-        // 行2：旺衰 + 地支字 + 标记 + 六亲 + 长生
+
+        // ③ 地支大字 + 地支字（如 寅·元）｜六亲（黑大字，日宫标红"对"、身宫标红"身"）
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(cell.wangshuai, color = Color(0xFFB0392E), fontSize = 10.sp,
-                fontWeight = FontWeight.Bold, modifier = Modifier.width(20.dp))
-            Text(cell.zhiStar, color = DX_INK, fontSize = 11.sp, fontFamily = FontFamily.Serif)
-        }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(cell.zhi, color = DX_INK, fontSize = 20.sp, fontFamily = FontFamily.Serif,
+            Text(cell.zhi, color = DX_INK, fontSize = 25.sp, fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold)
-            Spacer(Modifier.width(4.dp))
-            if (cell.isBody) Text("身", color = Color(0xFFC0392B), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-            Text(cell.liuqin, color = DX_INK, fontSize = 14.sp, fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+            Spacer(Modifier.width(1.dp))
+            Text(DX_ZHI_XIU[cell.zhi] ?: "", color = Color(0xFF7E766C), fontSize = 9.sp,
+                fontFamily = FontFamily.Serif)
+            Spacer(Modifier.weight(1f))
+            if (cell.isDay) Text("对", color = Color(0xFFC0392B), fontSize = 9.sp,
+                fontWeight = FontWeight.Bold)
+            if (cell.isBody) Text("身", color = Color(0xFFC0392B), fontSize = 9.sp,
+                fontWeight = FontWeight.Bold)
+            Text(cell.liuqin, color = DX_INK, fontSize = 16.sp, fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Bold, maxLines = 1)
         }
-        Text(cell.changsheng, color = Color(0xFF7E766C), fontSize = 9.sp)
-        Spacer(Modifier.height(2.dp))
-        // 行3：卦象
-        Text(cell.gua, color = Color(0xFF3A2E12), fontSize = 10.sp, fontFamily = FontFamily.Serif,
+        // ④ 长生（灰）
+        Text(cell.changsheng, color = Color(0xFF9A9288), fontSize = 9.sp, fontFamily = FontFamily.Serif)
+        Spacer(Modifier.height(3.dp))
+
+        // ⑤ 卦象
+        Text(cell.gua, color = Color(0xFF4A4238), fontSize = 10.sp, fontFamily = FontFamily.Serif,
             maxLines = 1)
         Spacer(Modifier.weight(1f))
-        // 行4：天干 + 主事 + 宫名 + 六神
+
+        // ⑥ 天干 + 主事
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(cell.gan, color = Color(0xFF4B3521), fontSize = 11.sp, fontFamily = FontFamily.Serif)
-            Spacer(Modifier.width(4.dp))
-            Text(cell.zhushi, color = Color(0xFF7E766C), fontSize = 10.sp, modifier = Modifier.weight(1f))
+            Text(cell.gan, color = Color(0xFF6B6258), fontSize = 10.sp, fontFamily = FontFamily.Serif)
+            Spacer(Modifier.width(3.dp))
+            Text(cell.zhushi, color = Color(0xFF7E766C), fontSize = 9.sp,
+                modifier = Modifier.weight(1f), maxLines = 1)
         }
+        Spacer(Modifier.height(3.dp))
+
+        // ⑦ 六神（彩色大字：留连/速喜/赤口/大安/空亡/小吉）+ 底部六兽（灰小字）
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(cell.palace, color = DX_INK, fontSize = 14.sp, fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.Bold)
+            Text(cell.palace, color = dxShenColor(cell.palace), fontSize = 17.sp,
+                fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
-            Text(cell.liuShen, color = Color(0xFF6B6258), fontSize = 11.sp, fontFamily = FontFamily.Serif)
+            Text(beast, color = Color(0xFF9A9288), fontSize = 10.sp, fontFamily = FontFamily.Serif)
         }
     }
 }
