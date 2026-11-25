@@ -1,6 +1,8 @@
 package com.fortune.stall.ui.screen
 
 import android.widget.Toast
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
@@ -54,6 +56,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fortune.stall.data.FortuneDb
@@ -339,7 +342,7 @@ private fun ChatPanel(session: Session?, directContext: String?, bottomInset: an
             OutlinedTextField(
                 value = input, onValueChange = { input = it },
                 placeholder = { Text("输入问题…", color = AppColors.Dim) },
-                modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+                modifier = Modifier.weight(1f).heightIn(min = 52.dp).imeFix(),
                 shape = RoundedCornerShape(26.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = AppColors.Paper, unfocusedTextColor = AppColors.Paper,
@@ -556,7 +559,7 @@ private fun ApiConfigPanel() {
         }
         OutlinedTextField(
             value = prompt, onValueChange = { prompt = it },
-            modifier = Modifier.fillMaxWidth().heightIn(min = 130.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 130.dp).imeFix(),
             shape = RoundedCornerShape(10.dp),
             // 输入法修复：多行文本允许正常换行（ImeAction.Default + 不强制单行），回车可换行
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
@@ -661,7 +664,7 @@ private fun SavePromptDialog(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
                 .background(Color(0xFF1C1B22))
                 .border(1.dp, AppColors.GoldLine, RoundedCornerShape(16.dp))
-                .padding(18.dp)
+                .padding(18.dp).imePadding().verticalScroll(rememberScrollState())
         ) {
             Text("保存为人设", color = AppColors.Paper, fontSize = 16.sp,
                 fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
@@ -675,7 +678,7 @@ private fun SavePromptDialog(
                 value = name, onValueChange = { name = it },
                 singleLine = true,
                 placeholder = { Text("例如：我的断卦风格", color = AppColors.Dim) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().imeFix(),
                 shape = RoundedCornerShape(10.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -867,7 +870,7 @@ private fun AddConfigDialog(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
                 .background(Color(0xFF1C1B22))
                 .border(1.dp, AppColors.GoldLine, RoundedCornerShape(16.dp))
-                .padding(18.dp)
+                .padding(18.dp).imePadding().verticalScroll(rememberScrollState())
         ) {
             Text("新增配置", color = AppColors.Paper, fontSize = 16.sp,
                 fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
@@ -878,7 +881,7 @@ private fun AddConfigDialog(
                 value = customName, onValueChange = { customName = it },
                 singleLine = true,
                 placeholder = { Text("例如：工作号 DeepSeek", color = AppColors.Dim) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().imeFix(),
                 shape = RoundedCornerShape(10.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = AppColors.Paper, unfocusedTextColor = AppColors.Paper,
@@ -929,6 +932,26 @@ private fun PresetChip(label: String, active: Boolean = false, onClick: () -> Un
     }
 }
 
+/**
+ * 任意输入框通用输入法修复：获得焦点时自动把自身滚动到可见区域，
+ * 软键盘弹出后输入框不会被遮挡。所有文本输入统一走这里。
+ */
+@Composable
+private fun Modifier.imeFix(): Modifier {
+    val requester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+    return this
+        .bringIntoViewRequester(requester)
+        .onFocusEvent { state ->
+            if (state.isFocused) {
+                scope.launch {
+                    kotlinx.coroutines.delay(150)
+                    requester.bringIntoView()
+                }
+            }
+        }
+}
+
 @Composable
 private fun AiField(
     label: String,
@@ -942,7 +965,9 @@ private fun AiField(
     OutlinedTextField(
         value = value, onValueChange = onChange,
         singleLine = singleLine,
-        modifier = Modifier.fillMaxWidth().then(if (singleLine) Modifier else Modifier.heightIn(min = 130.dp)),
+        modifier = Modifier.fillMaxWidth()
+            .then(if (singleLine) Modifier else Modifier.heightIn(min = 130.dp))
+            .imeFix(),
         shape = RoundedCornerShape(10.dp),
         keyboardOptions = KeyboardOptions(keyboardType = if (numeric) KeyboardType.Number else KeyboardType.Text),
         colors = OutlinedTextFieldDefaults.colors(
