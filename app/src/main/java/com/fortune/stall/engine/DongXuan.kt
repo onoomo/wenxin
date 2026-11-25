@@ -31,7 +31,7 @@ object DongXuan {
         val godAlias: String,        // 六兽别称（登山/失路/飞空/投机/投网/伤鳞）
         val nayin: String,           // 纳音
         val star: String,            // 九星带五行（辅木/英火/芮土/天空/蓬水/柱金）
-        val gan: String,             // 天干
+        val gan: String,             // 底部地分字（寅戌午申子辰，按宫固定）
         val zhi: String,             // 地支
         val zhiStar: String,         // 地支字（寅元/辰尾/午星/子虚/戌崩/申奎）
         val wangshuai: String,       // 旺相休囚死
@@ -121,7 +121,7 @@ object DongXuan {
     private val ZHI_STAR_BY_ORDER = arrayOf("寅元", "辰尾", "午星", "子虚", "戌崩", "申奎")
     /** 主事（按宫名） */
     private val ZHUSHI = mapOf(
-        "大安" to "官命", "留连" to "奴仆", "速喜" to "婚姻",
+        "大安" to "命宫", "留连" to "奴仆", "速喜" to "婚姻",
         "赤口" to "朋友", "小吉" to "子女", "空亡" to "父母"
     )
     /** 地支 → 八卦卦象（对齐图3排盘） */
@@ -152,12 +152,14 @@ object DongXuan {
     private val SHENG = mapOf("木" to "火", "火" to "土", "土" to "金", "金" to "水", "水" to "木")
     private val KE = mapOf("木" to "土", "土" to "水", "水" to "火", "火" to "金", "金" to "木")
     private fun wangshuai(gongWx: String, monthWx: String): String {
+        // 以月令(年干)五行为"我"，宫五行为"彼"：
+        // 同我=旺、我生彼=相、彼生我=休、彼克我=囚、我克彼=死
         val rel = when {
             gongWx == monthWx -> "同"
-            SHENG[gongWx] == monthWx -> "我生"
-            SHENG[monthWx] == gongWx -> "生我"
-            KE[monthWx] == gongWx -> "克我"
-            KE[gongWx] == monthWx -> "我克"
+            SHENG[monthWx] == gongWx -> "我生"
+            SHENG[gongWx] == monthWx -> "生我"
+            KE[gongWx] == monthWx -> "克我"
+            KE[monthWx] == gongWx -> "我克"
             else -> "同"
         }
         return WANG_BY_REL[rel] ?: "旺"
@@ -168,6 +170,8 @@ object DongXuan {
         "子" to "壬", "丑" to "己", "寅" to "甲", "卯" to "乙", "辰" to "戊", "巳" to "丙",
         "午" to "丁", "未" to "己", "申" to "庚", "酉" to "辛", "戌" to "戊", "亥" to "壬"
     )
+    /** 底部地分字（对齐原版图2，按宫固定：大安寅/留连戊/速喜午/赤口申/小吉子/空亡辰） */
+    private val DIFEN_BY_PALACE = arrayOf("寅", "戊", "午", "申", "子", "辰")
 
     /**
      * 起盘。@param numbers 三个数（1-10）；@param dt 起卦时刻（默认当前）。
@@ -179,9 +183,11 @@ object DongXuan {
         val hour = dt.hour
         val timeZhi = LunarCalendar.hourToZhi(hour)
 
-        // A宫（日宫/"对"）：三数之和定宫；身宫（"身"）：时支所在宫
-        val sum = ns.sum()
-        val aIdx = (sum - 3) % 6                       // 每数最小1，三数和最小3
+        // A宫（日宫/"对"）：初数定月宫、次数为日，月宫起初一顺数到日 → 日宫
+        // 例（报4·5·8）：月宫=(4-1)=3 赤口，日宫=(3+5-1)%6=1 留连（对齐原版"对"在留连）
+        val monthPalace = (ns[0] - 1) % 6
+        val aIdx = ((monthPalace + ns[1] - 1) % 6 + 6) % 6
+        // 身宫（"身"）：时支所在宫
         val bodyIdx = ZHI_BY_PALACE.indexOf(timeZhi).let { if (it >= 0) it else 0 }
 
         // 六宫地支：固定地盘（大安子/留连寅/速喜辰/赤口午/小吉申/空亡戌），不随时辰报数变
@@ -205,7 +211,7 @@ object DongXuan {
                 godAlias = GOD_ALIAS[god] ?: "",
                 nayin = NAYIN_BY_ZHI[zhi] ?: "",
                 star = STAR_BY_PALACE[p],
-                gan = ZHI_GAN[zhi] ?: "甲",
+                gan = DIFEN_BY_PALACE[p],
                 zhi = zhi,
                 zhiStar = "${zhi}${ZHI_STAR_BY_ORDER[p].takeLast(1)}",
                 wangshuai = wangshuai(gongWx, monthWx),

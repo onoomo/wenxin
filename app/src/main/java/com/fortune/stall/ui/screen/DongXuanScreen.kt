@@ -71,9 +71,9 @@ private fun dxWangColor(w: String): Color = when (w) {
     "休", "囚", "死" -> Color(0xFF2E5C9E)
     else -> Color(0xFF8A8276)
 }
-/** 小六壬六神配色（大安留连小吉绿 速喜红 赤口灰 空亡棕） */
+/** 小六壬六神配色（对齐原版：大安/小吉青绿 速喜红 赤口灰 空亡棕 留连黑） */
 private fun dxShenColor(s: String): Color = when (s) {
-    "大安", "留连", "小吉" -> Color(0xFF2E8B57)
+    "大安", "小吉" -> Color(0xFF2E8B57)
     "速喜" -> Color(0xFFC0392B)
     "赤口" -> Color(0xFF9A9288)
     "空亡" -> Color(0xFF8A5A2B)
@@ -84,13 +84,13 @@ private val DX_ZHI_XIU = mapOf(
     "子" to "虚", "丑" to "牛", "寅" to "元", "卯" to "房",
     "辰" to "尾", "巳" to "翼", "午" to "星", "未" to "柳",
     "申" to "奎", "酉" to "昴", "戌" to "崩", "亥" to "室")
-/** 宫地支 → 右上角天干小字（对齐图2：寅甲丙 辰丙戊 午戊庚 申庚壬） */
+/** 宫地支 → 右上角天干小字（对齐原版图，竖排两字；大安子="旬空甲"、空亡戌="壬壬"） */
 private val DX_ZHI_CANG = mapOf(
-    "子" to "壬", "丑" to "己", "寅" to "甲丙", "卯" to "乙",
-    "辰" to "丙戊", "巳" to "丙", "午" to "戊庚", "未" to "己",
-    "申" to "庚壬", "酉" to "辛", "戌" to "戊", "亥" to "壬")
-/** 底部六兽小字（按 PALACES 顺序：大安玄武 留连青龙 速喜朱雀 赤口勾陈 小吉腾蛇 空亡白虎） */
-private val DX_BEASTS = arrayOf("玄武", "青龙", "朱雀", "勾陈", "腾蛇", "白虎")
+    "子" to "旬空\n甲", "丑" to "己", "寅" to "甲\n丙", "卯" to "乙",
+    "辰" to "丙\n戊", "巳" to "丙", "午" to "戊\n庚", "未" to "己",
+    "申" to "庚\n壬", "酉" to "辛", "戌" to "壬\n壬", "亥" to "壬")
+/** 底部六兽小字（按 PALACES 顺序，对齐原版：大安散发玄武 留连乘云青龙 速喜投网朱雀 赤口反目勾陈 小吉衔剑腾蛇 空亡落井白虎） */
+private val DX_BEASTS = arrayOf("散发 玄武", "乘云 青龙", "投网 朱雀", "反目 勾陈", "衔剑 腾蛇", "落井 白虎")
 
 /** 东玄 · 三数六宫排盘（起卦页 + 排盘页） */
 @Composable
@@ -550,11 +550,12 @@ private fun DXCellCard(cell: DongXuan.Cell, modifier: Modifier) {
             Spacer(Modifier.width(1.dp))
             Text(DX_ZHI_XIU[cell.zhi] ?: "", color = Color(0xFF7E766C), fontSize = 9.sp,
                 fontFamily = FontFamily.Serif)
+            Spacer(Modifier.width(2.dp))
+            if (cell.isDay) Text("对", color = Color(0xFFC0392B), fontSize = 13.sp,
+                fontWeight = FontWeight.Bold)
+            if (cell.isBody) Text("身", color = Color(0xFFC0392B), fontSize = 13.sp,
+                fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
-            if (cell.isDay) Text("对", color = Color(0xFFC0392B), fontSize = 9.sp,
-                fontWeight = FontWeight.Bold)
-            if (cell.isBody) Text("身", color = Color(0xFFC0392B), fontSize = 9.sp,
-                fontWeight = FontWeight.Bold)
             Text(cell.liuqin, color = DX_INK, fontSize = 16.sp, fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold, maxLines = 1)
         }
