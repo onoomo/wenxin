@@ -544,17 +544,6 @@ private fun DrawScope.drawGlyph(glyph: Glyph) {
     val stroke = Stroke(width = w * 0.075f)
     val white = Color.White
     when (glyph) {
-        Glyph.DONGXUAN -> { // 东玄：◈ 双层菱形
-            fun diamond(cx: Float, cy: Float, r: Float) {
-                drawLine(white, Offset(cx, cy - r), Offset(cx + r, cy), stroke.width)
-                drawLine(white, Offset(cx + r, cy), Offset(cx, cy + r), stroke.width)
-                drawLine(white, Offset(cx, cy + r), Offset(cx - r, cy), stroke.width)
-                drawLine(white, Offset(cx - r, cy), Offset(cx, cy - r), stroke.width)
-            }
-            diamond(w / 2, h / 2, w * 0.38f)
-            diamond(w / 2, h / 2, w * 0.2f)
-            drawCircle(white, radius = w * 0.05f, center = Offset(w / 2, h / 2))
-        }
         Glyph.BAZI -> { // 八字排盘：栅格窗
             val r = w * 0.62f
             val l = (w - r) / 2

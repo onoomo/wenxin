@@ -12,8 +12,6 @@ data class HomeTile(
 val HOME_TILES = listOf(
     HomeTile("八字命理", "bazi-paipan", Glyph.BAZI, "四 柱 命 理",
         "以生辰八字排定年月日时四柱，配十神藏干、五行旺衰、神煞纳音与大运流年，看一生格局起伏与喜用取舍。"),
-    HomeTile("东玄", "dongxuan", Glyph.DONGXUAN, "三 数 六 宫",
-        "报三个数字起局，合起卦时辰定六宫，四值旬空、八神九星、六亲纳音、卦象长生一并排出，问事快捷、断事周全。"),
     HomeTile("命理奇门", "mingliqimen", Glyph.MINGLI, "终 身 奇 门",
         "以生辰起终身奇门盘，配大运流年逐限推移，看一生富贵吉凶与关键时刻的天地人三才格局。"),
     HomeTile("阴盘奇门", "yinpanqimen", Glyph.YINPAN, "阴 盘 起 局",
@@ -54,13 +52,12 @@ val HOME_TILES = listOf(
 
 /** 图标类型 */
 enum class Glyph {
-    DONGXUAN, BAZI, MINGLI, YINPAN, QIMEN, ZIWEI, LIUYAO, MEIHUA, DALIUREN, XIAOLIUREN,
+    BAZI, MINGLI, YINPAN, QIMEN, ZIWEI, LIUYAO, MEIHUA, DALIUREN, XIAOLIUREN,
     QIDU, CHUANREN, SHANXIANG, FEIXING, YIZHANG, WANNIANLI, LAOHUANGLI, HEHUN, PHONE, TAROT, QIANXU
 }
 
 /** 原版 ji.js.cn 的 SVG 图标资源（1:1 移植） */
 fun glyphRes(g: Glyph): Int = when (g) {
-    Glyph.DONGXUAN -> R.drawable.ic_g_dongxuan
     Glyph.BAZI -> R.drawable.ic_g_bazi
     Glyph.MINGLI -> R.drawable.ic_g_mingli
     Glyph.YINPAN -> R.drawable.ic_g_yinpan
