@@ -559,8 +559,8 @@ private fun DXCellCard(cell: DongXuan.Cell, modifier: Modifier) {
     // 五行判定：取九星/纳音末字
     val starWx = cell.star.lastOrNull()?.toString() ?: ""
     val nayinWx = cell.nayin.lastOrNull()?.toString() ?: ""
-    val palIdx = DongXuan.PALACES.indexOf(cell.palace).coerceAtLeast(0)
-    val beast = DX_BEASTS.getOrElse(palIdx) { "" }
+    // 底部六兽：直接用引擎按阳盘/阴盘算好的完整串（别称 兽名），不再用写死的阴盘表
+    val beast = cell.liuShen
     Column(modifier.heightIn(min = 186.dp).background(Color.White).padding(horizontal = 4.dp, vertical = 3.dp)) {
         // ① 顶行：八神（黑）+ 别称（灰）｜九星（五行色）
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

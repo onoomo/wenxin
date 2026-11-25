@@ -76,7 +76,7 @@ object DongXuan {
     private val NAYIN_BY_ZHI = mapOf(
         "子" to "海中金", "丑" to "桑柘木", "寅" to "炉中火", "卯" to "大溪水",
         "辰" to "大林木", "巳" to "覆灯火", "午" to "路旁土", "未" to "天河水",
-        "申" to "剑锋金", "酉" to "大驿土", "戌" to "山头火", "亥" to "钗钏金"
+        "申" to "剑锋金", "酉" to "大驿土", "戌" to "大海水", "亥" to "钗钏金"
     )
 
     /** 九星序列：按 PALACES 固定（大安柱金/留连蓬水/速喜天空/赤口辅木/小吉英火/空亡芮土），整体随对宫旋转使辅木恒落对宫 */
@@ -132,14 +132,17 @@ object DongXuan {
         "申" to "巽→地风升", "酉" to "巽→泽风大过", "戌" to "艮→天山遁", "亥" to "坤→天地否"
     )
 
-    /** 主事（按宫名固定，对齐图2） */
-    private val ZHUSHI = mapOf(
-        "大安" to "事业", "留连" to "田宅", "速喜" to "感情",
-        "赤口" to "疾厄", "小吉" to "婚姻", "空亡" to "福德"
-    )
+    /** 主事（按宫名固定）：阳盘（图1·458戌）/ 阴盘（图2·52巳）两套，下标按 PALACES 宫序 */
+    private val ZHUSHI_YANG = arrayOf("命宫", "奴仆", "婚姻", "朋友", "子女", "父母")
+    private val ZHUSHI_YIN = arrayOf("事业", "田宅", "感情", "疾厄", "婚姻", "福德")
 
-    /** 底部地分字（按宫固定，对齐图2：大安卯 留连未 速喜巳 赤口酉 小吉亥 空亡丑） */
-    private val DIFEN_BY_PALACE = arrayOf("卯", "未", "巳", "酉", "亥", "丑")
+    /** 底部地分字（左下小字）：阳盘（大安寅 留连戌 速喜午 赤口申 小吉子 空亡辰）/ 阴盘（大安卯 留连未 速喜巳 赤口酉 小吉亥 空亡丑） */
+    private val DIFEN_YANG = arrayOf("寅", "戌", "午", "申", "子", "辰")
+    private val DIFEN_YIN = arrayOf("卯", "未", "巳", "酉", "亥", "丑")
+
+    /** 底部六兽（别称 兽名）：阳盘（图1）/ 阴盘（图2）两套，下标按 PALACES 宫序 */
+    private val BEAST_YANG = arrayOf("散发 玄武", "乘云 青龙", "投网 朱雀", "反目 勾陈", "衔剑 腾蛇", "落井 白虎")
+    private val BEAST_YIN = arrayOf("蟠泥 青龙", "安巢 朱雀", "禄印 勾陈", "入林 腾蛇", "临门 白虎", "伏藏 玄武")
 
     /** 旺衰：宫地支五行相对月支五行的生克 */
     private fun wangshuai(gongWx: String, monthWx: String): String = when {
@@ -182,15 +185,18 @@ object DongXuan {
         // 顶兽旋转量：图2巳时对宫赤口 → 大安朱雀；基准序列[青龙朱雀勾陈白虎玄武腾蛇]，朱雀在index1
         // 使身宫(速喜 idx2)=白虎(基准idx3)，故 shift 使 p+shift落基准：shift = 3 - bodyIdx
         val godShift = ((3 - bodyIdx) % 6 + 6) % 6
-        // 底兽随对宫旋转：图2大安青龙(基准idx0)，对宫赤口idx3；基准[青龙朱雀勾陈腾蛇白虎玄武]
-        // 使对宫宫=腾蛇(idx3)：shift = 3 - dayIdx
-        val beastShift = ((3 - dayIdx) % 6 + 6) % 6
+        // 底部三要素（地分/主事/六兽）：阳支盘(子寅辰午申戌)用图1那套、阴支盘(丑卯巳未酉亥)用图2那套
+        // 由时支阴阳决定，避免阳盘套用阴盘表导致全错
+        val isYang = bodyZhiIdx % 2 == 0
+        val difen = if (isYang) DIFEN_YANG else DIFEN_YIN
+        val zhushi = if (isYang) ZHUSHI_YANG else ZHUSHI_YIN
+        val beastA = if (isYang) BEAST_YANG else BEAST_YIN
 
         val cells = (0 until 6).map { p ->
             val zhi = zhiByPalace[p]
             val gongWx = ZHI_WX[zhi] ?: "木"
             val god = GOD_SEQ[(p + godShift) % 6]
-            val beast = BEAST_SEQ[(p + beastShift) % 6]
+            val beast = beastA[p]
             val star = STAR_BASE[(p + starShift) % 6]
             Cell(
                 palace = PALACES[p],
@@ -198,14 +204,14 @@ object DongXuan {
                 godAlias = GOD_ALIAS[god] ?: "",
                 nayin = NAYIN_BY_ZHI[zhi] ?: "",
                 star = star,
-                gan = DIFEN_BY_PALACE[p],
+                gan = difen[p],
                 zhi = zhi,
                 zhiStar = ZHI_CANG[zhi] ?: "",
                 wangshuai = wangshuai(gongWx, monthWx),
                 liuqin = liuqinOf(dayGan, dayGanWx, zhi, gongWx),
                 changsheng = CS_BY_ZHI[zhi] ?: "长生",
                 gua = GUA_BY_ZHI[zhi] ?: "",
-                zhushi = ZHUSHI[PALACES[p]] ?: "",
+                zhushi = zhushi[p],
                 liuShen = beast,
                 isDay = p == dayIdx,
                 isBody = p == bodyIdx
