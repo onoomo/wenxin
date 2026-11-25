@@ -255,7 +255,7 @@ private fun ChatPanel(session: Session?, directContext: String?, bottomInset: an
             payload.add(ChatMessage("system", sys))
             payload.addAll(messages.toList())
             val result = AiClient.chat(
-                AiSettings.endpoint.value,
+                AiSettings.effectiveEndpoint(),
                 AiSettings.apiKey.value,
                 AiSettings.model.value,
                 payload
@@ -272,7 +272,7 @@ private fun ChatPanel(session: Session?, directContext: String?, bottomInset: an
         }
     }
 
-    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp).imePadding()) {
         // 会话工具行：新对话 / 当前配置名 · 模型名（由 API 配置提供，切换即时更新）
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -393,6 +393,7 @@ private fun ApiConfigPanel() {
     val context = LocalContext.current
     var name by remember { mutableStateOf(AiSettings.current()?.name ?: "") }
     var endpoint by remember { mutableStateOf(AiSettings.endpoint.value) }
+    var apiPathField by remember { mutableStateOf(AiSettings.apiPath.value) }
     var apiKey by remember { mutableStateOf(AiSettings.apiKey.value) }
     var model by remember { mutableStateOf(AiSettings.model.value) }
     var prompt by remember { mutableStateOf(AiSettings.systemPrompt.value) }
@@ -410,6 +411,7 @@ private fun ApiConfigPanel() {
         val c = AiSettings.current()
         name = c?.name ?: ""
         endpoint = AiSettings.endpoint.value
+        apiPathField = AiSettings.apiPath.value
         apiKey = AiSettings.apiKey.value
         model = AiSettings.model.value
         prompt = AiSettings.systemPrompt.value
@@ -473,17 +475,10 @@ private fun ApiConfigPanel() {
 
         AiField("API 地址", endpoint, { endpoint = it }, singleLine = true)
         Spacer(Modifier.height(10.dp))
+        AiField("接口路径（如 /chat/completions，留空则用上方完整地址）", apiPathField, { apiPathField = it }, singleLine = true)
+        Spacer(Modifier.height(10.dp))
         AiField("API Key", apiKey, { apiKey = it }, singleLine = true)
         Spacer(Modifier.height(10.dp))
-        // 模型名上方显示当前接口路径（如 /chat/completions），随地址输入实时更新
-        val apiPath = remember(endpoint) {
-            val s = endpoint.trim()
-            val afterScheme = s.substringAfter("://", s)
-            val slash = afterScheme.indexOf('/')
-            if (slash >= 0) afterScheme.substring(slash) else "/"
-        }
-        Text("接口路径：$apiPath", color = AppColors.Dim, fontSize = 10.5.sp)
-        Spacer(Modifier.height(4.dp))
         AiField("模型名（可手填，或读取接口列表选择）", model, { model = it }, singleLine = true)
         Spacer(Modifier.height(8.dp))
         // 读取模型列表：需当前 API 地址 + Key 组合有效
@@ -500,7 +495,8 @@ private fun ApiConfigPanel() {
                         }
                         loadingModels = true
                         scope.launch {
-                            when (val r = AiClient.fetchModels(endpoint.trim(), apiKey.trim())) {
+                            val finalEp = AiSettings.buildEndpoint(endpoint, apiPathField)
+                            when (val r = AiClient.fetchModels(finalEp, apiKey.trim())) {
                                 is ModelsResult.Ok -> {
                                     fetchedModels = r.models
                                     showModelPicker = true
@@ -582,7 +578,7 @@ private fun ApiConfigPanel() {
                     val n = ctx.toIntOrNull()?.coerceIn(500, 20000) ?: 6000
                     AiSettings.saveActive(
                         name.trim().ifBlank { "未命名配置" },
-                        endpoint.trim(), apiKey.trim(), model.trim(), prompt, n
+                        endpoint.trim(), apiKey.trim(), model.trim(), prompt, n, apiPathField.trim()
                     )
                     Toast.makeText(context, "配置已保存", Toast.LENGTH_SHORT).show()
                 }

@@ -16,7 +16,8 @@ data class AiConfig(
     var apiKey: String,
     var model: String,
     var systemPrompt: String,
-    var contextChars: Int
+    var contextChars: Int,
+    var apiPath: String = ""
 )
 
 /**
@@ -99,6 +100,8 @@ object AiSettings {
     val model = mutableStateOf(DEFAULT_MODEL)
     val systemPrompt = mutableStateOf(DEFAULT_PROMPT)
     val contextChars = mutableStateOf(6000)
+    /** 用户自填的接口路径，如 /chat/completions；为空则用 endpoint 原样 */
+    val apiPath = mutableStateOf("")
 
     fun init(context: Context) {
         if (prefs != null) return
@@ -122,7 +125,8 @@ object AiSettings {
                             apiKey = o.optString("key", ""),
                             model = o.optString("model", DEFAULT_MODEL),
                             systemPrompt = o.optString("prompt", DEFAULT_PROMPT),
-                            contextChars = o.optInt("ctx", 6000)
+                            contextChars = o.optInt("ctx", 6000),
+                            apiPath = o.optString("path", "")
                         )
                     )
                 }
@@ -142,7 +146,8 @@ object AiSettings {
                         apiKey = oldKey ?: "",
                         model = upgradeModel(oldModel ?: DEFAULT_MODEL),
                         systemPrompt = prefs!!.getString(KEY_PROMPT, DEFAULT_PROMPT) ?: DEFAULT_PROMPT,
-                        contextChars = prefs!!.getInt(KEY_CONTEXT, 6000)
+                        contextChars = prefs!!.getInt(KEY_CONTEXT, 6000),
+                        apiPath = ""
                     )
                 )
             } else {
@@ -237,6 +242,7 @@ object AiSettings {
         model.value = cfg.model
         systemPrompt.value = cfg.systemPrompt
         contextChars.value = cfg.contextChars
+        apiPath.value = cfg.apiPath
     }
 
     /** 保存当前激活配置的编辑内容 */
@@ -246,7 +252,8 @@ object AiSettings {
         apiKey: String,
         model: String,
         prompt: String,
-        ctx: Int
+        ctx: Int,
+        apiPath: String
     ) {
         val cfg = current() ?: return
         cfg.name = name
@@ -255,6 +262,7 @@ object AiSettings {
         cfg.model = model
         cfg.systemPrompt = prompt
         cfg.contextChars = ctx
+        cfg.apiPath = apiPath
         apply(cfg)
         persist(configs)
         revision.value++
@@ -301,12 +309,35 @@ object AiSettings {
             o.put("model", c.model)
             o.put("prompt", c.systemPrompt)
             o.put("ctx", c.contextChars)
+            o.put("path", c.apiPath)
             arr.put(o)
         }
         prefs?.edit()?.putString(KEY_CONFIGS, arr.toString())?.apply()
     }
 
     fun hasKey(): Boolean = apiKey.value.isNotBlank()
+
+    /**
+     * 把「API 地址」与用户自填的「接口路径」拼成最终请求地址。
+     * - apiPath 为空：返回 endpoint 原样（兼容现有完整地址与所有预设）。
+     * - apiPath 以 http:// 或 https:// 开头：视为完整地址，直接采用。
+     * - 否则取 endpoint 的 scheme://authority，接上 apiPath（自动补前导 /）。
+     */
+    fun buildEndpoint(endpoint: String, apiPath: String): String {
+        val ep = endpoint.trim()
+        val p = apiPath.trim()
+        if (p.isBlank()) return ep
+        if (p.startsWith("http://") || p.startsWith("https://")) return p
+        val schemeIdx = ep.indexOf("://")
+        if (schemeIdx < 0) return ep
+        val restStart = schemeIdx + 3
+        val slash = ep.indexOf('/', restStart)
+        val origin = if (slash >= 0) ep.substring(0, slash) else ep
+        return origin + if (p.startsWith("/")) p else "/$p"
+    }
+
+    /** 用当前镜像的 endpoint + apiPath 得到最终请求地址 */
+    fun effectiveEndpoint(): String = buildEndpoint(endpoint.value, apiPath.value)
 }
 
 /** 一个 AI 服务商预设：名称 + OpenAI 兼容接口地址 + 推荐模型名 */
