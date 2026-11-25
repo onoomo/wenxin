@@ -24,9 +24,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -35,6 +38,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -383,14 +388,30 @@ private fun BzFormField(label: String, value: String, onClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun BzDatePick(initial: LocalDate, onDismiss: () -> Unit, onConfirm: (LocalDate) -> Unit) {
     var y by remember { mutableIntStateOf(initial.year) }
     var m by remember { mutableIntStateOf(initial.monthValue) }
     var d by remember { mutableIntStateOf(initial.dayOfMonth) }
+    val today = LocalDate.now()
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFF241E16)).padding(20.dp)) {
             Text("选择出生日期", color = BZ_GOLD, fontSize = 16.sp, fontFamily = FontFamily.Serif)
+            Spacer(Modifier.height(12.dp))
+            // 快捷：今天 / 常用年份
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                BzQuickChip("今天", Modifier.weight(1f)) {
+                    y = today.year; m = today.monthValue; d = today.dayOfMonth
+                }
+                BzQuickChip("去年", Modifier.weight(1f)) { y = today.year - 1 }
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(1980, 1990, 2000, 2010).forEach { yr ->
+                    BzQuickChip("$yr", Modifier.weight(1f)) { y = yr }
+                }
+            }
             Spacer(Modifier.height(14.dp))
             BzStepper("年", y, 1900, 2100) { y = it }
             Spacer(Modifier.height(8.dp))
@@ -401,13 +422,17 @@ private fun BzDatePick(initial: LocalDate, onDismiss: () -> Unit, onConfirm: (Lo
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 BzDlgBtn("取消", false, Modifier.weight(1f), onDismiss)
                 BzDlgBtn("确定", true, Modifier.weight(1f)) {
-                    onConfirm(runCatching { LocalDate.of(y, m, d) }.getOrDefault(initial))
+                    onConfirm(runCatching {
+                        val clampedD = d.coerceAtMost(java.time.YearMonth.of(y, m).lengthOfMonth())
+                        LocalDate.of(y, m, clampedD)
+                    }.getOrDefault(initial))
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BzTimePick(initialH: Int, initialM: Int, onDismiss: () -> Unit, onConfirm: (Int, Int) -> Unit) {
     var h by remember { mutableIntStateOf(initialH) }
@@ -415,6 +440,27 @@ private fun BzTimePick(initialH: Int, initialM: Int, onDismiss: () -> Unit, onCo
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFF241E16)).padding(20.dp)) {
             Text("选择出生时辰", color = BZ_GOLD, fontSize = 16.sp, fontFamily = FontFamily.Serif)
+            Spacer(Modifier.height(12.dp))
+            // 快捷：整点时段（子丑寅卯…对应时辰）
+            Text("常用时辰", color = Color(0xFF9A8E7A), fontSize = 11.sp)
+            Spacer(Modifier.height(8.dp))
+            val shichen = listOf("子" to 23, "丑" to 1, "寅" to 3, "卯" to 5, "辰" to 7, "巳" to 9,
+                "午" to 11, "未" to 13, "申" to 15, "酉" to 17, "戌" to 19, "亥" to 21)
+            androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                shichen.forEach { (label, hr) ->
+                    BzQuickChip("${label}时", Modifier) { h = hr; m = 0 }
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            // 快捷：整点/半点
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("整点" to 0, "30分" to 30).forEach { (label, mi) ->
+                    BzQuickChip(label, Modifier.weight(1f)) { m = mi }
+                }
+                BzQuickChip("现在", Modifier.weight(1f)) {
+                    val now = java.time.LocalTime.now(); h = now.hour; m = now.minute
+                }
+            }
             Spacer(Modifier.height(14.dp))
             BzStepper("时", h, 0, 23) { h = it }
             Spacer(Modifier.height(8.dp))
@@ -429,20 +475,60 @@ private fun BzTimePick(initialH: Int, initialM: Int, onDismiss: () -> Unit, onCo
 }
 
 @Composable
+private fun BzQuickChip(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(modifier.clip(RoundedCornerShape(8.dp))
+        .background(Color(0x14FFFFFF)).border(1.dp, Color(0x52D9A441), RoundedCornerShape(8.dp))
+        .clickable { onClick() }.padding(horizontal = 10.dp, vertical = 7.dp),
+        contentAlignment = Alignment.Center) {
+        Text(text, color = BZ_GOLD, fontSize = 12.sp)
+    }
+}
+
+@Composable
 private fun BzStepper(label: String, value: Int, min: Int, max: Int, onChange: (Int) -> Unit) {
+    var editing by remember { mutableStateOf(false) }
+    var buf by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(label, color = BZ_GOLD, fontSize = 13.sp, modifier = Modifier.width(34.dp))
-        Box(Modifier.size(34.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x14FFFFFF))
-            .clickable { if (value < max) onChange(value + 1) }, contentAlignment = Alignment.Center) {
-            Text("+", color = BZ_GOLD, fontSize = 18.sp)
+        Box(Modifier.size(38.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x14FFFFFF))
+            .clickable { onChange((value - 1).coerceAtLeast(min)) }, contentAlignment = Alignment.Center) {
+            Text("−", color = BZ_GOLD, fontSize = 20.sp)
         }
-        Spacer(Modifier.width(10.dp))
-        Text(value.toString(), color = Color(0xFFF0E8D8), fontSize = 16.sp,
-            fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-        Spacer(Modifier.width(10.dp))
-        Box(Modifier.size(34.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x14FFFFFF))
-            .clickable { if (value > min) onChange(value - 1) }, contentAlignment = Alignment.Center) {
-            Text("−", color = BZ_GOLD, fontSize = 18.sp)
+        Spacer(Modifier.width(8.dp))
+        Box(Modifier.weight(1f).clip(RoundedCornerShape(8.dp)).background(Color(0x14FFFFFF))
+            .border(1.dp, Color(0x52D9A441), RoundedCornerShape(8.dp))
+            .clickable { buf = value.toString(); editing = true }
+            .padding(horizontal = 10.dp, vertical = 6.dp), contentAlignment = Alignment.Center) {
+            if (editing) {
+                BasicTextField(
+                    value = androidx.compose.ui.text.input.TextFieldValue(
+                        text = buf, selection = androidx.compose.ui.text.TextRange(buf.length)),
+                    onValueChange = { tfv ->
+                        val digits = tfv.text.filter { it.isDigit() }.take(4)
+                        buf = digits
+                        val parsed = digits.toIntOrNull()
+                        if (parsed != null && parsed in min..max) onChange(parsed)
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = Color(0xFFF0E8D8), fontSize = 16.sp,
+                        fontFamily = FontFamily.Monospace, textAlign = TextAlign.Center),
+                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester)
+                )
+                LaunchedEffect(Unit) {
+                    runCatching { focusRequester.requestFocus() }
+                }
+            } else {
+                Text(value.toString(), color = Color(0xFFF0E8D8), fontSize = 16.sp,
+                    fontFamily = FontFamily.Monospace)
+            }
+        }
+        Spacer(Modifier.width(8.dp))
+        Box(Modifier.size(38.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x14FFFFFF))
+            .clickable { onChange((value + 1).coerceAtMost(max)) }, contentAlignment = Alignment.Center) {
+            Text("+", color = BZ_GOLD, fontSize = 20.sp)
         }
     }
 }
