@@ -3,7 +3,6 @@ package com.fortune.stall.ui.screen
 import android.content.Intent
 import android.net.Uri as AndroidUri
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
