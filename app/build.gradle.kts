@@ -11,8 +11,8 @@ android {
         applicationId = "com.fortune.stall"
         minSdk = 24
         targetSdk = 36
-        versionCode = 71
-        versionName = "1.5.22 · 紫微点击宫位联动高亮"
+        versionCode = 72
+        versionName = "1.5.23 · 精准时间快捷选择+中宫流年六层标签对齐原版"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

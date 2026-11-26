@@ -282,7 +282,12 @@ private fun ZiweiDetailScreen(
                             Box(Modifier.weight(2f).height(rowH * 2).padding(cellPad)) {
                                 Box(Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp))
                                     .background(ZW_SURFACE).border(1.dp, ZW_BORDER, RoundedCornerShape(10.dp))) {
-                                    ZwCenterInfo(r, dxRange, limitLabel)
+                                    ZwCenterInfo(r, dxRange, limitLabel, liunianYear, dxGan,
+                                        sel?.level ?: "", onLevel = { level, gan ->
+                                            flyGans = flyGans + (level to gan)
+                                            sel = ZwSel(sel?.zhi ?: Ziwei.mingZhiIdx(r),
+                                                "飞星层: $level", ZwSelType.YEARLY, gan, level)
+                                        })
                                 }
                             }
                             Column(Modifier.weight(1f)) {
@@ -684,8 +689,15 @@ private fun wxColor(ch: String): Color = when (JishiyuBase.GAN_WUXING[ch] ?: Jis
 
 // ===== 中宫详情：1:1 对齐文墨天机专业版中宫（真太阳/钟表/农历/命主身主子斗/双四柱/八字起运/大运十神/岁序年份/日时导航/自化） =====
 @Composable
-private fun ZwCenterInfo(r: Ziwei.Result, dxRange: Pair<Int, Int>?, limitLabel: String) {
+private fun ZwCenterInfo(
+    r: Ziwei.Result, dxRange: Pair<Int, Int>?, limitLabel: String,
+    liunianYear: Int, dxGan: String, activeLevel: String, onLevel: (String, String) -> Unit
+) {
     val info = remember(r) { ZiweiCenter.build(r) }
+    // 流年干支 + 农历月（对齐原版中宫「流年: 2026 丙午年 农历正月」）
+    val liunianGz = JishiyuBase.JIAZHI[((liunianYear - 4) % 60 + 60) % 60]
+    val lunarMonthCn = Regex("(\\d+)月").find(r.lunarDate)?.groupValues?.getOrNull(1)?.toIntOrNull()
+        ?.let { LunarCalendar.cnNumber(it) } ?: ""
     Column(Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 5.dp)) {
         // 行1：姓名（匿名）+ 性别·五行局
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
@@ -738,21 +750,33 @@ private fun ZwCenterInfo(r: Ziwei.Result, dxRange: Pair<Int, Int>?, limitLabel: 
         Text(info.years.joinToString(" "), color = ZW_T2, fontSize = 7.5.sp, maxLines = 1)
 
         Spacer(Modifier.weight(1f))
-        // 底部导航：日↑ 日↓ 天盘▽ 时↑ 时↓（原版 5 按钮）
+        // 流年行（对齐原版中宫「流年: 2026 丙午年 农历正月」）
+        Text("流年: $liunianYear ${liunianGz}年 农历${lunarMonthCn}月", color = ZW_T0,
+            fontSize = 9.sp, maxLines = 1)
+        Spacer(Modifier.height(3.dp))
+        // 六层飞星标签：本/限/年/月/日/时（对齐原版中宫彩色标签，点击切换飞星层）
+        // 本=本命四化常驻；限=大限；年=流年；月/日/时=对应层天干
+        val lvDefs = listOf(
+            Triple("本", "命", r.yearGan),
+            Triple("限", "大", dxGan.ifBlank { Ziwei.yearGan(liunianYear) }),
+            Triple("年", "年", Ziwei.yearGan(liunianYear)),
+            Triple("月", "月", Ziwei.yearGan(liunianYear)),
+            Triple("日", "日", Ziwei.yearGan(liunianYear)),
+            Triple("时", "时", Ziwei.yearGan(liunianYear)),
+        )
+        val lvColors = listOf(Color(0xFF6B7280), Color(0xFF3FA96B), Color(0xFF3B82C4),
+            Color(0xFFC8862A), Color(0xFF6B7280), Color(0xFF6B7280))
         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp))
             .background(Color(0x18FFFFFF)), horizontalArrangement = Arrangement.spacedBy(1.dp)) {
-            listOf("日↑", "日↓", "天盘▽", "时↑", "时↓").forEach { t ->
-                Text(t, color = ZW_T1, fontSize = 7.5.sp, textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f).padding(vertical = 2.dp), maxLines = 1)
-            }
-        }
-        Spacer(Modifier.height(2.dp))
-        // 自化图示：→禄→权→科→忌（四化语义色）
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center) {
-            Text("自化图示:", color = ZW_T0, fontSize = 8.sp)
-            listOf("禄", "权", "科", "忌").forEachIndexed { i, sh ->
-                Text("→$sh", color = SH_COLORS[i], fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            lvDefs.forEachIndexed { i, (label, key, gan) ->
+                val on = activeLevel == key || (label == "本" && activeLevel.isEmpty())
+                Box(Modifier.weight(1f).clip(RoundedCornerShape(3.dp))
+                    .background(if (on) lvColors[i] else lvColors[i].copy(alpha = 0.42f))
+                    .clickable { onLevel(key, gan) }
+                    .padding(vertical = 3.dp), contentAlignment = Alignment.Center) {
+                    Text(label, color = Color.White, fontSize = 9.sp,
+                        fontWeight = if (on) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
+                }
             }
         }
     }

@@ -41,27 +41,10 @@ import androidx.compose.ui.platform.LocalContext
 import com.fortune.stall.util.BirthPlaces
 import com.fortune.stall.util.DateInputAlgo
 
-/** 十二时辰（含早/晚子时，对齐文墨天机图2图3）：显示文案 -> 起始小时。 */
-private val ZW_SHICHEN = listOf(
-    "早子时 (00:00-01:00)" to 0,
-    "丑时 (01:00-03:00)" to 1,
-    "寅时 (03:00-05:00)" to 3,
-    "卯时 (05:00-07:00)" to 5,
-    "辰时 (07:00-09:00)" to 7,
-    "巳时 (09:00-11:00)" to 9,
-    "午时 (11:00-13:00)" to 11,
-    "未时 (13:00-15:00)" to 13,
-    "申时 (15:00-17:00)" to 15,
-    "酉时 (17:00-19:00)" to 17,
-    "戌时 (19:00-21:00)" to 19,
-    "亥时 (21:00-23:00)" to 21,
-    "晚子时 (23:00-24:00)" to 23,
-)
-
 /**
  * 紫微专用起卦页（1:1 对齐参考图1）：
  * 姓名 / 性别 / 日期输入(公历·农历·四柱) / 年·月·日 / 使用真太阳时
- * —— 勾选后才显示「精准时间(时辰下拉)」「出生地」；无流派行。
+ * —— 勾选后才显示「精准时间(小时1-24/分钟快捷点击选择)」「出生地」；无流派行。
  * 四种日期口径统一由 DateInputAlgo 解析成公历时刻。
  */
 @Composable
@@ -69,11 +52,6 @@ fun ZiweiCastForm(onBack: () -> Unit, onCast: (JiMingpanFormResult) -> Unit) {
     val ctx = LocalContext.current
     val C = ZwFormTheme
     val now = remember { LocalDate.now() }
-    // 默认时辰：按当前时刻落在哪个时辰（用于未勾选真太阳时也能排盘）
-    val defaultShi = remember {
-        val h = LocalDateTime.now().hour
-        ZW_SHICHEN.indexOfLast { it.second <= h }.coerceAtLeast(0)
-    }
 
     var name by remember { mutableStateOf("") }
     var isMan by remember { mutableStateOf(true) }
@@ -81,9 +59,10 @@ fun ZiweiCastForm(onBack: () -> Unit, onCast: (JiMingpanFormResult) -> Unit) {
     var yearText by remember { mutableStateOf(now.year.toString()) }
     var monthText by remember { mutableStateOf(now.monthValue.toString()) }
     var dayText by remember { mutableStateOf(now.dayOfMonth.toString()) }
-    var shiIdx by remember { mutableStateOf(defaultShi) } // 精准时辰（下拉选择，决定小时）
+    var hourText by remember { mutableStateOf(LocalDateTime.now().hour.toString()) } // 精准小时（1-24，24 视为 0 点/晚子）
     var minuteText by remember { mutableStateOf(LocalDateTime.now().minute.toString()) } // 精准分钟（0-59）
-    var showShi by remember { mutableStateOf(false) }
+    var showHour by remember { mutableStateOf(false) }   // 小时快捷选择弹窗
+    var showMinute by remember { mutableStateOf(false) } // 分钟快捷选择弹窗
     // 四柱模式四个干支框
     var gzY by remember { mutableStateOf("") }
     var gzM by remember { mutableStateOf("") }
@@ -183,25 +162,30 @@ fun ZiweiCastForm(onBack: () -> Unit, onCast: (JiMingpanFormResult) -> Unit) {
                     Text("使用真太阳时（需精准时分和出生地）", color = C.TEXT, fontSize = 13.sp)
                 }
 
-                // 勾选真太阳时后：精准时间(时辰下拉 + 分钟输入) + 出生地 才显示
+                // 勾选真太阳时后：精准时间(小时 1-24 + 分钟) + 出生地 才显示
                 if (trueSolar && calendar < 2) {
                     Spacer(Modifier.height(12.dp))
-                    ZwFieldLabel("精准时间")
+                    ZwFieldLabel("精准时间（24 小时制，点击选择）")
                     Row(Modifier.fillMaxWidth()) {
-                        // 时辰（决定小时段）：点按弹出十三时辰列表
+                        // 小时（1-24）：点击弹出快捷选择
                         Row(Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(6.dp))
                             .background(C.PANEL).border(1.dp, C.LINE, RoundedCornerShape(6.dp))
-                            .clickable { showShi = true }
-                            .padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(ZW_SHICHEN[shiIdx].first, color = C.TEXT, fontSize = 12.sp,
-                                maxLines = 1, modifier = Modifier.weight(1f))
+                            .clickable { showHour = true }
+                            .padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("${hourText.trim().ifBlank { "0" }} 时", color = C.TEXT, fontSize = 13.sp,
+                                modifier = Modifier.weight(1f))
                             Text("▾", color = C.GOLD, fontSize = 12.sp)
                         }
                         Spacer(Modifier.width(8.dp))
-                        // 分钟输入（0-59）：与原版钟表时间可精确到分对齐
-                        FormInput(minuteText, { v ->
-                            minuteText = v.filter { it.isDigit() }.take(2)
-                        }, "0-59", "分", Modifier.width(74.dp), KeyboardType.Number)
+                        // 分钟（0-59）：点击弹出快捷选择
+                        Row(Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(6.dp))
+                            .background(C.PANEL).border(1.dp, C.LINE, RoundedCornerShape(6.dp))
+                            .clickable { showMinute = true }
+                            .padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("${minuteText.trim().ifBlank { "0" }} 分", color = C.TEXT, fontSize = 13.sp,
+                                modifier = Modifier.weight(1f))
+                            Text("▾", color = C.GOLD, fontSize = 12.sp)
+                        }
                     }
                 }
 
@@ -224,8 +208,10 @@ fun ZiweiCastForm(onBack: () -> Unit, onCast: (JiMingpanFormResult) -> Unit) {
                 // 排盘按钮
                 Box(Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(24.dp))
                     .background(C.RED).clickable {
-                        // 时辰起始小时 + 输入分钟：勾选真太阳时用所选时辰与分钟，否则用默认时刻
-                        val hh = ZW_SHICHEN[shiIdx].second
+                        // 精准小时(1-24) + 分钟：勾选真太阳时用所填时分，否则用当前时刻
+                        // 24 点按 0 点（次日）处理，与 24 小时制/晚子时一致
+                        val hhRaw = hourText.trim().toIntOrNull() ?: LocalDateTime.now().hour
+                        val hh = (hhRaw.coerceIn(1, 24) % 24)
                         val mm = minuteText.trim().toIntOrNull()?.coerceIn(0, 59) ?: 0
                         val parsed = when (calendar) {
                             0 -> DateInputAlgo.parseSolar(
@@ -255,11 +241,13 @@ fun ZiweiCastForm(onBack: () -> Unit, onCast: (JiMingpanFormResult) -> Unit) {
             }
         }
 
-        if (showShi) JiOptionDialog("选择时辰", ZW_SHICHEN.map { it.first }, true,
-            { showShi = false }) { sel ->
-            shiIdx = ZW_SHICHEN.indexOfFirst { it.first == sel }.coerceAtLeast(0)
-            showShi = false
-        }
+        // 小时 1-24 快捷选择（24 表示次日 0 点/晚子）
+        if (showHour) JiOptionDialog("选择小时（24 小时制）", (1..24).map { "$it" }, true,
+            { showHour = false }) { sel -> hourText = sel; showHour = false }
+        // 分钟 0-59 快捷选择
+        if (showMinute) JiOptionDialog("选择分钟", (0..59).map { "$it" }, true,
+            { showMinute = false }) { sel -> minuteText = sel; showMinute = false }
+
         if (showProv) JiOptionDialog("选择省份", BirthPlaces.PROVINCES.map { it.name }, true,
             { showProv = false }) { p -> province = p; city = ""; district = ""; showProv = false; showCity = true }
         if (showCity) JiOptionDialog("选择城市", cityList.map { it.name }, true,
