@@ -153,20 +153,23 @@ fun SettingsScreen(
     MenuShell(
         title = "设 置", subtitle = "摊面上用具与心法", onBack = onBack, topGap = 28.dp,
         actions = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SettingQuickChip(
-                    glyph = "▦", label = "图标", active = DisplaySettings.iconMode.value
-                ) {
-                    val next = !DisplaySettings.iconMode.value
-                    DisplaySettings.setIconMode(next)
-                    Toast.makeText(context, if (next) "已切换：图标网格" else "已切换：详细摊面", Toast.LENGTH_SHORT).show()
-                }
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 SettingQuickChip(
                     glyph = "✦", label = "动效", active = DisplaySettings.introAnim.value
                 ) {
                     val next = !DisplaySettings.introAnim.value
                     DisplaySettings.setIntroAnim(next)
                     Toast.makeText(context, if (next) "已开启开场动画" else "已隐藏开场动画", Toast.LENGTH_SHORT).show()
+                }
+                SettingQuickChip(
+                    glyph = "▦", label = "图标", active = DisplaySettings.iconMode.value
+                ) {
+                    val next = !DisplaySettings.iconMode.value
+                    DisplaySettings.setIconMode(next)
+                    Toast.makeText(context, if (next) "已切换：图标网格" else "已切换：详细摊面", Toast.LENGTH_SHORT).show()
                 }
             }
         }
