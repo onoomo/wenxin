@@ -1,0 +1,24 @@
+# Baseline profile for com.fortune.stall (问心处)
+# 覆盖冷启动到首页首帧的关键路径，由 AGP 在 release 构建中合并进 baseline.prof，
+# 安装时 ART 据此做 AOT 预编译，加快首次启动与首帧合成。
+# 使用 wildcard 语法避免手写 Compose 函数（含 Composer/默认参数）签名出错。
+
+# ---- 启动入口 ----
+HSPLcom/fortune/stall/MainActivity;-><init>()V
+HSPLcom/fortune/stall/MainActivity;->onCreate(Landroid/os/Bundle;)V
+HSPLcom/fortune/stall/MainActivity;->**(**)**
+
+# ---- 主题组合 ----
+HSPLcom/fortune/stall/ui/theme/ThemeKt;->**(**)**
+
+# ---- 首页首帧（图标网格 + 星空） ----
+HSPLcom/fortune/stall/ui/screen/HomeScreenKt;->**(**)**
+HSPLcom/fortune/stall/ui/components/StarfieldKt;->**(**)**
+
+# ---- 显示设置初始化 ----
+HSPLcom/fortune/stall/util/DisplaySettings;->**(**)**
+
+# ---- 常用排盘页（进入后快速响应） ----
+HSPLcom/fortune/stall/ui/screen/LiuRenScreenKt;->**(**)**
+HSPLcom/fortune/stall/ui/screen/ZiweiScreenKt;->**(**)**
+HSPLcom/fortune/stall/ui/screen/LedgerScreenKt;->**(**)**
