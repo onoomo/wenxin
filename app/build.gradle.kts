@@ -11,8 +11,8 @@ android {
         applicationId = "com.fortune.stall"
         minSdk = 24
         targetSdk = 36
-        versionCode = 57
-        versionName = "1.5.8 · 紫微mingyu版"
+        versionCode = 58
+        versionName = "1.5.9 · 紫微闪退修复"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

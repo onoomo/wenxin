@@ -63,18 +63,21 @@ object LunarCalendar {
         val monthDayCn: String get() = "${month}月${day}日"
     }
 
-    private fun leapMonth(y: Int) = LUNAR_INFO[y - 1900] and 0xf
+    // LUNAR_INFO 覆盖 1900..2100。紫微远期大限(112岁+)会越过 2100，
+    // 这里统一 clamp 到表内边界，避免数组越界崩溃（远期分界日取 2100 年近似值，不影响正常年份）。
+    private fun lunarInfo(y: Int): Int = LUNAR_INFO[y.coerceIn(1900, 2100) - 1900]
+    private fun leapMonth(y: Int) = lunarInfo(y) and 0xf
     private fun leapDays(y: Int): Int {
         if (leapMonth(y) == 0) return 0
-        return if (LUNAR_INFO[y - 1900] and 0x10000 != 0) 30 else 29
+        return if (lunarInfo(y) and 0x10000 != 0) 30 else 29
     }
     private fun monthDays(y: Int, m: Int): Int =
-        if (LUNAR_INFO[y - 1900] and (0x10000 shr m) != 0) 30 else 29
+        if (lunarInfo(y) and (0x10000 shr m) != 0) 30 else 29
 
     private fun yearDays(y: Int): Int {
         var sum = 348
         // 大小月信息在 bit 15..4，与 monthDays 用同一组位（0x10000 shr i）
-        for (i in 1..12) sum += if (LUNAR_INFO[y - 1900] and (0x10000 shr i) != 0) 1 else 0
+        for (i in 1..12) sum += if (lunarInfo(y) and (0x10000 shr i) != 0) 1 else 0
         return sum + leapDays(y)
     }
 
@@ -208,11 +211,12 @@ object LunarCalendar {
      * isLeap=true 且该年闰月恰为 month 时取闰月，否则按平月。
      */
     fun lunarToSolar(year: Int, month: Int, day: Int, isLeap: Boolean = false): LocalDate {
+        val y = year.coerceIn(1900, 2100)
         var offset = 0
-        for (y in 1900 until year) offset += yearDays(y)
-        val leap = leapMonth(year)
+        for (yy in 1900 until y) offset += yearDays(yy)
+        val leap = leapMonth(y)
         val effectiveLeap = isLeap && leap == month
-        offset += daysBeforeMonth(year, month, effectiveLeap)
+        offset += daysBeforeMonth(y, month, effectiveLeap)
         offset += day - 1
         return LocalDate.of(1900, 1, 31).plusDays(offset.toLong())
     }
