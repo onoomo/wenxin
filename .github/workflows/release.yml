@@ -32,11 +32,15 @@ jobs:
           echo "tag=v$VN" >> "$GITHUB_OUTPUT"
           echo "apkName=问心处_v${VN}.apk" >> "$GITHUB_OUTPUT"
 
-      - name: 初始化 Android SDK 环境
-        uses: android-actions/setup-android@v3
-
       - name: 安装 Android SDK 36 平台与构建工具
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -1)
+          fi
+          echo "sdkmanager: $SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
 
       - name: 赋予 gradlew 执行权限
         run: chmod +x gradlew
