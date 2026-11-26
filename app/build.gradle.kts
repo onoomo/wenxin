@@ -11,8 +11,8 @@ android {
         applicationId = "com.fortune.stall"
         minSdk = 24
         targetSdk = 36
-        versionCode = 65
-        versionName = "1.5.16 · 紫微起卦页图1重排+三历输入"
+        versionCode = 66
+        versionName = "1.5.17 · 紫微起卦页真太阳时才显时间+时辰下拉"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

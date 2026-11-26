@@ -36,17 +36,32 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import com.fortune.stall.util.BirthPlaces
 import com.fortune.stall.util.DateInputAlgo
-import com.fortune.stall.util.ZiweiSettings
-import com.fortune.stall.engine.jishiyu.ZiweiSchools
+
+/** 十二时辰（含早/晚子时，对齐文墨天机图2图3）：显示文案 -> 起始小时。 */
+private val ZW_SHICHEN = listOf(
+    "早子时 (00:00-01:00)" to 0,
+    "丑时 (01:00-03:00)" to 1,
+    "寅时 (03:00-05:00)" to 3,
+    "卯时 (05:00-07:00)" to 5,
+    "辰时 (07:00-09:00)" to 7,
+    "巳时 (09:00-11:00)" to 9,
+    "午时 (11:00-13:00)" to 11,
+    "未时 (13:00-15:00)" to 13,
+    "申时 (15:00-17:00)" to 15,
+    "酉时 (17:00-19:00)" to 17,
+    "戌时 (19:00-21:00)" to 19,
+    "亥时 (21:00-23:00)" to 21,
+    "晚子时 (23:00-24:00)" to 23,
+)
 
 /**
  * 紫微专用起卦页（1:1 对齐参考图1）：
- * 姓名 / 性别 / 日期输入(公历·农历·四柱) / 年·月·日 / 使用真太阳时 / 精准时间 / 出生地 / 流派 / 排盘。
+ * 姓名 / 性别 / 日期输入(公历·农历·四柱) / 年·月·日 / 使用真太阳时
+ * —— 勾选后才显示「精准时间(时辰下拉)」「出生地」；无流派行。
  * 四种日期口径统一由 DateInputAlgo 解析成公历时刻。
  */
 @Composable
@@ -54,7 +69,11 @@ fun ZiweiCastForm(onBack: () -> Unit, onCast: (JiMingpanFormResult) -> Unit) {
     val ctx = LocalContext.current
     val C = ZwFormTheme
     val now = remember { LocalDate.now() }
-    val nowTime = remember { LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm")) }
+    // 默认时辰：按当前时刻落在哪个时辰（用于未勾选真太阳时也能排盘）
+    val defaultShi = remember {
+        val h = LocalDateTime.now().hour
+        ZW_SHICHEN.indexOfLast { it.second <= h }.coerceAtLeast(0)
+    }
 
     var name by remember { mutableStateOf("") }
     var isMan by remember { mutableStateOf(true) }
@@ -62,13 +81,14 @@ fun ZiweiCastForm(onBack: () -> Unit, onCast: (JiMingpanFormResult) -> Unit) {
     var yearText by remember { mutableStateOf(now.year.toString()) }
     var monthText by remember { mutableStateOf(now.monthValue.toString()) }
     var dayText by remember { mutableStateOf(now.dayOfMonth.toString()) }
-    var timeText by remember { mutableStateOf(nowTime) }
+    var shiIdx by remember { mutableStateOf(defaultShi) } // 精准时辰（下拉选择）
+    var showShi by remember { mutableStateOf(false) }
     // 四柱模式四个干支框
     var gzY by remember { mutableStateOf("") }
     var gzM by remember { mutableStateOf("") }
     var gzD by remember { mutableStateOf("") }
     var gzH by remember { mutableStateOf("") }
-    var trueSolar by remember { mutableStateOf(true) }
+    var trueSolar by remember { mutableStateOf(false) } // 默认不勾选：不显示精准时间/出生地
     var province by remember { mutableStateOf("") }
     var city by remember { mutableStateOf("") }
     var district by remember { mutableStateOf("") }
@@ -148,8 +168,8 @@ fun ZiweiCastForm(onBack: () -> Unit, onCast: (JiMingpanFormResult) -> Unit) {
                     }
                 }
 
-                Spacer(Modifier.height(14.dp))
-                // 使用真太阳时（勾选）
+                Spacer(Modifier.height(12.dp))
+                // 使用真太阳时（勾选后，精准时间和出生地才显示）
                 Row(Modifier.fillMaxWidth().clickable { trueSolar = !trueSolar },
                     verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(18.dp).clip(RoundedCornerShape(3.dp))
@@ -162,59 +182,50 @@ fun ZiweiCastForm(onBack: () -> Unit, onCast: (JiMingpanFormResult) -> Unit) {
                     Text("使用真太阳时（需精准时分和出生地）", color = C.TEXT, fontSize = 13.sp)
                 }
 
-                Spacer(Modifier.height(12.dp))
-                // 精准时间（公历/农历=时分；四柱=时柱，见上）
-                ZwFieldLabel("精准时间")
-                FormInput(timeText, { timeText = it }, "如 09:30", null, Modifier.fillMaxWidth())
-
-                Spacer(Modifier.height(12.dp))
-                // 出生地
-                ZwFieldLabel("出生地")
-                Row(Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(6.dp))
-                    .background(C.PANEL).border(1.dp, C.LINE, RoundedCornerShape(6.dp))
-                    .clickable { showProv = true }
-                    .padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (placeLabel.isBlank()) "请选择出生地" else placeLabel,
-                        color = if (placeLabel.isBlank()) C.SUB else C.TEXT, fontSize = 13.sp,
-                        modifier = Modifier.weight(1f))
-                    Text("选择", color = C.GOLD, fontSize = 13.sp)
+                // 勾选真太阳时后：精准时间(时辰下拉) + 出生地 才显示
+                if (trueSolar && calendar < 2) {
+                    Spacer(Modifier.height(12.dp))
+                    ZwFieldLabel("精准时间")
+                    Row(Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(6.dp))
+                        .background(C.PANEL).border(1.dp, C.LINE, RoundedCornerShape(6.dp))
+                        .clickable { showShi = true }
+                        .padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(ZW_SHICHEN[shiIdx].first, color = C.TEXT, fontSize = 13.sp,
+                            modifier = Modifier.weight(1f))
+                        Text("选择", color = C.GOLD, fontSize = 13.sp)
+                    }
                 }
 
-                Spacer(Modifier.height(14.dp))
-                // 流派（单个：当前生效派别，点按切换）
-                val curSchool = ZiweiSettings.brightnessSchool.value
-                val curLabel = ZiweiSchools.NAMES.firstOrNull { it.second == curSchool }?.first ?: "现代修订"
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("流派", color = C.TEXT, fontSize = 13.sp, modifier = Modifier.width(52.dp))
-                    Text(curLabel, color = C.GOLD, fontSize = 13.sp, modifier = Modifier.weight(1f))
-                    Text("切换 ▸", color = C.SUB, fontSize = 12.sp, modifier = Modifier.clickable {
-                        val idx = ZiweiSchools.NAMES.indexOfFirst { it.second == curSchool }
-                        ZiweiSchools.NAMES.getOrNull((idx + 1) % ZiweiSchools.NAMES.size)
-                            ?.let { ZiweiSettings.setSchool(it.second) }
-                    })
+                if (trueSolar) {
+                    Spacer(Modifier.height(12.dp))
+                    // 出生地
+                    ZwFieldLabel("出生地")
+                    Row(Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(6.dp))
+                        .background(C.PANEL).border(1.dp, C.LINE, RoundedCornerShape(6.dp))
+                        .clickable { showProv = true }
+                        .padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(if (placeLabel.isBlank()) "请选择出生地" else placeLabel,
+                            color = if (placeLabel.isBlank()) C.SUB else C.TEXT, fontSize = 13.sp,
+                            modifier = Modifier.weight(1f))
+                        Text("选择", color = C.GOLD, fontSize = 13.sp)
+                    }
                 }
 
                 Spacer(Modifier.height(18.dp))
                 // 排盘按钮
                 Box(Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(24.dp))
                     .background(C.RED).clickable {
+                        // 时辰起始小时：勾选真太阳时用所选时辰，否则用默认时辰
+                        val hh = ZW_SHICHEN[shiIdx].second
                         val parsed = when (calendar) {
-                            0 -> {
-                                val hh = timeText.substringBefore(":").trim().toIntOrNull()?.coerceIn(0, 23) ?: 12
-                                val mm = timeText.substringAfter(":", "0").trim().toIntOrNull()?.coerceIn(0, 59) ?: 0
-                                DateInputAlgo.parseSolar(
-                                    yearText.trim().toIntOrNull() ?: now.year,
-                                    monthText.trim().toIntOrNull() ?: 1,
-                                    dayText.trim().toIntOrNull() ?: 1, hh, mm)
-                            }
-                            1 -> {
-                                val hh = timeText.substringBefore(":").trim().toIntOrNull()?.coerceIn(0, 23) ?: 12
-                                val mm = timeText.substringAfter(":", "0").trim().toIntOrNull()?.coerceIn(0, 59) ?: 0
-                                DateInputAlgo.parseLunar(
-                                    yearText.trim().toIntOrNull() ?: now.year,
-                                    monthText.trim().toIntOrNull() ?: 1,
-                                    dayText.trim().toIntOrNull() ?: 1, hh, mm)
-                            }
+                            0 -> DateInputAlgo.parseSolar(
+                                yearText.trim().toIntOrNull() ?: now.year,
+                                monthText.trim().toIntOrNull() ?: 1,
+                                dayText.trim().toIntOrNull() ?: 1, hh, 0)
+                            1 -> DateInputAlgo.parseLunar(
+                                yearText.trim().toIntOrNull() ?: now.year,
+                                monthText.trim().toIntOrNull() ?: 1,
+                                dayText.trim().toIntOrNull() ?: 1, hh, 0)
                             else -> DateInputAlgo.parseFourPillars(
                                 gzY.trim(), gzM.trim(), gzD.trim(), gzH.trim())
                         }
@@ -234,6 +245,11 @@ fun ZiweiCastForm(onBack: () -> Unit, onCast: (JiMingpanFormResult) -> Unit) {
             }
         }
 
+        if (showShi) JiOptionDialog("选择时辰", ZW_SHICHEN.map { it.first }, true,
+            { showShi = false }) { sel ->
+            shiIdx = ZW_SHICHEN.indexOfFirst { it.first == sel }.coerceAtLeast(0)
+            showShi = false
+        }
         if (showProv) JiOptionDialog("选择省份", BirthPlaces.PROVINCES.map { it.name }, true,
             { showProv = false }) { p -> province = p; city = ""; district = ""; showProv = false; showCity = true }
         if (showCity) JiOptionDialog("选择城市", cityList.map { it.name }, true,
