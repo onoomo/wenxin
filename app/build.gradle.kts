@@ -11,8 +11,8 @@ android {
         applicationId = "com.fortune.stall"
         minSdk = 24
         targetSdk = 36
-        versionCode = 67
-        versionName = "1.5.18 · 修复紫微排盘闪退(八字引擎边界越界)"
+        versionCode = 68
+        versionName = "1.5.19 · 紫微精准时间补分钟输入"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

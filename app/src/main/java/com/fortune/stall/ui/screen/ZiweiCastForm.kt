@@ -81,7 +81,8 @@ fun ZiweiCastForm(onBack: () -> Unit, onCast: (JiMingpanFormResult) -> Unit) {
     var yearText by remember { mutableStateOf(now.year.toString()) }
     var monthText by remember { mutableStateOf(now.monthValue.toString()) }
     var dayText by remember { mutableStateOf(now.dayOfMonth.toString()) }
-    var shiIdx by remember { mutableStateOf(defaultShi) } // 精准时辰（下拉选择）
+    var shiIdx by remember { mutableStateOf(defaultShi) } // 精准时辰（下拉选择，决定小时）
+    var minuteText by remember { mutableStateOf(LocalDateTime.now().minute.toString()) } // 精准分钟（0-59）
     var showShi by remember { mutableStateOf(false) }
     // 四柱模式四个干支框
     var gzY by remember { mutableStateOf("") }
@@ -182,17 +183,25 @@ fun ZiweiCastForm(onBack: () -> Unit, onCast: (JiMingpanFormResult) -> Unit) {
                     Text("使用真太阳时（需精准时分和出生地）", color = C.TEXT, fontSize = 13.sp)
                 }
 
-                // 勾选真太阳时后：精准时间(时辰下拉) + 出生地 才显示
+                // 勾选真太阳时后：精准时间(时辰下拉 + 分钟输入) + 出生地 才显示
                 if (trueSolar && calendar < 2) {
                     Spacer(Modifier.height(12.dp))
                     ZwFieldLabel("精准时间")
-                    Row(Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(6.dp))
-                        .background(C.PANEL).border(1.dp, C.LINE, RoundedCornerShape(6.dp))
-                        .clickable { showShi = true }
-                        .padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(ZW_SHICHEN[shiIdx].first, color = C.TEXT, fontSize = 13.sp,
-                            modifier = Modifier.weight(1f))
-                        Text("选择", color = C.GOLD, fontSize = 13.sp)
+                    Row(Modifier.fillMaxWidth()) {
+                        // 时辰（决定小时段）：点按弹出十三时辰列表
+                        Row(Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(6.dp))
+                            .background(C.PANEL).border(1.dp, C.LINE, RoundedCornerShape(6.dp))
+                            .clickable { showShi = true }
+                            .padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(ZW_SHICHEN[shiIdx].first, color = C.TEXT, fontSize = 12.sp,
+                                maxLines = 1, modifier = Modifier.weight(1f))
+                            Text("▾", color = C.GOLD, fontSize = 12.sp)
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        // 分钟输入（0-59）：与原版钟表时间可精确到分对齐
+                        FormInput(minuteText, { v ->
+                            minuteText = v.filter { it.isDigit() }.take(2)
+                        }, "0-59", "分", Modifier.width(74.dp), KeyboardType.Number)
                     }
                 }
 
@@ -215,17 +224,18 @@ fun ZiweiCastForm(onBack: () -> Unit, onCast: (JiMingpanFormResult) -> Unit) {
                 // 排盘按钮
                 Box(Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(24.dp))
                     .background(C.RED).clickable {
-                        // 时辰起始小时：勾选真太阳时用所选时辰，否则用默认时辰
+                        // 时辰起始小时 + 输入分钟：勾选真太阳时用所选时辰与分钟，否则用默认时刻
                         val hh = ZW_SHICHEN[shiIdx].second
+                        val mm = minuteText.trim().toIntOrNull()?.coerceIn(0, 59) ?: 0
                         val parsed = when (calendar) {
                             0 -> DateInputAlgo.parseSolar(
                                 yearText.trim().toIntOrNull() ?: now.year,
                                 monthText.trim().toIntOrNull() ?: 1,
-                                dayText.trim().toIntOrNull() ?: 1, hh, 0)
+                                dayText.trim().toIntOrNull() ?: 1, hh, mm)
                             1 -> DateInputAlgo.parseLunar(
                                 yearText.trim().toIntOrNull() ?: now.year,
                                 monthText.trim().toIntOrNull() ?: 1,
-                                dayText.trim().toIntOrNull() ?: 1, hh, 0)
+                                dayText.trim().toIntOrNull() ?: 1, hh, mm)
                             else -> DateInputAlgo.parseFourPillars(
                                 gzY.trim(), gzM.trim(), gzD.trim(), gzH.trim())
                         }
