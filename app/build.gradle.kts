@@ -11,8 +11,8 @@ android {
         applicationId = "com.fortune.stall"
         minSdk = 24
         targetSdk = 36
-        versionCode = 75
-        versionName = "1.5.26 · 紫微宫格补齐方位标注+每星亮度+十二宫宫干飞星"
+        versionCode = 76
+        versionName = "1.5.27 · 紫微无主星宫补齐飞出飞星方块+三列紧凑排布"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

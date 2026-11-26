@@ -212,8 +212,8 @@ private fun ZiweiDetailScreen(
                 if (m.getOrPut(idx) { mutableListOf() }.none { it.text == anno.text }) m[idx]!!.add(anno)
             }
         }
-        // 原版图1：本命层还叠加「十二宫各自宫干四化」，落宫显示来源宫名(兄弟/父母/福德…)，
-        // 使每个宫格都有多个飞星方块，密度与原版一致（不再只有大限数字空着）。
+        // 原版图2：本命层叠加「十二宫各自宫干四化」，落宫显示来源宫名(兄弟/父母/福德…)，
+        // 使有星宫格有多个飞星方块。
         if ("命" in flyGans) {
             r.palaces.forEach { src ->
                 val sihuaByGan = Ziwei.sihua(src.gan)
@@ -223,6 +223,18 @@ private fun ZiweiDetailScreen(
                     val idx = ziToIdx(zhi)
                     val anno = FlyAnno(src.name.take(2), SH_COLORS[i])
                     if (m.getOrPut(idx) { mutableListOf() }.none { it.text == anno.text }) m[idx]!!.add(anno)
+                }
+            }
+            // 关键补齐：无主星宫（如申/酉）接不到任何化星，原版仍显示「本宫宫干四化飞出」
+            // 的方块（文字=目标宫名首字，颜色=四化色），让每个宫格都填满。
+            r.palaces.forEach { src ->
+                val srcIdx = ziToIdx(src.zhi)
+                Ziwei.sihua(src.gan).forEachIndexed { i, star ->
+                    if (star.isBlank()) return@forEachIndexed
+                    val zhi = Ziwei.starZhi(r, star) ?: return@forEachIndexed
+                    val targetName = r.palaces.firstOrNull { it.zhi == zhi }?.name?.take(1) ?: return@forEachIndexed
+                    val anno = FlyAnno(targetName, SH_COLORS[i])
+                    if (m.getOrPut(srcIdx) { mutableListOf() }.none { it.text == anno.text }) m[srcIdx]!!.add(anno)
                 }
             }
         }
@@ -295,7 +307,7 @@ private fun ZiweiDetailScreen(
                 Spacer(Modifier.height(10.dp))
 
                 // 4x4 分离圆角宫格卡 + 三方四正覆盖连线（mingyu 传统盘面）
-                val rowH = 132.dp
+                val rowH = 140.dp
                 val cellPad = 2.dp
                 Box(Modifier.fillMaxWidth()) {
                     Column(Modifier.fillMaxWidth()) {
@@ -641,18 +653,18 @@ private fun ZwCell(
 
             // ④ 飞星方块（对齐原版图1）：多层时限四化落宫，彩色底白字两字方块。
             //    有飞星方块时不再显示大限数字"2∽11"（用户的图1口径）。
-            val annos = fly[z].orEmpty().take(8)
+            val annos = fly[z].orEmpty().take(12)
             if (annos.isNotEmpty()) {
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                    annos.chunked(2).forEach { pair ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                            pair.forEach { a ->
+                    annos.chunked(3).forEach { trio ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(1.dp)) {
+                            trio.forEach { a ->
                                 Box(Modifier.weight(1f).clip(RoundedCornerShape(2.dp))
                                     .background(a.color.copy(alpha = 0.92f))
-                                    .padding(horizontal = 2.dp, vertical = 1.dp),
+                                    .padding(horizontal = 1.dp, vertical = 1.dp),
                                     contentAlignment = Alignment.Center) {
-                                    Text(a.text, color = Color.White, fontSize = 8.sp,
-                                        fontWeight = FontWeight.Bold, lineHeight = 10.sp, maxLines = 1)
+                                    Text(a.text, color = Color.White, fontSize = 7.5.sp,
+                                        fontWeight = FontWeight.Bold, lineHeight = 9.sp, maxLines = 1)
                                 }
                             }
                         }
