@@ -2,6 +2,7 @@ package com.fortune.stall.engine.jishiyu
 
 import com.fortune.stall.util.LunarCalendar
 import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 /**
  * 紫微斗数 —— Kotlin 1:1 完整移植自吉时雨 iztro (ASTRO 算法, 默认配置)。
@@ -66,7 +67,11 @@ object Ziwei {
         val ebSoul: String, val ebBody: String, val palaces: List<Palace>, val rows: List<Pair<String, String>>,
         val isMan: Boolean = true,
         /** 真太阳时/夏令时校正说明（空=未校正）；对齐参考项目 file true-solar-time 的展示口径 */
-        val solarInfo: String = ""
+        val solarInfo: String = "",
+        /** 原始钟表输入时刻 yyyy-MM-dd HH:mm（用于中宫「钟表时间」展示） */
+        val clockTime: String = "",
+        /** 真太阳时刻 yyyy-MM-dd HH:mm（用于中宫「真太阳时」展示；未校正时同钟表时间） */
+        val trueSolarTime: String = ""
     )
     /** 天干四化：[禄, 权, 科, 忌] 对应星名 */
     fun sihua(gan: String): List<String> = SIHUA[gan] ?: listOf("", "", "", "")
@@ -331,19 +336,22 @@ object Ziwei {
         longitude: Double?, useSummerTimeOffset: Boolean = false
     ): Result {
         val solar = ZiweiAstro.calculate(dt, longitude, useSummerTimeOffset)
+        val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+        val clockStr = dt.format(fmt)
         if (longitude == null) {
             // 不做真太阳时校正，仅携带夏令时提示
             val hint = if (solar.inChinaDST) "出生于夏令时期间（如需按夏令时读数校正，请在排盘前手动换算）" else ""
-            return paipanCore(dt, isMan, timeIndex, hint)
+            return paipanCore(dt, isMan, timeIndex, hint, clockStr, clockStr)
         }
         // 真太阳日 + 校正后时辰；晚子时 next-day 由 paipanCore 内部对 ti==12 的农历日+1 处理
         val effectiveDt = dt.plusDays(solar.dayOffset.toLong())
             .withHour(solar.hour).withMinute(solar.minute).withSecond(solar.second)
         val effTi = if (timeIndex in 0..12) timeIndex else solar.timeIndex
-        return paipanCore(effectiveDt, isMan, effTi, solar.summary)
+        return paipanCore(effectiveDt, isMan, effTi, solar.summary, clockStr, effectiveDt.format(fmt))
     }
 
-    private fun paipanCore(dt: LocalDateTime, isMan: Boolean, timeIndex: Int, solarInfo: String): Result {
+    private fun paipanCore(dt: LocalDateTime, isMan: Boolean, timeIndex: Int, solarInfo: String,
+                           clockTime: String, trueSolarTime: String): Result {
         val lun = LunarCalendar.fromDateTime(dt)
         val lunarDay = lun.day
         var effMonth = if (lun.isLeap && lunarDay > 15) lun.month + 1 else lun.month
@@ -469,7 +477,7 @@ object Ziwei {
             "${lun.yearGanZhi} ${lun.monthGanZhi} ${lun.dayGanZhi} ${lun.hourGanZhi}",
             SOUL_BY_ZHI[soulZhi]?:"", BODY_BY_ZHI[yearZhi]?:"", ju, juName, yearGan,
             zodiacOf(yearZhi), signOf(dt.monthValue,dt.dayOfMonth), timeRangeOf(ti),
-            soulZhi, bodyZhi, palaces, rows, isMan, solarInfo
+            soulZhi, bodyZhi, palaces, rows, isMan, solarInfo, clockTime, trueSolarTime
         )
     }
 }

@@ -11,8 +11,8 @@ android {
         applicationId = "com.fortune.stall"
         minSdk = 24
         targetSdk = 36
-        versionCode = 62
-        versionName = "1.5.13 · 紫微中宫与宫格详细度对齐原版"
+        versionCode = 63
+        versionName = "1.5.14 · 紫微中宫八字详情1:1对齐文墨天机"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

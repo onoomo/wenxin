@@ -43,7 +43,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fortune.stall.data.FortuneDb
 import com.fortune.stall.engine.jishiyu.Ziwei
+import com.fortune.stall.engine.jishiyu.ZiweiCenter
 import com.fortune.stall.engine.jishiyu.ZiweiFortune
+import com.fortune.stall.engine.jishiyu.JishiyuBase
 import com.fortune.stall.util.LunarCalendar
 import java.time.Year
 import java.time.format.DateTimeFormatter
@@ -638,72 +640,108 @@ private fun starBrightColor(b: String) = when (b) {
     else -> STAR_NORMAL
 }
 
-// ===== 中宫详情（mingyu：命盘/生肖/农历/时辰/四柱/当前 + 命主身主五行局命宫身宫 pill）=====
+// 天干地支五行 → 原版彩色字（木绿 火红 土橙 金白 水蓝）
+private fun wxColor(ch: String): Color = when (JishiyuBase.GAN_WUXING[ch] ?: JishiyuBase.ZHI_WUXING[ch]) {
+    "木" -> Color(0xFF4ADE80)
+    "火" -> Color(0xFFF87171)
+    "土" -> Color(0xFFFBBF24)
+    "金" -> Color(0xFFE8E6EE)
+    "水" -> Color(0xFF60A5FA)
+    else -> ZW_T1
+}
+
+// ===== 中宫详情：1:1 对齐文墨天机专业版中宫（真太阳/钟表/农历/命主身主子斗/双四柱/八字起运/大运十神/岁序年份/日时导航/自化） =====
 @Composable
 private fun ZwCenterInfo(r: Ziwei.Result, dxRange: Pair<Int, Int>?, limitLabel: String) {
-    Column(Modifier.fillMaxSize().padding(horizontal = 9.dp, vertical = 6.dp)) {
-        // 顶部：当前时限 + 年龄
+    val info = remember(r) { ZiweiCenter.build(r) }
+    Column(Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 5.dp)) {
+        // 行1：姓名（匿名）+ 性别·五行局
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically) {
-            Text(limitLabel, color = PINK, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            val birthYear = r.solarDate.substringBefore("-").toIntOrNull() ?: Year.now().value
-            val age = (Year.now().value - birthYear + 1).coerceAtLeast(1)
-            Text("${age}岁", color = ZW_T2, fontSize = 9.sp)
+            Text("姓名: 匿名", color = ZW_T0, fontSize = 9.sp, maxLines = 1)
+            Text("${if (r.isMan) "男" else "女"}·${r.juName}", color = ZW_T0, fontSize = 9.sp, maxLines = 1)
         }
-        Spacer(Modifier.height(4.dp))
-        // 对齐文墨天机中宫：真太阳时 / 钟表时间 / 农历(干支年+时辰) / 命主身主子斗 / 四柱 / 起运岁序
+        // 行2-4：真太阳时 / 钟表时间 / 农历
+        ZwCInfoLine("真太阳时", info.solarTime)
+        ZwCInfoLine("钟表时间", info.clockTime)
         val gz = r.chineseDate.split(' ')
-        val yearGz = gz.getOrNull(0) ?: ""          // 年柱：丙午
-        // 农历月日中文 + 干支年 + 时辰（原版「农历：丙午年十月十八日 午时」）
+        val yearGz = gz.getOrNull(0) ?: ""
         val lunarParts = Regex("(\\d+)年(\\d+)月(\\d+)日").find(r.lunarDate)?.destructured
         val lunarLine = if (lunarParts != null) {
             val (_, m, d) = lunarParts
             "${yearGz}年${LunarCalendar.cnNumber(m.toInt())}月${LunarCalendar.cnNumber(d.toInt())}日 ${shiChenCn(r.timeRange)}"
-        } else lunarCn(r).removePrefix("农历")
-        // 起运：取第一个大限的起始虚岁与分界公历日
-        val periods = remember(r) { ZiweiFortune.buildPeriods(r) }
-        val firstDaXian = periods.firstOrNull { it.kind == "大限" }
-        val qiYunAge = (firstDaXian?.startAge ?: 0) - 1
-        val qiYun = if (firstDaXian != null)
-            "出生后${qiYunAge}年起运 · ${firstDaXian.dateStr}" else ""
-        // 起运岁序：8岁18岁28岁…（八字起运逢尾巴数）
-        val qiyunAges = (0 until 8).map { qiYunAge + 1 + 10 * it }
-        // 子斗：以命宫地支表示的斗君（简化：子斗取出生年支所在宫的斗君位）
-        val ziDou = ZHI_CN[(ZHI_CN.indexOf(r.zodiac).coerceAtLeast(0) + 6) % 12]
-        val lines = mutableListOf<Pair<String, String>>()
-        if (r.solarInfo.isNotBlank()) lines.add("真太阳" to r.solarInfo.replace("真太阳时：", ""))
-        lines.add("钟表" to r.solarDate)
-        lines.add("农历" to lunarLine)
-        lines.add("命主" to "${r.soul}  身主 ${r.body}  子斗 $ziDou")
-        lines.add("四柱" to gz.joinToString(" "))
-        if (qiYun.isNotBlank()) lines.add("起运" to qiYun)
-        lines.add("岁序" to qiyunAges.map { "${it}岁" }.joinToString(" "))
-        lines.forEach { (k, v) ->
-            Row(Modifier.fillMaxWidth()) {
-                Text(k, color = ZW_FAINT, fontSize = 8.sp, modifier = Modifier.width(28.dp))
-                Text(v, color = ZW_T1, fontSize = 8.sp, modifier = Modifier.weight(1f), maxLines = 1)
+        } else r.lunarDate
+        ZwCInfoLine("农历", lunarLine)
+        // 行5：命主 / 身主 / 子斗
+        ZwCInfoLine("命主", "${r.soul} 身主:${r.body} 子斗:${info.ziDou}")
+
+        Spacer(Modifier.height(2.dp))
+        // 行6-8：节气四柱 + 非节气四柱（双列竖排彩色干支，对齐原版）
+        Row(Modifier.fillMaxWidth()) {
+            Column(Modifier.weight(1f)) {
+                Text("节气四柱", color = ZW_FAINT, fontSize = 7.5.sp)
+                ZwPillarRow(info.jieqiPillars)
             }
-            Spacer(Modifier.height(0.5.dp))
+            Column(Modifier.weight(1f)) {
+                Text("非节气四柱", color = ZW_FAINT, fontSize = 7.5.sp)
+                ZwPillarRow(info.nonJieqiPillars)
+            }
         }
+        Spacer(Modifier.height(2.dp))
+        // 行9：八字起运
+        Text(info.qiYunText, color = ZW_T0, fontSize = 9.sp, maxLines = 1)
+        Spacer(Modifier.height(1.dp))
+        // 行10：大运八列（干支彩色 + 天干十神全称）
+        Row(Modifier.fillMaxWidth()) {
+            info.dayun.forEach { dy ->
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(dy.gan, color = wxColor(dy.gan), fontSize = 10.sp, fontWeight = FontWeight.Bold, lineHeight = 11.sp)
+                    Text(dy.zhi, color = wxColor(dy.zhi), fontSize = 10.sp, fontWeight = FontWeight.Bold, lineHeight = 11.sp)
+                    Text(dy.shishen, color = ZW_T2, fontSize = 6.5.sp, lineHeight = 7.sp, maxLines = 1)
+                }
+            }
+        }
+        // 行11-12：岁序 / 起运年份
+        Text(info.ages.joinToString(" ") { "${it}岁" }, color = ZW_T2, fontSize = 7.5.sp, maxLines = 1)
+        Text(info.years.joinToString(" "), color = ZW_T2, fontSize = 7.5.sp, maxLines = 1)
+
         Spacer(Modifier.weight(1f))
-        // 自化图示（对齐原版底部 →禄→权→科→忌 彩条）
+        // 底部导航：日↑ 日↓ 天盘▽ 时↑ 时↓（原版 5 按钮）
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp))
+            .background(Color(0x18FFFFFF)), horizontalArrangement = Arrangement.spacedBy(1.dp)) {
+            listOf("日↑", "日↓", "天盘▽", "时↑", "时↓").forEach { t ->
+                Text(t, color = ZW_T1, fontSize = 7.5.sp, textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f).padding(vertical = 2.dp), maxLines = 1)
+            }
+        }
+        Spacer(Modifier.height(2.dp))
+        // 自化图示：→禄→权→科→忌（四化语义色）
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center) {
-            Text("自化", color = ZW_FAINT, fontSize = 7.sp)
+            Text("自化图示:", color = ZW_T0, fontSize = 8.sp)
             listOf("禄", "权", "科", "忌").forEachIndexed { i, sh ->
-                Text("→$sh", color = SH_COLORS[i], fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                Text("→$sh", color = SH_COLORS[i], fontSize = 9.sp, fontWeight = FontWeight.Bold)
             }
         }
-        Spacer(Modifier.height(3.dp))
-        // 底部 pill：命主 / 身主 / 五行局 / 命宫 / 身宫（两列）
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                ZwCenterPill("命主 ${r.soul}")
-                ZwCenterPill(r.juName)
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                ZwCenterPill("身主 ${r.body}")
-                ZwCenterPill("命宫 ${r.ebSoul} · 身宫 ${r.ebBody}")
+    }
+}
+
+@Composable
+private fun ZwCInfoLine(label: String, value: String) {
+    Row(Modifier.fillMaxWidth()) {
+        Text(label, color = ZW_FAINT, fontSize = 8.sp, modifier = Modifier.width(42.dp), maxLines = 1)
+        Text(value, color = ZW_T1, fontSize = 8.sp, modifier = Modifier.weight(1f), maxLines = 1)
+    }
+}
+
+@Composable
+private fun ZwPillarRow(pillars: List<String>) {
+    Row(Modifier.fillMaxWidth()) {
+        pillars.forEach { gz ->
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                val gan = gz.take(1); val zhi = gz.drop(1).take(1)
+                Text(gan, color = wxColor(gan), fontSize = 10.sp, fontWeight = FontWeight.Bold, lineHeight = 11.sp)
+                Text(zhi, color = wxColor(zhi), fontSize = 10.sp, fontWeight = FontWeight.Bold, lineHeight = 11.sp)
             }
         }
     }
