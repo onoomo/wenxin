@@ -77,6 +77,7 @@ private val LEDGER_CATEGORIES = listOf(
     LedgerCategory("戚都翁", setOf("qiduweng")),
     LedgerCategory("潜虚", setOf("qianxu")),
     LedgerCategory("塔罗", setOf("tarot")),
+    LedgerCategory("雷诺曼", setOf("lenormand")),
     LedgerCategory("其它", setOf("shuzi", "wannianli", "laohuangli", "chenggu", "custom"))
 )
 

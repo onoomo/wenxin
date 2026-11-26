@@ -708,5 +708,17 @@ private fun DrawScope.drawGlyph(glyph: Glyph) {
             }
             drawLine(white, Offset(w * 0.28f, h * 0.58f), Offset(w * 0.72f, h * 0.58f), stroke.width)
         }
+        Glyph.LENORMAND -> { // 雷诺曼：三张小牌并排（区别于塔罗单卡）
+            val cw = w * 0.2f
+            val top = h * 0.28f
+            val hgt = h * 0.46f
+            listOf(0.2f, 0.4f, 0.6f).forEachIndexed { i, left ->
+                val l = w * left
+                drawRoundRect(white, topLeft = Offset(l, top), size = Size(cw, hgt),
+                    cornerRadius = CornerRadius(w * 0.02f), style = stroke)
+                drawCircle(white, radius = w * 0.025f,
+                    center = Offset(l + cw / 2, top + hgt * (0.3f + i * 0.2f)))
+            }
+        }
     }
 }

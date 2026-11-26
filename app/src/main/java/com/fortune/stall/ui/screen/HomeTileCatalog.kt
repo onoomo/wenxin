@@ -30,6 +30,8 @@ val HOME_TILES = listOf(
         "取七十策虚其五，分二挂一揲十定名，得五十五名之一；再揲以求变位，按阴阳取显幽，断吉凶臧否。"),
     HomeTile("塔罗牌占卜", "tarot", Glyph.TAROT, "心 象 之 镜",
         "七十八张牌照心象，单张、三牌或凯尔特十字多种牌阵，随问随翻，照见当下心境与走向。"),
+    HomeTile("雷诺曼", "lenormand", Glyph.LENORMAND, "三 十 六 牌",
+        "三十六张雷诺曼牌，单牌、三牌、九宫到大桌多种牌阵，以牌位与相邻合读照见事情来龙去脉。"),
     HomeTile("小六壬", "xiaoliuren", Glyph.XIAOLIUREN, "掐 指 快 卦",
         "掐指三宫，问急事小事。按时起课或摇骰报数，一掐即得答案，是随身携带的快捷占法。"),
     HomeTile("戚都翁", "qiduweng", Glyph.QIDU, "未 卜 先 知",
@@ -53,7 +55,7 @@ val HOME_TILES = listOf(
 /** 图标类型 */
 enum class Glyph {
     BAZI, MINGLI, YINPAN, QIMEN, ZIWEI, LIUYAO, MEIHUA, DALIUREN, XIAOLIUREN,
-    QIDU, CHUANREN, SHANXIANG, FEIXING, YIZHANG, WANNIANLI, LAOHUANGLI, HEHUN, PHONE, TAROT, QIANXU
+    QIDU, CHUANREN, SHANXIANG, FEIXING, YIZHANG, WANNIANLI, LAOHUANGLI, HEHUN, PHONE, TAROT, QIANXU, LENORMAND
 }
 
 /** 原版 ji.js.cn 的 SVG 图标资源（1:1 移植） */
@@ -78,4 +80,5 @@ fun glyphRes(g: Glyph): Int = when (g) {
     Glyph.PHONE -> R.drawable.ic_g_phone
     Glyph.TAROT -> R.drawable.ic_g_tarot
     Glyph.QIANXU -> R.drawable.ic_g_qianxu
+    Glyph.LENORMAND -> R.drawable.ic_g_tarot
 }

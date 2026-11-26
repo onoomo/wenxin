@@ -45,6 +45,7 @@ import com.fortune.stall.ui.screen.LiuRenCastScreen
 import com.fortune.stall.ui.screen.MeiHuaCastScreen
 import com.fortune.stall.ui.screen.ZiweiCastScreen
 import com.fortune.stall.ui.screen.ZiweiHemingScreen
+import com.fortune.stall.ui.screen.LenormandScreen
 import com.fortune.stall.ui.screen.YinpanQimenCastScreen
 import com.fortune.stall.ui.screen.MingliQimenCastScreen
 import com.fortune.stall.ui.screen.QianxuScreen
@@ -92,7 +93,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Route { HOME, LINEAGE, CAST, CAST_RESULT, JIANG, DAOJIA_LIUREN, BAZI, JISHUYU_HUB, JISHUYU_CAST, LIUYAO_PAI, WANNIANLI, LAOHUANGLI, SHANXIANG, FEIXING, YIZHANG, QIDUWENG, CHUANREN, DALIUREN, MEIHUA, YINPAN, MINGLI, ZIWEI, HEMING, QIANXU, ARCHIVE, LEDGER, FAVORITES, SETTINGS, SKILLS, AI_CHAT }
+private enum class Route { HOME, LINEAGE, CAST, CAST_RESULT, JIANG, DAOJIA_LIUREN, BAZI, JISHUYU_HUB, JISHUYU_CAST, LIUYAO_PAI, WANNIANLI, LAOHUANGLI, SHANXIANG, FEIXING, YIZHANG, QIDUWENG, CHUANREN, DALIUREN, MEIHUA, YINPAN, MINGLI, ZIWEI, HEMING, QIANXU, LENORMAND, ARCHIVE, LEDGER, FAVORITES, SETTINGS, SKILLS, AI_CHAT }
 
 @Composable
 private fun AppNavigation(
@@ -147,6 +148,7 @@ private fun AppNavigation(
             "mingliqimen" -> go(Route.MINGLI)
             "ziwei" -> go(Route.ZIWEI)
             "qianxu" -> go(Route.QIANXU)
+            "lenormand" -> go(Route.LENORMAND)
             else -> go(Route.JISHUYU_CAST)
         }
     }
@@ -162,7 +164,7 @@ private fun AppNavigation(
         Route.SHANXIANG, Route.FEIXING, Route.YIZHANG, Route.QIDUWENG,
         Route.CHUANREN, Route.DALIUREN, Route.MEIHUA,
         Route.YINPAN, Route.MINGLI, Route.ZIWEI, Route.HEMING,
-        Route.JISHUYU_CAST
+        Route.LENORMAND, Route.JISHUYU_CAST
     )
     Box(Modifier.fillMaxSize()) {
     if (route in sheetRoutes) {
@@ -228,6 +230,7 @@ private fun AppNavigation(
             onBack = { back() },
             onAskAi = { ctx -> aiDirectContext = ctx; aiSession = null; go(Route.AI_CHAT) })
         Route.QIANXU -> QianxuScreen(db = db, onBack = { back() })
+        Route.LENORMAND -> LenormandScreen(db = db, onBack = { back() })
         Route.CAST -> CastScreen(
             methodKey = castMethod, lineageName = lineageName, db = db, onBack = { back() },
             onResult = { out -> castResult = out; go(Route.CAST_RESULT) }

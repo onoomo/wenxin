@@ -11,8 +11,8 @@ android {
         applicationId = "com.fortune.stall"
         minSdk = 24
         targetSdk = 36
-        versionCode = 76
-        versionName = "1.5.27 · 紫微无主星宫补齐飞出飞星方块+三列紧凑排布"
+        versionCode = 77
+        versionName = "1.6.0 · 新增雷诺曼独立模块(36牌8牌阵+组合+九宫)"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
