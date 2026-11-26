@@ -84,6 +84,7 @@ fun JiMingpanCastForm(
     onBack: () -> Unit,
     showLongitude: Boolean = false,
     dark: Boolean = false,
+    showSchool: Boolean = false,
     onCast: (JiMingpanFormResult) -> Unit
 ) {
     // 紫微深金主题色板；其它模块沿用原版白底 JiForm
@@ -238,6 +239,24 @@ fun JiMingpanCastForm(
                         }
                     }
                     Spacer(Modifier.height(14.dp))
+                }
+
+                // 亮度流派（仅紫微显示）：用户选的这一派直接写入全局设置，排盘按此取亮度表
+                if (showSchool) {
+                    Spacer(Modifier.height(2.dp))
+                    val curSchool = com.fortune.stall.util.ZiweiSettings.brightnessSchool.value
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        com.fortune.stall.engine.jishiyu.ZiweiSchools.NAMES.forEach { (label, key) ->
+                            Box(Modifier.weight(1f).clip(RoundedCornerShape(14.dp))
+                                .background(if (curSchool == key) cRed.copy(0.18f) else cSelectBg)
+                                .border(1.dp, if (curSchool == key) cRed else cLine, RoundedCornerShape(14.dp))
+                                .clickable { com.fortune.stall.util.ZiweiSettings.setSchool(key) }
+                                .padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+                                Text(label, color = if (curSchool == key) cRed else cSub, fontSize = 10.sp, maxLines = 1)
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
                 }
 
                 // 排盘按钮
