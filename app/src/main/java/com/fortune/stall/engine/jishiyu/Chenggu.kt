@@ -228,7 +228,11 @@ object Chenggu {
 
     /** year:六十甲子序号(1-60) month:农历月(1-12) day:农历日(1-30) hour:时辰序号(0子-11亥) */
     fun weight(year: Int, month: Int, day: Int, hour: Int): String {
-        val zong = CHENGGU_YEAR[year-1] + CHENGGU_MONTH[month-1] + CHENGGU_DAY[day-1] + CHENGGU_HOUR[hour]
+        val y = (year - 1).coerceIn(0, CHENGGU_YEAR.size - 1)
+        val m = (month - 1).coerceIn(0, CHENGGU_MONTH.size - 1)
+        val d = (day - 1).coerceIn(0, CHENGGU_DAY.size - 1)
+        val h = hour.coerceIn(0, CHENGGU_HOUR.size - 1)
+        val zong = CHENGGU_YEAR[y] + CHENGGU_MONTH[m] + CHENGGU_DAY[d] + CHENGGU_HOUR[h]
         val z1 = zong % 10
         val z2 = zong / 10
         return if (z1 > 0) "${CHINESE_DIGIT[z2]}两${CHINESE_DIGIT[z1]}钱" else "${CHINESE_DIGIT[z2]}两"

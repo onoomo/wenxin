@@ -58,7 +58,19 @@ object ZiweiCenter {
         return ZHI[dou]
     }
 
-    fun build(r: Ziwei.Result): Data {
+    fun build(r: Ziwei.Result): Data = try { buildImpl(r) } catch (e: Throwable) {
+        // 极端日期/边界年份时八字引擎可能越界；降级为空详情，绝不让详情页闪退
+        val fallbackTime = r.trueSolarTime.ifBlank { r.clockTime }
+        Data(
+            clockTime = r.clockTime.ifBlank { r.solarDate },
+            solarTime = fallbackTime.ifBlank { r.solarDate },
+            qiYunText = "", dayun = emptyList(), ages = emptyList(), years = emptyList(),
+            ziDou = "", jieqiPillars = r.chineseDate.split(' ').filter { it.isNotBlank() },
+            nonJieqiPillars = r.chineseDate.split(' ').filter { it.isNotBlank() }
+        )
+    }
+
+    private fun buildImpl(r: Ziwei.Result): Data {
         // 真太阳时用于八字起运（与截图命例验证一致）；未校正或为空时回退到钟表/公历字段
         val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
         val solarStr = r.trueSolarTime.ifBlank { r.clockTime }

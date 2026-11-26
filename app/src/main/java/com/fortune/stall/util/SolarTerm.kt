@@ -183,7 +183,8 @@ object SolarTerm {
         list.sortBy { it.second }
         for (k in list.indices) {
             if (dt >= list[k].second && (k + 1 >= list.size || dt < list[k + 1].second)) {
-                val from = list[k]; val to = list[k + 1]
+                val from = list[k]
+                val to = list.getOrNull(k + 1) ?: from
                 return TermRange(TermInfo(NAMES[from.first], from.second), TermInfo(NAMES[to.first], to.second))
             }
         }

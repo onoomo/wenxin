@@ -11,8 +11,8 @@ android {
         applicationId = "com.fortune.stall"
         minSdk = 24
         targetSdk = 36
-        versionCode = 66
-        versionName = "1.5.17 · 紫微起卦页真太阳时才显时间+时辰下拉"
+        versionCode = 67
+        versionName = "1.5.18 · 修复紫微排盘闪退(八字引擎边界越界)"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
