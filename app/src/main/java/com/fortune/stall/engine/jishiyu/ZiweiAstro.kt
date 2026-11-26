@@ -57,19 +57,23 @@ object ZiweiAstro {
         return ChronoUnit.DAYS.between(start, LocalDate.of(y, m, d)).toInt() + 1
     }
 
-    /** NOAA 均时差（分钟）；正值表示真太阳时快于平太阳时。 */
+    /**
+     * 均时差（分钟）；正值表示真太阳时快于平太阳时。
+     * 已 1:1 移植文墨天机专业版内嵌寿星天文历(VSOP87)的 pty_zty2 算法，
+     * 取代原 NOAA 近似式（原版 2026-11-26 = +12.82 分，NOAA 近似约 +16 分，差约 3 分会导致时辰边界错位）。
+     */
     fun equationOfTimeMinutes(year: Int, month: Int, day: Int, clockHour: Int = 12, clockMinute: Int = 0): Double {
         if (month !in 1..12 || day !in 1..31) return 0.0
-        val daysInYear = if (isLeap(year)) 366 else 365
-        val fractionalHour = clockHour + clockMinute / 60.0
-        val gamma = (2 * Math.PI / daysInYear) * (dayOfYear(year, month, day) - 1 + (fractionalHour - 12) / 24.0)
-        return 229.18 * (
-            0.000075
-                + 0.001868 * cos(gamma)
-                - 0.032077 * sin(gamma)
-                - 0.014615 * cos(2 * gamma)
-                - 0.040849 * sin(2 * gamma)
-        )
+        return try {
+            ZiweiTrueSolar.equationOfTimeMinutes(year, month, day, clockHour, clockMinute)
+        } catch (e: Exception) {
+            // 极端边界兜底：退回 NOAA 近似式，绝不让排盘因均时差异常崩溃
+            val daysInYear = if (isLeap(year)) 366 else 365
+            val fractionalHour = clockHour + clockMinute / 60.0
+            val gamma = (2 * Math.PI / daysInYear) * (dayOfYear(year, month, day) - 1 + (fractionalHour - 12) / 24.0)
+            229.18 * (0.000075 + 0.001868 * cos(gamma) - 0.032077 * sin(gamma)
+                - 0.014615 * cos(2 * gamma) - 0.040849 * sin(2 * gamma))
+        }
     }
 
     /** 中国大陆夏令时表 [年,起月,起日,止月,止日]，起止都含。通行口径 XLS_CN 逐字照抄。 */

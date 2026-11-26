@@ -45,6 +45,7 @@ import com.fortune.stall.data.FortuneDb
 import com.fortune.stall.engine.jishiyu.Ziwei
 import com.fortune.stall.engine.jishiyu.ZiweiCenter
 import com.fortune.stall.engine.jishiyu.ZiweiFortune
+import com.fortune.stall.engine.jishiyu.ZiweiData
 import com.fortune.stall.engine.jishiyu.JishiyuBase
 import com.fortune.stall.util.LunarCalendar
 import java.time.Year
@@ -128,11 +129,13 @@ private val MING_TINT   = Color(0x0CE17FB0)
 private val GRID_LINE   = Color(0x24FFFFFF)
 private val SF_STROKE   = Color(0x8CE17FB0)
 private val FLY_STROKE  = Color(0x66B0BEC8)
+private val FLY_TARGET_BG = Color(0x264ADE80)        // 点击宫位四化落宫高亮（视频：点一宫，落宫亮起）
+private val FLY_TARGET_LINE = Color(0xA64ADE80)      // 落宫放射连线
 
 private enum class ZwView { MINGPAN, DAXIAN, LIUNIAN }
 // 选中信息：地支绝对序号(0子..11亥) + 文案 + 来源类型 + 天干(算四化)
 private enum class ZwSelType { PALACE, DECADAL, YEARLY }
-private data class ZwSel(val zhi: Int, val label: String, val type: ZwSelType, val gan: String)
+private data class ZwSel(val zhi: Int, val label: String, val type: ZwSelType, val gan: String, val level: String = "")
 private data class FlyAnno(val text: String, val color: Color)
 
 @Composable
@@ -145,6 +148,8 @@ private fun ZiweiDetailScreen(
     var view by remember { mutableStateOf(ZwView.MINGPAN) }
     var liunianYear by remember { mutableStateOf(Year.now().value) }
     var sel by remember { mutableStateOf<ZwSel?>(null) }
+    // 多层时限飞星：简称 -> 天干（命=本命四化常驻；点击运限行追加 大/小/年/月/日/时）
+    var flyGans by remember(r) { mutableStateOf(mapOf("命" to r.yearGan)) }
 
     val nowYear = Year.now().value
     val (dxZhi, dxGan) = remember(r) { Ziwei.currentDaXian(r, nowYear) }
@@ -171,25 +176,35 @@ private fun ZiweiDetailScreen(
         else -> ""
     }
 
-    // 飞星落宫：选中来源天干 -> 四化落宫（本命选中用出生年干）
-    val flyMap: Map<Int, List<FlyAnno>> = remember(sel, r) {
+    // 多层时限飞星落宫（对齐原版图1彩色方块）：每层天干四化 -> 落宫 -> 宫格显示「时限首字+宫名首字」方块
+    // flyGans 常驻「命」层（本命四化），点击底部运限行追加 大/小/年/月/日/时 层
+    val flyMap: Map<Int, List<FlyAnno>> = remember(flyGans, r) {
         val m = mutableMapOf<Int, MutableList<FlyAnno>>()
-        sel?.let { s ->
-            val sihua = Ziwei.sihua(s.gan)
-            val prefix = when (s.type) { ZwSelType.DECADAL -> "限"; ZwSelType.YEARLY -> "年"; else -> "" }
+        flyGans.forEach { (level, gan) ->
+            val sihua = Ziwei.sihua(gan)
             sihua.forEachIndexed { i, star ->
                 if (star.isBlank()) return@forEachIndexed
                 val zhi = Ziwei.starZhi(r, star) ?: return@forEachIndexed
                 val idx = ziToIdx(zhi)
                 val palaceName = r.palaces.firstOrNull { it.zhi == zhi }?.name ?: ""
-                m.getOrPut(idx) { mutableListOf() }
-                    .add(FlyAnno(prefix + palaceName.take(1), SH_COLORS[i]))
+                val anno = FlyAnno(level + palaceName.take(1), SH_COLORS[i])
+                if (m.getOrPut(idx) { mutableListOf() }.none { it.text == anno.text }) m[idx]!!.add(anno)
             }
         }
         m
     }
 
     val sanFang = sel?.let { intArrayOf(it.zhi, (it.zhi + 6) % 12, (it.zhi + 4) % 12, (it.zhi + 8) % 12) }
+
+    // 视频联动高亮：点击某个宫 -> 以该宫宫干起四化 -> 落宫高亮 + 从点击宫放射连线
+    // 只针对点击宫格（PALACE），底部运限行点击沿用 flyMap 的时限方块，互不覆盖
+    val clickFlyTargets: Set<Int> = remember(sel, r) {
+        val s = sel
+        if (s == null || s.type != ZwSelType.PALACE || s.gan.isBlank()) emptySet()
+        else Ziwei.sihua(s.gan).mapNotNull { star ->
+            if (star.isBlank()) null else Ziwei.starZhi(r, star)?.let { ziToIdx(it) }
+        }.toSet()
+    }
 
     // 全盘自化（宫干四化星落本宫）
     val selfSihuaMap = remember(r) { Ziwei.allSelfSihua(r) }
@@ -252,16 +267,16 @@ private fun ZiweiDetailScreen(
                         // 第一行：巳 午 未 申
                         Row(Modifier.fillMaxWidth()) {
                             listOf(5, 6, 7, 8).forEach { z ->
-                                ZwCell(byZhi(r)[z], z, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi,
+                                ZwCell(byZhi(r)[z], z, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi, clickFlyTargets,
                                     Modifier.weight(1f).height(rowH).padding(cellPad)) { sel = it }
                             }
                         }
                         // 中段：左(辰/卯) + 中宫(跨2行) + 右(酉/戌)
                         Row(Modifier.fillMaxWidth()) {
                             Column(Modifier.weight(1f)) {
-                                ZwCell(byZhi(r)[4], 4, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi,
+                                ZwCell(byZhi(r)[4], 4, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi, clickFlyTargets,
                                     Modifier.fillMaxWidth().height(rowH).padding(cellPad)) { sel = it }
-                                ZwCell(byZhi(r)[3], 3, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi,
+                                ZwCell(byZhi(r)[3], 3, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi, clickFlyTargets,
                                     Modifier.fillMaxWidth().height(rowH).padding(cellPad)) { sel = it }
                             }
                             Box(Modifier.weight(2f).height(rowH * 2).padding(cellPad)) {
@@ -271,16 +286,16 @@ private fun ZiweiDetailScreen(
                                 }
                             }
                             Column(Modifier.weight(1f)) {
-                                ZwCell(byZhi(r)[9], 9, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi,
+                                ZwCell(byZhi(r)[9], 9, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi, clickFlyTargets,
                                     Modifier.fillMaxWidth().height(rowH).padding(cellPad)) { sel = it }
-                                ZwCell(byZhi(r)[10], 10, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi,
+                                ZwCell(byZhi(r)[10], 10, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi, clickFlyTargets,
                                     Modifier.fillMaxWidth().height(rowH).padding(cellPad)) { sel = it }
                             }
                         }
                         // 末行：寅 丑 子 亥
                         Row(Modifier.fillMaxWidth()) {
                             listOf(2, 1, 0, 11).forEach { z ->
-                                ZwCell(byZhi(r)[z], z, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi,
+                                ZwCell(byZhi(r)[z], z, r, sel, flyMap, sanFang, overlay, overlayLabel, dxZhi, clickFlyTargets,
                                     Modifier.weight(1f).height(rowH).padding(cellPad)) { sel = it }
                             }
                         }
@@ -308,6 +323,13 @@ private fun ZiweiDetailScreen(
                                 val c = center(tz)
                                 drawPath(Path().apply { moveTo(p0[0], p0[1]); lineTo(c[0], c[1]) }, FLY_STROKE,
                                     style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 5f))))
+                            }
+                            // 视频联动：点击宫 -> 四化落宫的醒目的放射连线（实线箭头感）
+                            clickFlyTargets.forEach { tz ->
+                                val c = center(tz)
+                                drawPath(Path().apply { moveTo(p0[0], p0[1]); lineTo(c[0], c[1]) }, FLY_TARGET_LINE,
+                                    style = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round))
+                                drawCircle(FLY_TARGET_LINE, radius = 2.5.dp.toPx(), center = Offset(c[0], c[1]))
                             }
                         }
                     }
@@ -387,7 +409,8 @@ private fun ZiweiDetailScreen(
 
                 Spacer(Modifier.height(14.dp))
                 // 底部：大限 + 流年 + 流月 + 流日 联动表
-                ZwBottomTable(r, sel, birthYear, limitLabel) { sel = it }
+                ZwBottomTable(r, sel, birthYear, limitLabel,
+                    onLevel = { level, gan -> flyGans = flyGans + (level to gan) }) { sel = it }
                 Spacer(Modifier.height(28.dp))
             }
         }
@@ -473,6 +496,7 @@ private fun flowAgesOf(r: Ziwei.Result, z: Int): List<Int> {
 private fun ZwCell(
     p: Ziwei.Palace?, z: Int, r: Ziwei.Result, sel: ZwSel?, fly: Map<Int, List<FlyAnno>>,
     sanFang: IntArray?, overlay: Map<String, String>, overlayLabel: String?, dxZhi: Int,
+    flyTargets: Set<Int> = emptySet(),
     modifier: Modifier, onSelect: (ZwSel) -> Unit
 ) {
     val active = sel?.zhi == z
@@ -480,17 +504,21 @@ private fun ZwCell(
     val isMing = z == Ziwei.mingZhiIdx(r)
     val isShen = p?.isBody == true
     val isSanFang = sanFang?.contains(z) == true && !active
+    // 点击宫位的四化落宫高亮（视频「点一宫，相关宫亮起」）
+    val isFlyTarget = z in flyTargets && !active
     val gan = p?.gan ?: ""
 
     val bg = when {
-        isCurrentDx -> DX_BG
         active -> SEL_BG
+        isFlyTarget -> FLY_TARGET_BG
         isSanFang -> SANFANG_BG
+        isCurrentDx -> DX_BG
         isMing || isShen -> MING_TINT
         else -> ZW_CARD
     }
     val borderColor = when {
         active -> SEL_LINE
+        isFlyTarget -> FLY_TARGET_LINE
         isSanFang -> PINK.copy(0.4f)
         else -> ZW_BORDER
     }
@@ -519,7 +547,8 @@ private fun ZwCell(
 
         Column(Modifier.fillMaxSize()) {
             // ① 星曜区：每颗星竖排两字成列，横排多列；列下方对齐亮度字 + 四化方块（对齐原版图2）
-            val starCols = (p.major + p.minor).map { it.name to it.brightness } + p.adj.map { it to "" }
+            val starCols = ((p.major + p.minor).map { it.name to it.brightness } +
+                p.adj.map { it to (ZiweiData.ADJ_BRIGHTNESS[it] ?: "") }).take(9)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(1.dp)) {
                 starCols.take(9).forEach { (nm, br) ->
                     val mg = (p.major + p.minor).firstOrNull { it.name == nm }?.mutagen ?: ""
@@ -542,14 +571,6 @@ private fun ZwCell(
                     }
                 }
             }
-            // 飞星落宫标注（保留交互信息）
-            val annos = fly[z]
-            if (!annos.isNullOrEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    annos.forEach { Text(it.text, color = it.color, fontSize = 6.sp, fontWeight = FontWeight.Bold) }
-                }
-            }
-
             Spacer(Modifier.height(1.dp))
 
             // ② 流年（原版图2：流年: 12,24,36,48,60）
@@ -561,11 +582,38 @@ private fun ZwCell(
 
             Spacer(Modifier.weight(1f))
 
-            // ④ 大限区间（居中，紧邻底部行上方，不再与宫名重叠）
-            Text("${p.decadal.first}~${p.decadal.second}",
-                color = if (isCurrentDx) Color(0xFFD8B4FE) else ZW_T0,
-                fontSize = 11.sp, lineHeight = 13.sp,
-                modifier = Modifier.align(Alignment.CenterHorizontally))
+            // ④ 飞星方块（对齐原版图1）：多层时限四化落宫，彩色底白字两字方块。
+            //    有飞星方块时不再显示大限数字"2∽11"（用户的图1口径）。
+            val annos = fly[z].orEmpty().take(8)
+            if (annos.isNotEmpty()) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    annos.chunked(2).forEach { pair ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                            pair.forEach { a ->
+                                Box(Modifier.weight(1f).clip(RoundedCornerShape(2.dp))
+                                    .background(a.color.copy(alpha = 0.92f))
+                                    .padding(horizontal = 2.dp, vertical = 1.dp),
+                                    contentAlignment = Alignment.Center) {
+                                    Text(a.text, color = Color.White, fontSize = 8.sp,
+                                        fontWeight = FontWeight.Bold, lineHeight = 10.sp, maxLines = 1)
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                // 无飞星落宫时仍显示大限区间（保留原有信息）
+                Text("${p.decadal.first}~${p.decadal.second}",
+                    color = if (isCurrentDx) Color(0xFFD8B4FE) else ZW_T0,
+                    fontSize = 11.sp, lineHeight = 13.sp,
+                    modifier = Modifier.align(Alignment.CenterHorizontally))
+            }
+            // 视频联动标记：落宫显示「源宫地支之落宫宫名」（如"子之田宅"）
+            if (isFlyTarget && sel != null) {
+                Text("${ZHI_CN[sel.zhi]}之${p.name}", color = Color(0xFF4ADE80),
+                    fontSize = 7.sp, fontWeight = FontWeight.Bold, lineHeight = 9.sp,
+                    modifier = Modifier.align(Alignment.CenterHorizontally))
+            }
             Spacer(Modifier.height(1.dp))
 
             // ⑤ 底部行：左 博士/亡神/病符 ｜ 中 宫名红框 ｜ 右 长生+宫干支（对齐原版图2）
@@ -801,7 +849,8 @@ private fun ZwTab(text: String, active: Boolean, modifier: Modifier, onClick: ()
 // 四行结构：竖排维度标签+竖线 | 横排格子(可滚) | 选中高亮。
 @Composable
 private fun ZwBottomTable(
-    r: Ziwei.Result, sel: ZwSel?, birthYear: Int, limitLabel: String, onSelect: (ZwSel) -> Unit
+    r: Ziwei.Result, sel: ZwSel?, birthYear: Int, limitLabel: String,
+    onLevel: (String, String) -> Unit, onSelect: (ZwSel) -> Unit
 ) {
     val nowYear = java.time.Year.now().value
     val periods: List<ZiweiFortune.Period> = remember(r) { ZiweiFortune.buildPeriods(r) }
@@ -866,7 +915,8 @@ private fun ZwBottomTable(
                         mDate = ""; dDate = ""; hIdx = 0
                         val focus = ziToIdx(p.zhi.ifBlank { r.ebSoul })
                         val focusGan = p.gan.ifBlank { r.yearGan }
-                        onSelect(ZwSel(focus, "${p.label} ${p.startAge}-${p.endAge}岁 · ${p.palaceName}", ZwSelType.DECADAL, focusGan))
+                        onLevel("大", focusGan)
+                        onSelect(ZwSel(focus, "${p.label} ${p.startAge}-${p.endAge}岁 · ${p.palaceName}", ZwSelType.DECADAL, focusGan, "大"))
                     }
                     Spacer(Modifier.width(2.dp))
                 }
@@ -886,7 +936,8 @@ private fun ZwBottomTable(
                         val newMonths = ZiweiFortune.buildMonths(r, o)
                         mDate = newMonths.firstOrNull()?.dateStr ?: ""
                         dDate = ""; hIdx = 0
-                        onSelect(ZwSel(ziToIdx(o.ganZhi[1].toString()), "流年 ${o.head} · ${o.ganZhi}（${o.sub}）", ZwSelType.YEARLY, o.ganZhi[0].toString()))
+                        onLevel("年", o.ganZhi[0].toString())
+                        onSelect(ZwSel(ziToIdx(o.ganZhi[1].toString()), "流年 ${o.head} · ${o.ganZhi}（${o.sub}）", ZwSelType.YEARLY, o.ganZhi[0].toString(), "年"))
                     }
                     Spacer(Modifier.width(2.dp))
                 }
@@ -906,7 +957,8 @@ private fun ZwBottomTable(
                         val newDays = ZiweiFortune.buildDays(r, o)
                         dDate = newDays.firstOrNull()?.dateStr ?: ""
                         hIdx = 0
-                        onSelect(ZwSel(ziToIdx(o.ganZhi[1].toString()), "${o.head} · ${o.sub} · ${o.ganZhi}", ZwSelType.YEARLY, o.ganZhi[0].toString()))
+                        onLevel("月", o.ganZhi[0].toString())
+                        onSelect(ZwSel(ziToIdx(o.ganZhi[1].toString()), "${o.head} · ${o.sub} · ${o.ganZhi}", ZwSelType.YEARLY, o.ganZhi[0].toString(), "月"))
                     }
                     Spacer(Modifier.width(2.dp))
                 }
@@ -924,7 +976,8 @@ private fun ZwBottomTable(
                     ZwFlatCell(o.display.ifBlank { o.head }, "", active, cardW, rowH) {
                         dDate = o.dateStr
                         hIdx = 0
-                        onSelect(ZwSel(ziToIdx(o.ganZhi[1].toString()), "流日 ${o.sub} · ${o.ganZhi}", ZwSelType.YEARLY, o.ganZhi[0].toString()))
+                        onLevel("日", o.ganZhi[0].toString())
+                        onSelect(ZwSel(ziToIdx(o.ganZhi[1].toString()), "流日 ${o.sub} · ${o.ganZhi}", ZwSelType.YEARLY, o.ganZhi[0].toString(), "日"))
                     }
                     Spacer(Modifier.width(2.dp))
                 }
@@ -940,7 +993,8 @@ private fun ZwBottomTable(
                 hours.forEachIndexed { hi, o ->
                     ZwFlatCell(o.display.ifBlank { o.head }, o.ganZhi, hi == hIdx, cardW, rowH) {
                         hIdx = hi
-                        onSelect(ZwSel(ziToIdx(o.ganZhi[1].toString()), "流时 ${o.head} · ${o.ganZhi}", ZwSelType.YEARLY, o.ganZhi[0].toString()))
+                        onLevel("时", o.ganZhi[0].toString())
+                        onSelect(ZwSel(ziToIdx(o.ganZhi[1].toString()), "流时 ${o.head} · ${o.ganZhi}", ZwSelType.YEARLY, o.ganZhi[0].toString(), "时"))
                     }
                     Spacer(Modifier.width(2.dp))
                 }

@@ -11,8 +11,8 @@ android {
         applicationId = "com.fortune.stall"
         minSdk = 24
         targetSdk = 36
-        versionCode = 68
-        versionName = "1.5.19 · 紫微精准时间补分钟输入"
+        versionCode = 71
+        versionName = "1.5.22 · 紫微点击宫位联动高亮"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
