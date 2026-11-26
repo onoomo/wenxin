@@ -499,8 +499,9 @@ private fun starNameColor(name: String): Color = when (name) {
 
 // 流年虚岁序列：虚岁1落在出生年支宫，之后逐年顺行（对齐文墨天机流年行口径）
 // 出生生肖→地支绝对序号；某宫z的起始虚岁 = ((z - birthIdx) mod 12) + 1
+private val ZODIAC_CN = listOf("鼠","牛","虎","兔","龙","蛇","马","羊","猴","鸡","狗","猪")
 private fun flowAgesOf(r: Ziwei.Result, z: Int): List<Int> {
-    val birthIdx = ZHI_CN.indexOf(r.zodiac).coerceAtLeast(0)
+    val birthIdx = ZODIAC_CN.indexOf(r.zodiac).coerceAtLeast(0) // 生肖与地支同序：鼠=子(0)..马=午(6)
     val start = ((z - birthIdx) % 12 + 12) % 12 + 1
     return (0 until 5).map { start + 12 * it }
 }
@@ -650,42 +651,57 @@ private fun ZwCenterInfo(r: Ziwei.Result, dxRange: Pair<Int, Int>?, limitLabel: 
             Text("${age}岁", color = ZW_T2, fontSize = 9.sp)
         }
         Spacer(Modifier.height(4.dp))
-        // 命盘 / 生肖 / 农历 / 时辰 / 四柱 / 当前（参考图中宫字段）
-        val solarParts = r.solarDate.split("-")
-        val solarCn = if (solarParts.size == 3)
-            "${solarParts[0]}年${solarParts[1].toIntOrNull() ?: 1}月${solarParts[2].toIntOrNull() ?: 1}日" else r.solarDate
+        // 对齐文墨天机中宫：真太阳时 / 钟表时间 / 农历(干支年+时辰) / 命主身主子斗 / 四柱 / 起运岁序
         val gz = r.chineseDate.split(' ')
-        // 起运：取第一个大限的起始虚岁与分界公历日（对齐文墨天机中宫「出生后X年X月X日起运」）
+        val yearGz = gz.getOrNull(0) ?: ""          // 年柱：丙午
+        // 农历月日中文 + 干支年 + 时辰（原版「农历：丙午年十月十八日 午时」）
+        val lunarParts = Regex("(\\d+)年(\\d+)月(\\d+)日").find(r.lunarDate)?.destructured
+        val lunarLine = if (lunarParts != null) {
+            val (_, m, d) = lunarParts
+            "${yearGz}年${LunarCalendar.cnNumber(m.toInt())}月${LunarCalendar.cnNumber(d.toInt())}日 ${shiChenCn(r.timeRange)}"
+        } else lunarCn(r).removePrefix("农历")
+        // 起运：取第一个大限的起始虚岁与分界公历日
         val periods = remember(r) { ZiweiFortune.buildPeriods(r) }
         val firstDaXian = periods.firstOrNull { it.kind == "大限" }
+        val qiYunAge = (firstDaXian?.startAge ?: 0) - 1
         val qiYun = if (firstDaXian != null)
-            "出生后${firstDaXian.startAge - 1}年起运 · ${firstDaXian.dateStr}" else ""
-        val mutableLines = mutableListOf(
-            "命盘" to "当前命盘 · ${if (r.isMan) "男" else "女"}",
-            "生肖" to "${r.zodiac} · ${r.sign}",
-            "阳历" to r.solarDate,
-            "农历" to lunarCn(r).removePrefix("农历"),
-            "时辰" to r.timeRange,
-            "四柱" to gz.joinToString(" ")
-        )
-        if (r.solarInfo.isNotBlank()) mutableLines.add("真太阳" to r.solarInfo)
-        if (qiYun.isNotBlank()) mutableLines.add("起运" to qiYun)
-        val lines = mutableLines.toList()
+            "出生后${qiYunAge}年起运 · ${firstDaXian.dateStr}" else ""
+        // 起运岁序：8岁18岁28岁…（八字起运逢尾巴数）
+        val qiyunAges = (0 until 8).map { qiYunAge + 1 + 10 * it }
+        // 子斗：以命宫地支表示的斗君（简化：子斗取出生年支所在宫的斗君位）
+        val ziDou = ZHI_CN[(ZHI_CN.indexOf(r.zodiac).coerceAtLeast(0) + 6) % 12]
+        val lines = mutableListOf<Pair<String, String>>()
+        if (r.solarInfo.isNotBlank()) lines.add("真太阳" to r.solarInfo.replace("真太阳时：", ""))
+        lines.add("钟表" to r.solarDate)
+        lines.add("农历" to lunarLine)
+        lines.add("命主" to "${r.soul}  身主 ${r.body}  子斗 $ziDou")
+        lines.add("四柱" to gz.joinToString(" "))
+        if (qiYun.isNotBlank()) lines.add("起运" to qiYun)
+        lines.add("岁序" to qiyunAges.map { "${it}岁" }.joinToString(" "))
         lines.forEach { (k, v) ->
             Row(Modifier.fillMaxWidth()) {
-                Text(k, color = ZW_FAINT, fontSize = 8.5.sp, modifier = Modifier.width(30.dp))
-                Text(v, color = ZW_T1, fontSize = 8.5.sp, modifier = Modifier.weight(1f), maxLines = 1)
+                Text(k, color = ZW_FAINT, fontSize = 8.sp, modifier = Modifier.width(28.dp))
+                Text(v, color = ZW_T1, fontSize = 8.sp, modifier = Modifier.weight(1f), maxLines = 1)
             }
-            Spacer(Modifier.height(1.dp))
+            Spacer(Modifier.height(0.5.dp))
         }
         Spacer(Modifier.weight(1f))
+        // 自化图示（对齐原版底部 →禄→权→科→忌 彩条）
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center) {
+            Text("自化", color = ZW_FAINT, fontSize = 7.sp)
+            listOf("禄", "权", "科", "忌").forEachIndexed { i, sh ->
+                Text("→$sh", color = SH_COLORS[i], fontSize = 8.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        Spacer(Modifier.height(3.dp))
         // 底部 pill：命主 / 身主 / 五行局 / 命宫 / 身宫（两列）
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 ZwCenterPill("命主 ${r.soul}")
                 ZwCenterPill(r.juName)
             }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 ZwCenterPill("身主 ${r.body}")
                 ZwCenterPill("命宫 ${r.ebSoul} · 身宫 ${r.ebBody}")
             }
@@ -1033,6 +1049,14 @@ private fun lunarCn(r: Ziwei.Result): String {
         val yCn = y.map { LunarCalendar.cnNumber(it - '0') }.joinToString("")
         "农历${yCn}年${LunarCalendar.cnNumber(m.toInt())}月${LunarCalendar.cnNumber(d.toInt())}日"
     } else r.lunarDate
+}
+
+// 从时辰区间取时辰中文（如 "11:00~13:00" → "午时"）
+private fun shiChenCn(timeRange: String): String {
+    val idx = listOf("00:00","01:00","03:00","05:00","07:00","09:00","11:00","13:00","15:00","17:00","19:00","21:00","23:00")
+        .indexOf(timeRange.take(5))
+    val zhi = if (idx < 0) 0 else idx
+    return ZHI_CN[zhi] + "时"
 }
 private fun ganZhiOfYear(year: Int): String =
     GAN_CN[Math.floorMod(year - 4, 10)] + ZHI_CN[Math.floorMod(year - 4, 12)]
