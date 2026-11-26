@@ -138,6 +138,13 @@ private enum class ZwSelType { PALACE, DECADAL, YEARLY }
 private data class ZwSel(val zhi: Int, val label: String, val type: ZwSelType, val gan: String, val level: String = "")
 private data class FlyAnno(val text: String, val color: Color)
 
+/** 宫格方位标注（对齐原版图2）：地支绝对序号(0子..11亥) -> 罗盘方位文案。 */
+private val ZW_DIRECTION = mapOf(
+    0 to "正北方", 1 to "北偏东", 2 to "东偏北", 3 to "正东方",
+    4 to "东偏南", 5 to "南偏东", 6 to "正南方", 7 to "南偏西",
+    8 to "西偏南", 9 to "正西方", 10 to "西偏北", 11 to "北偏西"
+)
+
 @Composable
 private fun ZiweiDetailScreen(
     r: Ziwei.Result, onBack: () -> Unit, onAskAi: (String) -> Unit, onHeming: () -> Unit,
@@ -199,11 +206,24 @@ private fun ZiweiDetailScreen(
                 val zhi = Ziwei.starZhi(r, star) ?: return@forEachIndexed
                 val idx = ziToIdx(zhi)
                 val palaceName = r.palaces.firstOrNull { it.zhi == zhi }?.name ?: ""
-                // 原版图1：本命层(命)显示两字完整宫名(如"田宅")；其余层显示「时限首字+宫名首字」(如"大田""时兄")
                 val anno = FlyAnno(
                     if (level == "命") palaceName.take(2) else level + palaceName.take(1),
                     SH_COLORS[i])
                 if (m.getOrPut(idx) { mutableListOf() }.none { it.text == anno.text }) m[idx]!!.add(anno)
+            }
+        }
+        // 原版图1：本命层还叠加「十二宫各自宫干四化」，落宫显示来源宫名(兄弟/父母/福德…)，
+        // 使每个宫格都有多个飞星方块，密度与原版一致（不再只有大限数字空着）。
+        if ("命" in flyGans) {
+            r.palaces.forEach { src ->
+                val sihuaByGan = Ziwei.sihua(src.gan)
+                sihuaByGan.forEachIndexed { i, star ->
+                    if (star.isBlank()) return@forEachIndexed
+                    val zhi = Ziwei.starZhi(r, star) ?: return@forEachIndexed
+                    val idx = ziToIdx(zhi)
+                    val anno = FlyAnno(src.name.take(2), SH_COLORS[i])
+                    if (m.getOrPut(idx) { mutableListOf() }.none { it.text == anno.text }) m[idx]!!.add(anno)
+                }
             }
         }
         m
@@ -550,6 +570,23 @@ private fun ZwCell(
         .padding(horizontal = 3.dp, vertical = 3.dp)) {
         if (isCurrentDx) Box(Modifier.width(2.5.dp).fillMaxSize().background(DX_STRIP))
         if (p == null) return@Box
+
+        // 原版图2：宫格边缘方位标注（如"正南方""西偏北"），竖排淡色小字贴在格子外沿
+        ZW_DIRECTION[z]?.let { dir ->
+            val isTop = z in listOf(5, 6, 7, 8)          // 第一行(巳午未申)→上沿
+            val isBottom = z in listOf(2, 1, 0, 11)      // 末行(寅丑子亥)→下沿
+            val align = when {
+                isTop -> Alignment.TopEnd
+                isBottom -> Alignment.BottomEnd
+                z in listOf(4, 3) -> Alignment.TopStart   // 左列(辰卯)→左上角
+                else -> Alignment.TopEnd                  // 右列(酉戌)→右上角
+            }
+            Column(Modifier.align(align).padding(end = 1.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                dir.forEach { ch ->
+                    Text(ch.toString(), color = ZW_FAINT.copy(alpha = 0.7f), fontSize = 6.sp, lineHeight = 7.sp)
+                }
+            }
+        }
 
         // 图1原版详细宫格：星名竖排多列 → 流年小限 → 大限 → 左下博士/亡神/病符 + 右下长生宫干支 + 宫名红框
         // 身宫青色竖框（右上，竖排"身宫"两字）
