@@ -30,7 +30,7 @@ jobs:
           echo "versionName=$VN" >> "$GITHUB_OUTPUT"
           echo "versionCode=$VC" >> "$GITHUB_OUTPUT"
           echo "tag=v$VN" >> "$GITHUB_OUTPUT"
-          echo "apkName=问心处_v${VN}.apk" >> "$GITHUB_OUTPUT"
+          echo "apkName=wenxin_v${VN}.apk" >> "$GITHUB_OUTPUT"
 
       - name: 安装 Android SDK 36 平台与构建工具
         run: |
