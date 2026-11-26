@@ -785,7 +785,10 @@ private fun ZwBottomTable(
                         val newYears = ZiweiFortune.buildYears(r, p)
                         yDate = newYears.firstOrNull()?.dateStr ?: ""
                         mDate = ""; dDate = ""
-                        onSelect(ZwSel(ziToIdx(r.ebSoul), "${p.label} ${p.startAge}-${p.endAge}岁 · ${p.palaceName}", ZwSelType.DECADAL, r.yearGan))
+                        // 焦点宫 = 该运限地支（童限=流年宫，大限=宫位）；连线与飞星随之移动
+                        val focus = ziToIdx(p.zhi.ifBlank { r.ebSoul })
+                        val focusGan = p.gan.ifBlank { r.yearGan }
+                        onSelect(ZwSel(focus, "${p.label} ${p.startAge}-${p.endAge}岁 · ${p.palaceName}", ZwSelType.DECADAL, focusGan))
                     }
                     Spacer(Modifier.width(2.dp))
                 }
@@ -876,14 +879,14 @@ private fun ZwLimitCard(
         .border(1.dp, if (active) PINK.copy(0.5f) else Color.Transparent, RoundedCornerShape(10.dp))
         .clickable(onClick = onClick).padding(vertical = 6.dp, horizontal = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(title, color = if (active) PINK else ZW_T0, fontSize = 12.sp, fontWeight = FontWeight.Bold,
-            maxLines = 1, lineHeight = 14.sp)
-        Text(age, color = ZW_FAINT, fontSize = 8.5.sp, textAlign = TextAlign.Center, lineHeight = 10.sp)
+        Text(title, color = if (active) PINK else ZW_T0, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+            maxLines = 1, lineHeight = 12.sp)
+        Text(age, color = ZW_FAINT, fontSize = 8.sp, textAlign = TextAlign.Center, lineHeight = 9.sp)
         Spacer(Modifier.weight(1f))
         Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp))
             .background(PINK.copy(0.22f)).padding(horizontal = 2.dp, vertical = 2.dp),
             contentAlignment = Alignment.Center) {
-            Text(date, color = if (active) PINK else ZW_T1, fontSize = 10.sp, maxLines = 1)
+            Text(date, color = if (active) PINK else ZW_T1, fontSize = 9.sp, maxLines = 1)
         }
     }
 }
@@ -899,12 +902,12 @@ private fun ZwGzCell(
         .border(1.dp, if (active) PINK.copy(0.55f) else Color.Transparent, RoundedCornerShape(10.dp))
         .clickable(onClick = onClick).padding(vertical = 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(head, color = ZW_T0, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-        Text(date, color = ZW_FAINT, fontSize = 8.sp, maxLines = 1)
+        Text(head, color = ZW_T0, fontSize = 10.sp, fontWeight = FontWeight.Medium, maxLines = 1, lineHeight = 12.sp)
+        Text(date, color = ZW_FAINT, fontSize = 7.5.sp, maxLines = 1, lineHeight = 9.sp)
         Spacer(Modifier.weight(1f))
         if (gz.length >= 2) {
-            Text(gz[0].toString(), color = ZW_T1, fontSize = 18.sp, fontWeight = FontWeight.Medium, lineHeight = 20.sp)
-            Text(gz[1].toString(), color = ZW_T1, fontSize = 18.sp, fontWeight = FontWeight.Medium, lineHeight = 20.sp)
+            Text(gz[0].toString(), color = ZW_T1, fontSize = 14.sp, fontWeight = FontWeight.Medium, lineHeight = 16.sp)
+            Text(gz[1].toString(), color = ZW_T1, fontSize = 14.sp, fontWeight = FontWeight.Medium, lineHeight = 16.sp)
         }
     }
 }

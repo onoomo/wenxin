@@ -20,7 +20,9 @@ object ZiweiFortune {
         val startAge: Int,
         val endAge: Int,
         val dateStr: String,     // yyyy-MM-dd 起始日
-        val palaceName: String = ""
+        val palaceName: String = "",
+        val zhi: String = "",    // 该运限对应宫位地支：大限=本命宫；童限=对应流年地支（连线焦点）
+        val gan: String = ""     // 该运限天干：大限=宫干；童限=流年干（四化飞星用）
     )
 
     /** 流年/流月/流日通用选项 */
@@ -63,12 +65,15 @@ object ZiweiFortune {
         val firstStart = ranges.firstOrNull()?.first ?: 6
         if (firstStart > 1) {
             for (age in 1 until firstStart) {
-                out.add(Period("童限", "童限", age, age, LunarCalendar.ageBoundaryDate(birth, age)))
+                val ds = LunarCalendar.ageBoundaryDate(birth, age)
+                // 童限焦点宫 = 该虚岁农历年的流年地支/天干（点童限时连线与飞星随之移动）
+                val yearGz = LunarCalendar.yearGanZhiOfSolar(solar(ds))
+                out.add(Period("童限", "童限", age, age, ds, "", yearGz.takeLast(1), yearGz.take(1)))
             }
         }
         ranges.forEach { (s, e) ->
             val p = r.palaces.firstOrNull { it.decadal == (s to e) }
-            out.add(Period("大限", "大限", s, e, LunarCalendar.ageBoundaryDate(birth, s), p?.name ?: ""))
+            out.add(Period("大限", "大限", s, e, LunarCalendar.ageBoundaryDate(birth, s), p?.name ?: "", p?.zhi ?: "", p?.gan ?: ""))
         }
         return out
     }
