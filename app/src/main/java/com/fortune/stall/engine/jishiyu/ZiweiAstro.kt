@@ -116,6 +116,8 @@ object ZiweiAstro {
     fun calculate(dt: LocalDateTime, longitude: Double?, useSummerTimeOffset: Boolean = false): SolarTime {
         val inDst = isChinaDST(dt.year, dt.monthValue, dt.dayOfMonth)
         val dstShift = if (useSummerTimeOffset && inDst) -60 else 0
+        // 均时差始终生效（原版口径：即使不填出生地，真太阳时也应与钟表时相差约十余分钟）；
+        // 经度修正仅在提供了有效经度时叠加（默认中央经线 120°，此时经度项=0）。
         val corrected = longitude != null && longitude.isFinite()
         val meridian = 120.0
         val lonCorr = if (corrected) (longitude!! - meridian) * 4.0 else 0.0

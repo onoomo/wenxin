@@ -11,8 +11,8 @@ android {
         applicationId = "com.fortune.stall"
         minSdk = 24
         targetSdk = 36
-        versionCode = 72
-        versionName = "1.5.23 · 精准时间快捷选择+中宫流年六层标签对齐原版"
+        versionCode = 73
+        versionName = "1.5.24 · 真太阳时须选出生地否则不排盘"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

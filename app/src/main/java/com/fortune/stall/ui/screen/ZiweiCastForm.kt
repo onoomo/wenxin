@@ -208,6 +208,11 @@ fun ZiweiCastForm(onBack: () -> Unit, onCast: (JiMingpanFormResult) -> Unit) {
                 // 排盘按钮
                 Box(Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(24.dp))
                     .background(C.RED).clickable {
+                        // 勾选真太阳时必须先选出生地：无经度则无法校正，拦截不排盘
+                        if (trueSolar && autoLon == null) {
+                            Toast.makeText(ctx, "请选择出生地后再排盘", Toast.LENGTH_SHORT).show()
+                            return@clickable
+                        }
                         // 精准小时(1-24) + 分钟：勾选真太阳时用所填时分，否则用当前时刻
                         // 24 点按 0 点（次日）处理，与 24 小时制/晚子时一致
                         val hhRaw = hourText.trim().toIntOrNull() ?: LocalDateTime.now().hour

@@ -339,11 +339,12 @@ object Ziwei {
         val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
         val clockStr = dt.format(fmt)
         if (longitude == null) {
-            // 不做真太阳时校正，仅携带夏令时提示
+            // 未勾选真太阳时：完全按钟表时排盘（真太阳时字段同钟表时）
             val hint = if (solar.inChinaDST) "出生于夏令时期间（如需按夏令时读数校正，请在排盘前手动换算）" else ""
             return paipanCore(dt, isMan, timeIndex, hint, clockStr, clockStr)
         }
-        // 真太阳日 + 校正后时辰；晚子时 next-day 由 paipanCore 内部对 ti==12 的农历日+1 处理
+        // 勾选真太阳时（起卦页已确保选中出生地、经度非空）：真太阳时 = 钟表时 + 经度修正 + 均时差。
+        // 图3钟表16:16 → 真太阳16:29 即约13分均时差；晚子时 next-day 由 paipanCore 内部处理。
         val effectiveDt = dt.plusDays(solar.dayOffset.toLong())
             .withHour(solar.hour).withMinute(solar.minute).withSecond(solar.second)
         val effTi = if (timeIndex in 0..12) timeIndex else solar.timeIndex
