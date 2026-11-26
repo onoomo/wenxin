@@ -134,6 +134,7 @@ fun QianxuScreen(db: FortuneDb, onBack: () -> Unit) {
             state = st.copy(question = question)
             addLog(mingLog, 7, "观其所合，以名命之", "${st.ming.name} 名")
             phase = "done"
+            showMingStage = false  // 收起蓍草舞台，让定名卡（图2）得以显示
             if (st.noVar) { showStop = true } else { showMingCard = true }
         }
     }
@@ -156,7 +157,7 @@ fun QianxuScreen(db: FortuneDb, onBack: () -> Unit) {
         val pn = Qianxu.POS_NAME[resPos] ?: "初"
         addLog(bianLog, 3, "揲之以七，所余为变", "余 $resPos → $pn")
         state?.let { state = Qianxu.resolveBian(it, resPos) }
-        phase = "done"; showBianCard = true
+        phase = "done"; showBianStage = false; showBianCard = true
     }
     fun bianAutoCount() { repeat(30) { bianCountOne() } }
 
@@ -273,7 +274,7 @@ fun QianxuScreen(db: FortuneDb, onBack: () -> Unit) {
             Box(Modifier.fillMaxWidth().height(1.5.dp).background(QX.INK))
             // Tabs
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                listOf("潜虚", "命图", "记录").forEachIndexed { i, t ->
+                listOf("潜虚", "命图").forEachIndexed { i, t ->
                     val on = tab == i
                     Column(horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.clickable { tab = i }) {
@@ -302,7 +303,6 @@ fun QianxuScreen(db: FortuneDb, onBack: () -> Unit) {
                     onSheet = { sheetMing = it }
                 )
                 1 -> QianxuMapTab { sheetMing = it }
-                2 -> QianxuHistTab(db)
             }
             Spacer(Modifier.height(30.dp))
         }
