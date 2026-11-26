@@ -148,11 +148,23 @@ private fun ZiweiDetailScreen(
     var view by remember { mutableStateOf(ZwView.MINGPAN) }
     var liunianYear by remember { mutableStateOf(Year.now().value) }
     var sel by remember { mutableStateOf<ZwSel?>(null) }
-    // 多层时限飞星：简称 -> 天干（命=本命四化常驻；点击运限行追加 大/小/年/月/日/时）
-    var flyGans by remember(r) { mutableStateOf(mapOf("命" to r.yearGan)) }
 
     val nowYear = Year.now().value
     val (dxZhi, dxGan) = remember(r) { Ziwei.currentDaXian(r, nowYear) }
+    // 默认叠加 7 层飞星（对齐原版图1：每宫一进来就显示 大/小/年/月/日/时/命 多个彩色方块）。
+    // 命=本命四化，大=当前大限宫干，年/月/日/时=当前流年天干打底；
+    // 点击底部运限行 / 中宫六标签会把对应层更新为该运限的真实天干。
+    var flyGans by remember(r) {
+        mutableStateOf(mapOf(
+            "命" to r.yearGan,
+            "大" to dxGan.ifBlank { r.yearGan },
+            "小" to r.yearGan,
+            "年" to Ziwei.yearGan(nowYear),
+            "月" to Ziwei.yearGan(nowYear),
+            "日" to Ziwei.yearGan(nowYear),
+            "时" to Ziwei.yearGan(nowYear)
+        ))
+    }
     val dxPalace = r.palaces.firstOrNull { ziToIdx(it.zhi) == dxZhi }
     val dxRange = dxPalace?.decadal
 
@@ -187,7 +199,10 @@ private fun ZiweiDetailScreen(
                 val zhi = Ziwei.starZhi(r, star) ?: return@forEachIndexed
                 val idx = ziToIdx(zhi)
                 val palaceName = r.palaces.firstOrNull { it.zhi == zhi }?.name ?: ""
-                val anno = FlyAnno(level + palaceName.take(1), SH_COLORS[i])
+                // 原版图1：本命层(命)显示两字完整宫名(如"田宅")；其余层显示「时限首字+宫名首字」(如"大田""时兄")
+                val anno = FlyAnno(
+                    if (level == "命") palaceName.take(2) else level + palaceName.take(1),
+                    SH_COLORS[i])
                 if (m.getOrPut(idx) { mutableListOf() }.none { it.text == anno.text }) m[idx]!!.add(anno)
             }
         }

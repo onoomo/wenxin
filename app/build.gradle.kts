@@ -11,8 +11,8 @@ android {
         applicationId = "com.fortune.stall"
         minSdk = 24
         targetSdk = 36
-        versionCode = 73
-        versionName = "1.5.24 · 真太阳时须选出生地否则不排盘"
+        versionCode = 74
+        versionName = "1.5.25 · 紫微宫格默认叠加7层飞星方块对齐原版"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
