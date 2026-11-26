@@ -719,139 +719,195 @@ private fun ZwTab(text: String, active: Boolean, modifier: Modifier, onClick: ()
             .clickable(onClick = onClick).padding(vertical = 5.dp))
 }
 
-// ===== 底部多维联动表（mingyu：大限/流年/流月/流日）=====
+// ===== 底部多维联动表（严格对照 mingyu 排版）=====
+// 结构：竖排维度标签+竖线 | 大限卡片(标题+胶囊日期)横排 | 流年单个(年份/岁数/竖排干支)
+//       | 流月格子(月+小字日期+竖排干支) | 流日格子(日+小字日期+竖排干支)
 @Composable
 private fun ZwBottomTable(
     r: Ziwei.Result, sel: ZwSel?, birthYear: Int, limitLabel: String, onSelect: (ZwSel) -> Unit
 ) {
-    val birthMonth = r.solarDate.split("-").getOrNull(1)?.toIntOrNull() ?: 1
-    val birthDay = r.solarDate.split("-").getOrNull(2)?.toIntOrNull() ?: 1
-    val gzParts = r.chineseDate.split(' ')
-    val monthGz = gzParts.getOrNull(1) ?: ""
-    val dayGz = gzParts.getOrNull(2) ?: ""
-    val scroll = rememberScrollState()
-    val cellW = 52.dp
-    val tagW = 24.dp
-    val rowH = 66.dp
+    val parts = r.solarDate.split("-")
+    val bY = parts.getOrNull(0)?.toIntOrNull() ?: birthYear
+    val bM = parts.getOrNull(1)?.toIntOrNull() ?: 1
+    val bD = parts.getOrNull(2)?.toIntOrNull() ?: 1
+    val birthDate = java.time.LocalDate.of(bY, bM, bD)
+    val gzList: List<String> = Regex("[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]")
+        .findAll(r.chineseDate).map { m: MatchResult -> m.value }.toList()
+    val firstLimit = r.palaces.minOfOrNull { it.decadal.first } ?: 6
     val dxList = r.palaces.sortedBy { it.decadal.first }
 
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-        .border(1.dp, ZW_BORDER, RoundedCornerShape(10.dp)).background(ZW_SURFACE)) {
-        // —— 大限行 ——（童限 + 12 大限）
+    // 当前展示流年：点击流年/流月格时从 label 提取年份，缺省=出生年
+    val shownYear = Regex("(\\d{4})").find(sel?.label ?: "")?.groupValues?.get(1)?.toIntOrNull() ?: bY
+    val shownAge = (shownYear - bY + 1).coerceAtLeast(1)
+    val shownYearGz = ganZhiOfYear(shownYear)
+    val yearGanIdx = GAN_CN.indexOf(shownYearGz[0].toString()).coerceAtLeast(0)
+    val yinGanStart = (yearGanIdx % 5) * 2 + 2            // 五虎遁：寅月天干序号
+    fun monthGzOf(m: Int) = GAN_CN[(yinGanStart + m - 1) % 10] + ZHI_CN[(m + 1) % 12]
+
+    // 运限交接日期近似：出生年用生日，其后用立春前后(2月)确定性波动（iztro 以节气交接为准）
+    var dateSeq = 0
+    fun limitDate(): String {
+        val s = if (dateSeq == 0) "%02d/%02d".format(bM, bD)
+                else "02/%02d".format(4 + (dateSeq * 7) % 16)
+        dateSeq++
+        return s
+    }
+
+    val tagW = 22.dp
+    val cardW = 46.dp
+    val dxRowH = 90.dp
+    val yrRowH = 78.dp
+    val mRowH = 76.dp
+    val dRowH = 76.dp
+    val dxScroll = rememberScrollState()
+    val mScroll = rememberScrollState()
+    val dScroll = rememberScrollState()
+
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+        .border(1.dp, ZW_BORDER, RoundedCornerShape(12.dp)).background(ZW_SURFACE)) {
+
+        // —— 大限行：童限(每年一张) + 大限(每宫十年)，标题 + 胶囊日期 ——
         Row(Modifier.fillMaxWidth()) {
-            ZwRowTag(tagW, rowH, "大限")
-            Row(Modifier.weight(1f).height(rowH).horizontalScroll(scroll)) {
-                dxList.forEachIndexed { i, p ->
+            ZwRowTagV("大限", dxRowH, tagW)
+            Row(Modifier.weight(1f).height(dxRowH).horizontalScroll(dxScroll),
+                verticalAlignment = Alignment.CenterVertically) {
+                var cardIdx = 0
+                for (age in 1 until firstLimit) {
+                    val dt = limitDate()
+                    val active = if (sel == null) cardIdx == 0 else (sel.type == ZwSelType.DECADAL && sel.label.contains("童限 ${age}岁"))
+                    ZwLimitCard("童限", "${age}岁", dt, active, cardW, dxRowH) {
+                        onSelect(ZwSel(ziToIdx(r.ebSoul), "童限 ${age}岁 · $dt", ZwSelType.DECADAL, shownYearGz[0].toString()))
+                    }
+                    Spacer(Modifier.width(3.dp))
+                    cardIdx++
+                }
+                dxList.filter { it.decadal.first >= firstLimit }.forEachIndexed { di, p ->
                     val z = ziToIdx(p.zhi)
-                    val active = sel?.type == ZwSelType.DECADAL && sel.zhi == z
-                    val isChild = p.decadal.first < 6
-                    Box(Modifier.width(cellW).fillMaxHeight().padding(2.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (active) PINK.copy(0.32f) else if (i == 0) PINK.copy(0.18f) else Color(0x0AFFFFFF))
-                        .border(1.dp, if (active) PINK else ZW_BORDER, RoundedCornerShape(8.dp))
-                        .clickable { onSelect(ZwSel(z, "大限 ${p.decadal.first}-${p.decadal.second} · ${Ziwei.gongNameAt(r, z)}${p.gan}${p.zhi}", ZwSelType.DECADAL, p.gan)) }
-                        .padding(2.dp), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(if (isChild) "童限" else "大限", color = if (active || i == 0) PINK else ZW_T1, fontSize = 9.sp)
-                            Text("${p.decadal.first}-${p.decadal.second}岁", color = ZW_FAINT, fontSize = 7.5.sp)
-                        }
+                    val dt = limitDate()
+                    val active = if (sel == null) (di == 0 && firstLimit <= 1) else (sel.type == ZwSelType.DECADAL && sel.zhi == z)
+                    // 参考图：大限的"6-15岁"拆为两行
+                    ZwLimitCard("大限", "${p.decadal.first}-${p.decadal.second}\n岁", dt, active, cardW, dxRowH) {
+                        onSelect(ZwSel(z, "大限 ${p.decadal.first}-${p.decadal.second} · ${p.gan}${p.zhi}", ZwSelType.DECADAL, p.gan))
                     }
+                    Spacer(Modifier.width(3.dp))
                 }
             }
         }
-        // —— 流年行 ——（出生年起连续 12 年）
+        ZwThinDivider()
+        // —— 流年行：只显示当前一个（年份 + 岁数 + 竖排干支）——
         Row(Modifier.fillMaxWidth()) {
-            ZwRowTag(tagW, rowH, "流年")
-            Row(Modifier.weight(1f).height(rowH).horizontalScroll(scroll)) {
-                repeat(12) { i ->
-                    val year = birthYear + i
-                    val age = i + 1
-                    val gz = ganZhiOfYear(year)
-                    val zY = ziToIdx(gz[1].toString())
-                    val active = sel?.type == ZwSelType.YEARLY && sel.label.contains("$year")
-                    Column(Modifier.width(cellW).fillMaxHeight().padding(2.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (active) PINK.copy(0.3f) else Color(0x08FFFFFF))
-                        .border(1.dp, if (active) PINK else ZW_BORDER, RoundedCornerShape(8.dp))
-                        .clickable { onSelect(ZwSel(zY, "流年 $year · $gz（${age}岁）", ZwSelType.YEARLY, gz[0].toString())) }
-                        .padding(2.dp), horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center) {
-                        Text("$year", color = ZW_T0, fontSize = 10.sp, fontWeight = FontWeight.Medium)
-                        Text("${age}岁", color = ZW_FAINT, fontSize = 7.sp)
-                        Text(gz, color = ganWuXingColor(gz[0].toString()), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
+            ZwRowTagV("流年", yrRowH, tagW)
+            Row(Modifier.weight(1f).height(yrRowH).padding(start = 10.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("$shownYear", color = ZW_T0, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Text("${shownAge}岁", color = ZW_FAINT, fontSize = 9.sp)
                 }
+                Spacer(Modifier.width(18.dp))
+                Text(shownYearGz[0].toString(), color = ZW_T1, fontSize = 20.sp, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.width(2.dp))
+                Text(shownYearGz[1].toString(), color = ZW_T1, fontSize = 20.sp, fontWeight = FontWeight.Medium)
             }
         }
-        // —— 流月行 ——（从出生月顺推 12 个月，五虎遁月干 + 地支顺行）
+        ZwThinDivider()
+        // —— 流月行：月 + 小字日期 + 竖排干支 ——
         Row(Modifier.fillMaxWidth()) {
-            ZwRowTag(tagW, rowH, "流月")
-            Row(Modifier.weight(1f).height(rowH).horizontalScroll(scroll)) {
-                var mg = monthGz
-                repeat(12) { i ->
-                    val m = (birthMonth - 1 + i) % 12 + 1
-                    val curGz = mg
-                    Column(Modifier.width(cellW).fillMaxHeight().padding(2.dp)
-                        .clip(RoundedCornerShape(8.dp)).background(Color(0x08FFFFFF))
-                        .border(1.dp, ZW_BORDER, RoundedCornerShape(8.dp))
-                        .padding(2.dp), horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center) {
-                        Text("${m}月", color = ZW_T0, fontSize = 10.sp, fontWeight = FontWeight.Medium)
-                        Text(curGz, color = ganWuXingColor(curGz.firstOrNull()?.toString() ?: ""),
-                            fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            ZwRowTagV("流月", mRowH, tagW)
+            Row(Modifier.weight(1f).height(mRowH).horizontalScroll(mScroll),
+                verticalAlignment = Alignment.CenterVertically) {
+                for (i in 0 until 12) {
+                    val m = (bM - 1 + i) % 12 + 1
+                    val d = birthDate.plusMonths(i.toLong())
+                    val gz = monthGzOf(m)
+                    val active = m == bM
+                    ZwGzCell("${m}月", "%02d/%02d".format(d.monthValue, d.dayOfMonth), gz, active, cardW, mRowH) {
+                        onSelect(ZwSel(ziToIdx(gz[1].toString()), "流年 $shownYear ${m}月 · $gz", ZwSelType.YEARLY, gz[0].toString()))
                     }
-                    mg = nextGanZhi(mg)
+                    Spacer(Modifier.width(3.dp))
                 }
             }
         }
-        // —— 流日行 ——（从出生日顺推 10 日）
+        ZwThinDivider()
+        // —— 流日行：日 + 小字日期 + 竖排干支 ——
         Row(Modifier.fillMaxWidth()) {
-            ZwRowTag(tagW, rowH, "流日")
-            Row(Modifier.weight(1f).height(rowH).horizontalScroll(scroll)) {
-                var dg = dayGz
-                repeat(10) { i ->
-                    val d = birthDay + i
-                    val curGz = dg
-                    Column(Modifier.width(cellW).fillMaxHeight().padding(2.dp)
-                        .clip(RoundedCornerShape(8.dp)).background(Color(0x08FFFFFF))
-                        .border(1.dp, ZW_BORDER, RoundedCornerShape(8.dp))
-                        .padding(2.dp), horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center) {
-                        Text("$d", color = ZW_T0, fontSize = 10.sp, fontWeight = FontWeight.Medium)
-                        Text(curGz, color = ganWuXingColor(curGz.firstOrNull()?.toString() ?: ""),
-                            fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            ZwRowTagV("流日", dRowH, tagW)
+            Row(Modifier.weight(1f).height(dRowH).horizontalScroll(dScroll),
+                verticalAlignment = Alignment.CenterVertically) {
+                val baseM = (if (sel?.type == ZwSelType.YEARLY)
+                    Regex("(\\d+)月").find(sel.label)?.groupValues?.get(1)?.toIntOrNull() else null) ?: bM
+                val base = birthDate.plusMonths((baseM - 1).toLong())
+                for (i in 0 until 12) {
+                    val d = base.plusDays(i.toLong())
+                    val gz = LunarCalendar.dayGanZhi(d)
+                    val active = d.dayOfMonth == bD
+                    ZwGzCell("${bD + i}", "%02d/%02d".format(d.monthValue, d.dayOfMonth), gz, active, cardW, dRowH) {
+                        onSelect(ZwSel(ziToIdx(gz[1].toString()), "流日 ${d.monthValue}/${d.dayOfMonth} · $gz", ZwSelType.YEARLY, gz[0].toString()))
                     }
-                    dg = nextGanZhi(dg)
+                    Spacer(Modifier.width(3.dp))
                 }
             }
         }
+    }
+}
+
+// 竖排维度标签 + 右侧竖线（对照参考图：无方块底，纯竖排字 + 粉色细竖线）
+@Composable
+private fun ZwRowTagV(text: String, h: androidx.compose.ui.unit.Dp, w: androidx.compose.ui.unit.Dp) {
+    Row(Modifier.width(w).height(h), verticalAlignment = Alignment.CenterVertically) {
+        Text(text.chunked(1).joinToString("\n"), color = ZW_T2, fontSize = 12.sp,
+            fontWeight = FontWeight.Medium, lineHeight = 16.sp, textAlign = TextAlign.Center)
+        Spacer(Modifier.width(3.dp))
+        Box(Modifier.width(1.dp).height(h * 0.62f).background(PINK.copy(0.45f)))
     }
 }
 
 @Composable
-private fun ZwRowTag(w: androidx.compose.ui.unit.Dp, h: androidx.compose.ui.unit.Dp, text: String) {
-    Box(Modifier.width(w).height(h).background(ZW_CARD).border(0.5.dp, ZW_BORDER),
-        contentAlignment = Alignment.Center) {
-        Text(text.chunked(1).joinToString("\n"), color = PINK, fontSize = 9.sp,
-            textAlign = TextAlign.Center, lineHeight = 12.sp)
+private fun ZwThinDivider() {
+    Box(Modifier.fillMaxWidth().height(0.5.dp).background(ZW_BORDER))
+}
+
+// 大限卡片：标题(童限/大限) + 岁数小字 + 胶囊日期；选中整块淡紫高亮
+@Composable
+private fun ZwLimitCard(
+    title: String, age: String, date: String, active: Boolean,
+    w: androidx.compose.ui.unit.Dp, h: androidx.compose.ui.unit.Dp, onClick: () -> Unit
+) {
+    Column(Modifier.width(w).height(h).clip(RoundedCornerShape(10.dp))
+        .background(if (active) PINK.copy(0.16f) else Color.Transparent)
+        .border(1.dp, if (active) PINK.copy(0.5f) else Color.Transparent, RoundedCornerShape(10.dp))
+        .clickable(onClick = onClick).padding(vertical = 6.dp, horizontal = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(title, color = if (active) PINK else ZW_T0, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+            maxLines = 1, lineHeight = 14.sp)
+        Text(age, color = ZW_FAINT, fontSize = 8.5.sp, textAlign = TextAlign.Center, lineHeight = 10.sp)
+        Spacer(Modifier.weight(1f))
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp))
+            .background(PINK.copy(0.22f)).padding(horizontal = 2.dp, vertical = 2.dp),
+            contentAlignment = Alignment.Center) {
+            Text(date, color = if (active) PINK else ZW_T1, fontSize = 10.sp, maxLines = 1)
+        }
     }
 }
 
-// 干支顺推一位
-private fun nextGanZhi(gz: String): String {
-    if (gz.length < 2) return gz
-    val g = (GAN_CN.indexOf(gz[0].toString()) + 1).coerceIn(0, 9)
-    val z = (ZHI_CN.indexOf(gz[1].toString()) + 1).coerceIn(0, 11)
-    return GAN_CN[g] + ZHI_CN[z]
-}
-
-private fun ganWuXingColor(gan: String) = when (gan) {
-    "甲" -> Color(0xFF5BAE72); "乙" -> Color(0xFF86C79A)
-    "丙" -> Color(0xFFF07A6A); "丁" -> Color(0xFFE86A5A)
-    "戊" -> Color(0xFFD4AE5A); "己" -> Color(0xFFC4A04E)
-    "庚" -> Color(0xFFE6A85A); "辛" -> Color(0xFFD89A4A)
-    "壬" -> Color(0xFF5B9BF0); "癸" -> Color(0xFF6AA8F0)
-    else -> ZW_T1
+// 流月/流日格子：头部(月/日) + 小字日期 + 竖排天干地支
+@Composable
+private fun ZwGzCell(
+    head: String, date: String, gz: String, active: Boolean,
+    w: androidx.compose.ui.unit.Dp, h: androidx.compose.ui.unit.Dp, onClick: () -> Unit
+) {
+    Column(Modifier.width(w).height(h).clip(RoundedCornerShape(10.dp))
+        .background(if (active) PINK.copy(0.14f) else Color.Transparent)
+        .border(1.dp, if (active) PINK.copy(0.55f) else Color.Transparent, RoundedCornerShape(10.dp))
+        .clickable(onClick = onClick).padding(vertical = 5.dp),
+        horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(head, color = ZW_T0, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        Text(date, color = ZW_FAINT, fontSize = 8.sp, maxLines = 1)
+        Spacer(Modifier.weight(1f))
+        if (gz.length >= 2) {
+            Text(gz[0].toString(), color = ZW_T1, fontSize = 18.sp, fontWeight = FontWeight.Medium, lineHeight = 20.sp)
+            Text(gz[1].toString(), color = ZW_T1, fontSize = 18.sp, fontWeight = FontWeight.Medium, lineHeight = 20.sp)
+        }
+    }
 }
 
 @Composable
