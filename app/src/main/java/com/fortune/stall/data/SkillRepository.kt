@@ -29,8 +29,8 @@ class SkillRepository(private val context: Context) {
     val packs: List<Pack> by lazy {
         val defs = listOf(
             Triple("xiaoliuren", "小六壬", "快卦 · 三宫掐指"),
-            Triple("liuyao", "六爻", "深卦 · 纳甲装卦"),
-            Triple("tarot", "塔罗", "心镜 · 七十八张牌")
+            Triple("tarot", "塔罗", "心镜 · 七十八张牌"),
+            Triple("liuyao", "六爻", "深卦 · 纳甲装卦")
         )
         defs.map { (key, name, subtitle) ->
             val skillPath = "skills/$key/SKILL.md"

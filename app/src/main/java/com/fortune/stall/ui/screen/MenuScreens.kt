@@ -237,13 +237,6 @@ fun SettingsScreen(
             ) { CardArrow() }
             Spacer(Modifier.weight(1f))
         }
-        Spacer(Modifier.height(18.dp))
-        Text(
-            "问心处 · v1.0.9",
-            color = AppColors.Muted, fontSize = 11.sp,
-            modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(6.dp))
     }
 }
 

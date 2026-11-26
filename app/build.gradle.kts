@@ -11,8 +11,8 @@ android {
         applicationId = "com.fortune.stall"
         minSdk = 24
         targetSdk = 36
-        versionCode = 82
-        versionName = "1.6.5 · 修复设置按钮点击+卡片两列重排"
+        versionCode = 83
+        versionName = "1.6.6 · 技能包塔罗第二+文档返回+删设置版本号"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

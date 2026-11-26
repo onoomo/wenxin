@@ -1,5 +1,6 @@
 package com.fortune.stall.ui.screen
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -35,6 +36,8 @@ import com.fortune.stall.ui.theme.AppColors
 @Composable
 fun SkillsScreen(repo: SkillRepository, onBack: () -> Unit) {
     var viewing by remember { mutableStateOf<SkillRepository.Doc?>(null) }
+    // 阅读文档时，系统返回键先回到技能包列表；在列表时才交给 MainActivity 退出技能包
+    BackHandler(enabled = viewing != null) { viewing = null }
     Box(Modifier.fillMaxSize()) {
         Starfield(Modifier.fillMaxSize())
         if (viewing == null) {
