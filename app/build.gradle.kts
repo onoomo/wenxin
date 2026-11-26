@@ -11,10 +11,20 @@ android {
         applicationId = "com.fortune.stall"
         minSdk = 24
         targetSdk = 36
-        versionCode = 83
-        versionName = "1.6.6 · 技能包塔罗第二+文档返回+删设置版本号"
+        versionCode = 1
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    // GitHub Actions 自动构建签名：复用历史 debug 证书，保证与既有安装包同签名、可覆盖安装
+    signingConfigs {
+        create("release") {
+            storeFile = file("wenxin.jks")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
@@ -28,6 +38,7 @@ android {
             )
         }
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

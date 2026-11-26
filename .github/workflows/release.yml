@@ -1,0 +1,64 @@
+name: 构建并发布 APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: 读取版本号（外版本 versionName / 内版本 versionCode）
+        id: ver
+        run: |
+          VN=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+          VC=$(grep -oP 'versionCode\s*=\s*\K[0-9]+' app/build.gradle.kts)
+          echo "versionName=$VN" >> "$GITHUB_OUTPUT"
+          echo "versionCode=$VC" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VN" >> "$GITHUB_OUTPUT"
+          echo "apkName=问心处_v${VN}.apk" >> "$GITHUB_OUTPUT"
+
+      - name: 初始化 Android SDK 环境
+        uses: android-actions/setup-android@v3
+
+      - name: 安装 Android SDK 36 平台与构建工具
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: 赋予 gradlew 执行权限
+        run: chmod +x gradlew
+
+      - name: 编译签名 Release APK
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: 重命名 APK 并校验签名
+        env:
+          APK_NAME: ${{ steps.ver.outputs.apkName }}
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk "$APK_NAME"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$APK_NAME"
+
+      - name: 发布 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: 问心处 v${{ steps.ver.outputs.versionName }}
+          body: |
+            问心处 · 术数排盘 v${{ steps.ver.outputs.versionName }}（内版本 ${{ steps.ver.outputs.versionCode }}）
+
+            本 Release 由 GitHub Actions 自动构建并签名，APK 可直接下载安装。
+          files: ${{ steps.ver.outputs.apkName }}
+          generate_release_notes: true
