@@ -25,19 +25,33 @@ object ZiweiFortune {
         val gan: String = ""     // 该运限天干：大限=宫干；童限=流年干（四化飞星用）
     )
 
-    /** 流年/流月/流日通用选项 */
+    /** 流年/流月/流日/流时通用选项 */
     data class Option(
-        val head: String,        // 流年=年份, 流月=「N月」, 流日=日
-        val sub: String,         // 流年=「N岁」, 流月/流日=MM/DD
+        val head: String,        // 流年=年份, 流月=「N月」, 流日=日, 流时=时辰
+        val sub: String,         // 流年=「N岁」, 流月/流日=MM/DD, 流时=MM/DD
         val age: Int,            // 虚岁（流年用）
         val dateStr: String,     // 起日
         val ganZhi: String,      // 两字干支
-        val endDateStr: String = ""  // 止日（流年/流月区间；流日为空）
+        val endDateStr: String = "",  // 止日（流年/流月区间；流日为空）
+        val display: String = "" // 参考图显示文案：流月=正月/二月，流日=初一/初二，流时=子时/丑时；空则用 head
     )
 
     private val GAN = LunarCalendar.TIANGAN
     private val ZHI = LunarCalendar.DIZHI
     private val FLOW_MONTH_BRANCHES = listOf("寅","卯","辰","巳","午","未","申","酉","戌","亥","子","丑")
+    private val CN_NUM = arrayOf("零","一","二","三","四","五","六","七","八","九","十",
+        "十一","十二","十三","十四","十五","十六","十七","十八","十九","二十",
+        "廿一","廿二","廿三","廿四","廿五","廿六","廿七","廿八","廿九","三十")
+    private val CN_MONTH = arrayOf("","正","二","三","四","五","六","七","八","九","十","十一","腊")
+    private val HOUR_NAMES = arrayOf("子时","丑时","寅时","卯时","辰时","巳时","午时","未时","申时","酉时","戌时","亥时")
+
+    /** 中文日：1→初一 ... 10→初十 11→十一 21→廿一 30→三十（参考图流日行口径） */
+    private fun cnDay(d: Int): String = when {
+        d <= 0 -> d.toString()
+        d <= 10 -> "初${CN_NUM[d]}"
+        d < CN_NUM.size -> CN_NUM[d]
+        else -> "${d}日"  // 公历31日等越界回退
+    }
 
     private fun fmt(d: LocalDate) = "%04d-%02d-%02d".format(d.year, d.monthValue, d.dayOfMonth)
     private fun md(dateStr: String): String {
@@ -126,7 +140,8 @@ object ZiweiFortune {
             val nextFirst = if (m < 12) LunarCalendar.lunarToSolar(lunarYear, m + 1, 1)
                             else LunarCalendar.lunarToSolar(lunarYear + 1, 1, 1)
             val end = nextFirst.minusDays(1)
-            out.add(Option("${m}月", md(fmt(first)), year.age, fmt(first), monthGanZhi(yearGz, m), fmt(end)))
+            out.add(Option("${m}月", md(fmt(first)), year.age, fmt(first), monthGanZhi(yearGz, m), fmt(end),
+                display = "${CN_MONTH[m]}月"))
         }
         return out
     }
@@ -138,10 +153,33 @@ object ZiweiFortune {
                   else start.withDayOfMonth(start.lengthOfMonth())
         val out = mutableListOf<Option>()
         var date = start
+        var lunarDaySeq = 1  // 起点=农历初一，逐日递增即农历日序（参考图流日初一/初二...）
         while (!date.isAfter(end)) {
             val ds = fmt(date)
-            out.add(Option("${date.dayOfMonth}", md(ds), month.age, ds, LunarCalendar.dayGanZhi(date)))
+            out.add(Option("${date.dayOfMonth}", md(ds), month.age, ds, LunarCalendar.dayGanZhi(date),
+                display = cnDay(lunarDaySeq)))
             date = date.plusDays(1)
+            lunarDaySeq++
+        }
+        return out
+    }
+
+    /**
+     * 选中流日后生成该日十二流时（参考文墨天机底部「流时」行）：
+     * 子时…亥时，干支以日干起时（甲己日子时=甲子，乙庚=丙子…戊癸=壬子），
+     * 与 LunarCalendar.fromDateTime 的时干支口径一致。
+     */
+    fun buildHours(r: Ziwei.Result, day: Option): List<Option> {
+        val dayGz = LunarCalendar.dayGanZhi(solar(day.dateStr))
+        val dayGanIdx = GAN.indexOf(dayGz.firstOrNull().toString()).coerceAtLeast(0)
+        val ziGanStart = (dayGanIdx % 5) * 2  // 甲己→甲子(0), 乙庚→丙子(2), 丙辛→戊子(4), 丁壬→庚子(6), 戊癸→壬子(8)
+        val out = mutableListOf<Option>()
+        for (i in 0..11) {
+            // 时支：子(0)..亥(11)；时干：子时起 ziGanStart，逐时 +1
+            val gan = GAN[(ziGanStart + i) % 10]
+            val zhi = ZHI[i]
+            out.add(Option(HOUR_NAMES[i], day.sub, day.age, day.dateStr, gan + zhi,
+                display = HOUR_NAMES[i]))
         }
         return out
     }
