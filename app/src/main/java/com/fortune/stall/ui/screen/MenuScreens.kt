@@ -52,10 +52,15 @@ private fun MenuShell(
     subtitle: String,
     onBack: () -> Unit,
     topGap: Dp = 66.dp,
+    actions: @Composable () -> Unit = {},
     content: @Composable () -> Unit
 ) {
     Box(Modifier.fillMaxSize()) {
         Starfield(Modifier.fillMaxSize())
+        // 右上角快捷按钮区（覆盖层，不随内容滚动）
+        Box(Modifier.align(Alignment.TopEnd).padding(end = 16.dp, top = topGap - 12.dp)) {
+            actions()
+        }
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)
         ) {
@@ -145,7 +150,27 @@ fun SettingsScreen(
     var progress by remember { mutableStateOf(0 to 78) }
     var cachedCount by remember { mutableStateOf(TarotImageLoader.downloadedCount(context)) }
 
-    MenuShell(title = "设 置", subtitle = "摊面上用具与心法", onBack = onBack, topGap = 28.dp) {
+    MenuShell(
+        title = "设 置", subtitle = "摊面上用具与心法", onBack = onBack, topGap = 28.dp,
+        actions = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SettingQuickChip(
+                    glyph = "▦", label = "图标", active = DisplaySettings.iconMode.value
+                ) {
+                    val next = !DisplaySettings.iconMode.value
+                    DisplaySettings.setIconMode(next)
+                    Toast.makeText(context, if (next) "已切换：图标网格" else "已切换：详细摊面", Toast.LENGTH_SHORT).show()
+                }
+                SettingQuickChip(
+                    glyph = "✦", label = "动效", active = DisplaySettings.introAnim.value
+                ) {
+                    val next = !DisplaySettings.introAnim.value
+                    DisplaySettings.setIntroAnim(next)
+                    Toast.makeText(context, if (next) "已开启开场动画" else "已隐藏开场动画", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             SettingCard(
                 eyebrow = "术 法", title = "隐藏 / 排序术法",
@@ -153,20 +178,14 @@ fun SettingsScreen(
                 modifier = Modifier.weight(1f), onClick = onManageTiles
             ) { CardArrow() }
             SettingCard(
-                eyebrow = "布 局", title = "首页图标模式",
-                desc = "开启后首页以图标九宫格展示术数；关闭回到详细摊位卡片。",
-                modifier = Modifier.weight(1f),
-                onClick = { DisplaySettings.setIconMode(!DisplaySettings.iconMode.value) }
-            ) { SmallSwitch(DisplaySettings.iconMode.value) { DisplaySettings.setIconMode(it) } }
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SettingCard(
                 eyebrow = "牌 面", title = "显示塔罗牌面",
                 desc = "关闭后牌面只显示文字；开启需先下载牌图。",
                 modifier = Modifier.weight(1f),
                 onClick = { TarotSettings.setShowCardImage(!TarotSettings.showCardImage.value) }
             ) { SmallSwitch(TarotSettings.showCardImage.value) { TarotSettings.setShowCardImage(it) } }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             SettingCard(
                 eyebrow = "牌 图",
                 title = when {
@@ -303,6 +322,32 @@ private fun SettingCard(
         }
         Spacer(Modifier.height(6.dp))
         Text(desc, color = AppColors.Muted, fontSize = 11.sp, minLines = 2, maxLines = 2)
+    }
+}
+
+/** 设置页右上角快捷胶囊：金色图标 + 文字，active 高亮描边 */
+@Composable
+private fun SettingQuickChip(
+    glyph: String,
+    label: String,
+    active: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .border(BorderStroke(1.dp, if (active) AppColors.GoldLine else AppColors.Line), RoundedCornerShape(20.dp))
+            .background(androidx.compose.ui.graphics.Brush.verticalGradient(
+                listOf(androidx.compose.ui.graphics.Color(0xE8262632), androidx.compose.ui.graphics.Color(0xF016161C))
+            ))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 13.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        Text(glyph, color = AppColors.Lantern, fontSize = 15.sp)
+        Text(label, color = if (active) AppColors.Paper else AppColors.Muted,
+            fontSize = 12.sp, letterSpacing = 1.sp, fontFamily = FontFamily.Serif)
     }
 }
 

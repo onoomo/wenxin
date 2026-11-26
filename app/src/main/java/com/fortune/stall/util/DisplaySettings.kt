@@ -18,14 +18,14 @@ object DisplaySettings {
     /** 首页是否使用图标网格（默认 false = 详细卡片） */
     val iconMode = mutableStateOf(false)
 
-    /** 是否播放首页开场动画（默认 true = 播放；关闭后直接进入摊面） */
-    val introAnim = mutableStateOf(true)
+    /** 是否播放首页开场动画（默认 false = 关闭，直接进摊面；开启后才播放一次） */
+    val introAnim = mutableStateOf(false)
 
     fun init(context: Context) {
         if (prefs != null) return
         prefs = context.applicationContext.getSharedPreferences(PREF, Context.MODE_PRIVATE)
         iconMode.value = prefs!!.getBoolean(KEY_ICON_MODE, false)
-        introAnim.value = prefs!!.getBoolean(KEY_INTRO_ANIM, true)
+        introAnim.value = prefs!!.getBoolean(KEY_INTRO_ANIM, false)
     }
 
     fun setIconMode(value: Boolean) {

@@ -11,8 +11,8 @@ android {
         applicationId = "com.fortune.stall"
         minSdk = 24
         targetSdk = 36
-        versionCode = 79
-        versionName = "1.6.2 · 首页右上角图标模式与动效快捷按钮"
+        versionCode = 80
+        versionName = "1.6.3 · 图标与动效开关移至设置页右上角"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
