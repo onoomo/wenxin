@@ -11,8 +11,8 @@ android {
         applicationId = "com.fortune.stall"
         minSdk = 24
         targetSdk = 36
-        versionCode = 78
-        versionName = "1.6.1 · 雷诺曼补齐逐张点抽+修复抽牌按钮锁死"
+        versionCode = 79
+        versionName = "1.6.2 · 首页右上角图标模式与动效快捷按钮"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

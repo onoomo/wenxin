@@ -112,10 +112,14 @@ fun HomeScreen(
     // ===== 开场动画：问心处 → 心形 → 消失（快速流畅，约 0.85s，仅首次打开播放一次）=====
     // phase 0 文字停留 → 1 文字淡出+心形淡入 → 2 心形放大 → 3 完成(标题区收起)
     // 已播放过则直接进入完成态（无标题、无动画），避免点图标/切页返回时反复重播
-    var animPhase by remember { mutableStateOf(if (HomeIntroOnce.shown) 3 else 0) }
-    var introDone by remember { mutableStateOf(HomeIntroOnce.shown) }
-    LaunchedEffect(Unit) {
-        if (HomeIntroOnce.shown) return@LaunchedEffect
+    var animPhase by remember { mutableStateOf(0) }
+    var introDone by remember { mutableStateOf(false) }
+    // 由右上角「动效」快捷按钮控制：关闭时跳过动画直接进摊面；重新开启时重播一次
+    LaunchedEffect(DisplaySettings.introAnim.value) {
+        if (!DisplaySettings.introAnim.value || HomeIntroOnce.shown) {
+            animPhase = 3; introDone = true
+            return@LaunchedEffect
+        }
         delay(240);  animPhase = 1   // 文字短暂停留后开始变身
         delay(180);  animPhase = 2   // 心形放大
         delay(170);  animPhase = 3   // 心形消散
@@ -144,6 +148,35 @@ fun HomeScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Starfield(Modifier.fillMaxSize())
+
+        // 右上角快捷按钮：① 首页图标模式切换 ② 开场动画显示/隐藏（覆盖层，不随滚动）
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = topInset + 6.dp, end = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            TopQuickChip(
+                glyph = "▦",
+                label = if (DisplaySettings.iconMode.value) "图标" else "摊面",
+                active = DisplaySettings.iconMode.value
+            ) {
+                val next = !DisplaySettings.iconMode.value
+                DisplaySettings.setIconMode(next)
+                Toast.makeText(context, if (next) "已切换：图标网格" else "已切换：详细摊面", Toast.LENGTH_SHORT).show()
+            }
+            TopQuickChip(
+                glyph = if (DisplaySettings.introAnim.value) "✦" else "✧",
+                label = if (DisplaySettings.introAnim.value) "动效" else "静默",
+                active = DisplaySettings.introAnim.value
+            ) {
+                val next = !DisplaySettings.introAnim.value
+                if (!next) HomeIntroOnce.shown = true // 关动画时标记为已播，避免下次再触发
+                DisplaySettings.setIntroAnim(next)
+                Toast.makeText(context, if (next) "已开启开场动画" else "已隐藏开场动画", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -267,6 +300,31 @@ fun HomeScreen(
             onOpenArchive = onOpenArchive,
             onOpenSettings = onOpenSettings
         )
+    }
+}
+
+/** 首页右上角快捷小胶囊：图标 + 状态文字，active 决定描边/高亮 */
+@Composable
+private fun TopQuickChip(
+    glyph: String,
+    label: String,
+    active: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .border(BorderStroke(1.dp, if (active) AppColors.GoldLine else AppColors.Line), RoundedCornerShape(16.dp))
+            .background(Brush.verticalGradient(listOf(Color(0xE8262632), Color(0xF016161C))))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(glyph, color = if (active) AppColors.Lantern else AppColors.Muted, fontSize = 13.sp)
+            Text(label, color = if (active) AppColors.Paper else AppColors.Muted, fontSize = 10.5.sp,
+                letterSpacing = 1.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Serif)
+        }
     }
 }
 
