@@ -51,7 +51,7 @@ private fun MenuShell(
     title: String,
     subtitle: String,
     onBack: () -> Unit,
-    topGap: Dp = 66.dp,
+    topGap: Dp = 28.dp,
     actions: @Composable () -> Unit = {},
     content: @Composable () -> Unit
 ) {

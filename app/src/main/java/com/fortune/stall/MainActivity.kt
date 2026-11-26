@@ -61,7 +61,7 @@ import com.fortune.stall.util.TarotSettings
 import com.fortune.stall.util.ZiweiSettings
 
 class MainActivity : ComponentActivity() {
-    // 当前页面是否需要显示系统导航栏（传承页、起卦页为 true）
+    // 当前页面是否需要显示系统导航栏（仅首页全屏隐藏，其余页面都显示）
     private var showNavBar = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -111,12 +111,11 @@ private fun AppNavigation(
     var aiSession by remember { mutableStateOf<Session?>(null) }
     var aiDirectContext by remember { mutableStateOf<String?>(null) }
 
-    // 传承页 + 三个起卦页（小六壬/六爻/塔罗，均为 CAST）需要显示系统底部导航条，
-    // 其余页面保持全屏沉浸。进入这些页 show，离开恢复隐藏；
-    // 并同步给 Activity 供切后台回来时恢复。
+    // 仅首页（图1宫格页）保持全屏沉浸隐藏系统导航栏，其余所有页面都显示底部导航条。
+    // 进入非首页 show，回到首页恢复隐藏；并同步给 Activity 供切后台回来时恢复。
     val context = LocalContext.current
     LaunchedEffect(route) {
-        val needNav = route == Route.LINEAGE || route == Route.CAST || route == Route.JIANG
+        val needNav = route != Route.HOME
         onNavBarMode(needNav)
         val activity = context as? Activity
         if (activity != null) {

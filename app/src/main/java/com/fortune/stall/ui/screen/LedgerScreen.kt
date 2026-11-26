@@ -115,8 +115,8 @@ fun LedgerScreen(
     Box(Modifier.fillMaxSize()) {
         Starfield(Modifier.fillMaxSize())
         Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-            Spacer(Modifier.height(52.dp))
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(6.dp))
             // 标题行：居中标题 + 右上角「多选 / 退出多选」
             Box(Modifier.fillMaxWidth()) {
                 Text(if (onlyFavorites) "收 藏" else "卦 账", color = AppColors.Paper, fontSize = 26.sp,
