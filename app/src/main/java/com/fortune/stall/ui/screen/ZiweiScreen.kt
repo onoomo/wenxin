@@ -65,8 +65,8 @@ fun ZiweiCastScreen(db: FortuneDb, onBack: () -> Unit, onAskAi: (String) -> Unit
     var lastArgs by remember { mutableStateOf<Triple<java.time.LocalDateTime, Boolean, Double?>?>(null) }
 
     if (result == null) {
-        JiMingpanCastForm(title = "紫 微 斗 数", onBack = onBack, showLongitude = true, dark = true, showSchool = true) { f ->
-            // 真太阳时开关开启且填了经度才做经度+均时差校正；夏令时按主流口径只提示、不自动减 1 小时
+        ZiweiCastForm(onBack = onBack) { f ->
+            // 真太阳时开关开启且填了经度才做经度+均时差校正
             val lon = if (f.trueSolar) f.longitude else null
             val r = Ziwei.paipan(f.dateTime, f.isMan, -1, lon, false)
             result = r
@@ -205,20 +205,7 @@ private fun ZiweiDetailScreen(
             ZwGoldNavBar("紫微斗数结果", onBack)
             Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(scroll).padding(horizontal = 12.dp)) {
                 Spacer(Modifier.height(10.dp))
-                // 子页签：紫微 / 命录（命录=合盘入口，对齐参考图布局）
-                Row(Modifier.clip(RoundedCornerShape(20.dp)).background(ZW_SURFACE)
-                    .border(1.dp, ZW_BORDER, RoundedCornerShape(20.dp)).padding(3.dp)) {
-                    Box(Modifier.clip(RoundedCornerShape(16.dp)).background(PINK_BG)
-                        .padding(horizontal = 16.dp, vertical = 5.dp)) {
-                        Text("紫微", color = PINK, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(Modifier.width(4.dp))
-                    Box(Modifier.clip(RoundedCornerShape(16.dp))
-                        .clickable(onClick = onHeming).padding(horizontal = 16.dp, vertical = 5.dp)) {
-                        Text("命录", color = ZW_T2, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                    }
-                }
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(2.dp))
                 // 紫微总览 / 当前命盘
                 Text("紫微总览", color = PINK, fontSize = 11.sp, fontWeight = FontWeight.Medium)
                 Text("当前命盘", color = ZW_T0, fontSize = 23.sp, fontWeight = FontWeight.Bold)
@@ -531,23 +518,23 @@ private fun ZwCell(
         }
 
         Column(Modifier.fillMaxSize()) {
-            // ① 星曜区：每颗星竖排两字成列，横排多列；列下方对齐亮度字 + 四化红方块（对齐图1）
+            // ① 星曜区：每颗星竖排两字成列，横排多列；列下方对齐亮度字 + 四化方块（对齐原版图2）
             val starCols = (p.major + p.minor).map { it.name to it.brightness } + p.adj.map { it to "" }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(1.dp)) {
                 starCols.take(9).forEach { (nm, br) ->
                     val mg = (p.major + p.minor).firstOrNull { it.name == nm }?.mutagen ?: ""
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         nm.forEach { ch ->
-                            Text(ch.toString(), color = starNameColor(nm), fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold, lineHeight = 10.sp)
+                            Text(ch.toString(), color = starNameColor(nm), fontSize = 8.5.sp,
+                                fontWeight = FontWeight.Bold, lineHeight = 9.5.sp)
                         }
                         if (br.isNotBlank()) {
-                            Text(br, color = ZW_T0, fontSize = 7.sp, lineHeight = 8.sp)
+                            Text(br, color = ZW_T1, fontSize = 6.5.sp, lineHeight = 8.sp)
                         }
                         if (mg.isNotBlank()) {
                             Box(Modifier.clip(RoundedCornerShape(2.dp)).background(zwSiHuaBg(mg))
                                 .padding(horizontal = 1.dp)) {
-                                Text(mg, color = Color.White, fontSize = 6.5.sp, fontWeight = FontWeight.Bold,
+                                Text(mg, color = Color.White, fontSize = 6.sp, fontWeight = FontWeight.Bold,
                                     lineHeight = 8.sp)
                             }
                         }
@@ -559,51 +546,52 @@ private fun ZwCell(
             val annos = fly[z]
             if (!annos.isNullOrEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    annos.forEach { Text(it.text, color = it.color, fontSize = 6.5.sp, fontWeight = FontWeight.Bold) }
+                    annos.forEach { Text(it.text, color = it.color, fontSize = 6.sp, fontWeight = FontWeight.Bold) }
                 }
             }
 
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(1.dp))
 
-            // ② 流年 / 小限 两行（冒号口径，对齐图1）
+            // ② 流年（原版图2：流年: 12,24,36,48,60）
             Text("流年: " + flowAgesOf(r, z).joinToString(","), color = ZW_T1,
                 fontSize = 6.5.sp, lineHeight = 8.sp, maxLines = 1)
-            Text("小限: " + p.ages.joinToString(","), color = ZW_T1,
+            // ③ 小限（原版图2：小限: 12,24,36,48,60）
+            Text("小限: " + p.ages.take(5).joinToString(","), color = ZW_T1,
                 fontSize = 6.5.sp, lineHeight = 8.sp, maxLines = 1)
 
             Spacer(Modifier.weight(1f))
 
-            // ③ 大限区间（居中偏下大字）
+            // ④ 大限区间（居中，紧邻底部行上方，不再与宫名重叠）
             Text("${p.decadal.first}~${p.decadal.second}",
                 color = if (isCurrentDx) Color(0xFFD8B4FE) else ZW_T0,
-                fontSize = 12.sp, lineHeight = 14.sp,
-                modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 2.dp))
-        }
+                fontSize = 11.sp, lineHeight = 13.sp,
+                modifier = Modifier.align(Alignment.CenterHorizontally))
+            Spacer(Modifier.height(1.dp))
 
-        // ④ 左下竖排：博士 / 亡神 / 病符（每条两字横排，三行）
-        Column(Modifier.align(Alignment.BottomStart), verticalArrangement = Arrangement.Bottom) {
-            if (p.boshi.isNotBlank()) Text(p.boshi, color = ZW_T1, fontSize = 7.sp, lineHeight = 9.sp, maxLines = 1)
-            if (p.jiangqian.isNotBlank()) Text(p.jiangqian, color = ZW_T1, fontSize = 7.sp, lineHeight = 9.sp, maxLines = 1)
-            if (p.suiqian.isNotBlank()) Text(p.suiqian, color = ZW_T1, fontSize = 7.sp, lineHeight = 9.sp, maxLines = 1)
-        }
-
-        // ⑤ 右下竖排：长生十二神 + 宫干支大字（对齐图1"临官 / 癸 / 巳"）
-        Column(Modifier.align(Alignment.BottomEnd), horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.Bottom) {
-            if (p.changsheng.isNotBlank()) {
-                p.changsheng.forEach { ch ->
-                    Text(ch.toString(), color = ZW_T1, fontSize = 8.sp, lineHeight = 10.sp)
+            // ⑤ 底部行：左 博士/亡神/病符 ｜ 中 宫名红框 ｜ 右 长生+宫干支（对齐原版图2）
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+                // 左下：博士 / 亡神 / 病符
+                Column(Modifier.weight(1f)) {
+                    if (p.boshi.isNotBlank()) Text(p.boshi, color = ZW_T1, fontSize = 6.5.sp, lineHeight = 8.sp, maxLines = 1)
+                    if (p.jiangqian.isNotBlank()) Text(p.jiangqian, color = ZW_T1, fontSize = 6.5.sp, lineHeight = 8.sp, maxLines = 1)
+                    if (p.suiqian.isNotBlank()) Text(p.suiqian, color = ZW_T1, fontSize = 6.5.sp, lineHeight = 8.sp, maxLines = 1)
+                }
+                // 宫名红框（居中）
+                Box(Modifier.clip(RoundedCornerShape(3.dp)).background(Color(0xFFC8102E))
+                    .padding(horizontal = 3.dp, vertical = 1.dp)) {
+                    Text(p.name, color = Color.White, fontSize = 7.5.sp, fontWeight = FontWeight.Bold, lineHeight = 9.sp)
+                }
+                // 右下：长生十二神竖排 + 宫干支大字
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                    if (p.changsheng.isNotBlank()) {
+                        p.changsheng.forEach { ch ->
+                            Text(ch.toString(), color = ZW_T1, fontSize = 7.sp, lineHeight = 9.sp)
+                        }
+                    }
+                    Text(p.gan, color = ZW_T0, fontSize = 12.sp, fontWeight = FontWeight.Bold, lineHeight = 14.sp)
+                    Text(p.zhi, color = ZW_T0, fontSize = 14.sp, fontWeight = FontWeight.Bold, lineHeight = 16.sp)
                 }
             }
-            Text(p.gan, color = ZW_T0, fontSize = 13.sp, fontWeight = FontWeight.Bold, lineHeight = 15.sp)
-            Text(p.zhi, color = ZW_T0, fontSize = 15.sp, fontWeight = FontWeight.Bold, lineHeight = 17.sp)
-        }
-
-        // ⑥ 宫名红框（底部居中）
-        Box(Modifier.align(Alignment.BottomCenter)
-            .clip(RoundedCornerShape(3.dp)).background(Color(0xFFC8102E))
-            .padding(horizontal = 3.dp, vertical = 1.dp)) {
-            Text(p.name, color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold, lineHeight = 10.sp)
         }
     }
 }
