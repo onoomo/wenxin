@@ -189,4 +189,81 @@ object LunarCalendar {
         val days = java.time.temporal.ChronoUnit.DAYS.between(LocalDate.of(2000, 1, 7), date).toInt()
         return ganZhi(days)
     }
+
+    /** 农历某年从正月初一起累计到指定月（含该月之前所有月）的天数偏移 */
+    private fun daysBeforeMonth(y: Int, targetMonth: Int, isLeapTarget: Boolean): Int {
+        var sum = 0
+        val leap = leapMonth(y)
+        for (m in 1 until targetMonth) {
+            sum += monthDays(y, m)
+            if (leap == m) sum += leapDays(y)
+        }
+        // 目标月本身是闰月：正月初一 + 之前各月 + 之前闰月 + 对应平月天数
+        if (isLeapTarget && leap == targetMonth) sum += monthDays(y, targetMonth)
+        return sum
+    }
+
+    /**
+     * 农历日期 → 公历（对齐 tyme4ts 的 LunarDay.fromYmd(y,m,d).getSolarDay()）。
+     * isLeap=true 且该年闰月恰为 month 时取闰月，否则按平月。
+     */
+    fun lunarToSolar(year: Int, month: Int, day: Int, isLeap: Boolean = false): LocalDate {
+        var offset = 0
+        for (y in 1900 until year) offset += yearDays(y)
+        val leap = leapMonth(year)
+        val effectiveLeap = isLeap && leap == month
+        offset += daysBeforeMonth(year, month, effectiveLeap)
+        offset += day - 1
+        return LocalDate.of(1900, 1, 31).plusDays(offset.toLong())
+    }
+
+    /**
+     * 按农历年位移公历出生日期（对齐 mingyu 的 shiftLunarYear）：
+     * 取出生农历月日，换到「出生农历年 + amount」年；目标年无此闰月或该月无三十日时按 29 日回退。
+     */
+    fun shiftLunarYear(dateStr: String, amount: Int): String {
+        val parts = dateStr.split("-")
+        val y = parts[0].toInt(); val m = parts[1].toInt(); val d = parts[2].toInt()
+        val birth = fromDateTime(LocalDateTime.of(y, m, d, 12, 0))
+        val targetYear = birth.year + amount
+        val monthWithLeap = if (birth.isLeap) -birth.month else birth.month
+        val monthCandidates = if (monthWithLeap < 0) listOf(monthWithLeap, kotlin.math.abs(monthWithLeap)) else listOf(monthWithLeap)
+        for (tm in monthCandidates) {
+            val leap = tm < 0
+            val mm = kotlin.math.abs(tm)
+            for (dd in listOf(birth.day, 29)) {
+                try {
+                    if (leap && leapMonth(targetYear) != mm) continue
+                    val maxD = if (leap) leapDays(targetYear) else monthDays(targetYear, mm)
+                    if (dd > maxD) continue
+                    val solar = lunarToSolar(targetYear, mm, dd, leap)
+                    return "%04d-%02d-%02d".format(solar.year, solar.monthValue, solar.dayOfMonth)
+                } catch (_: Exception) { /* 候选回退 */ }
+            }
+        }
+        // 兜底：目标年同农历月十五
+        val solar = lunarToSolar(targetYear, birth.month, 15, false)
+        return "%04d-%02d-%02d".format(solar.year, solar.monthValue, solar.dayOfMonth)
+    }
+
+    /** 公历日期的农历年干支（流年干支 = 农历年干支，对齐 iztro horoscope.yearly） */
+    fun yearGanZhiOfSolar(date: LocalDate): String {
+        val lunar = fromDateTime(LocalDateTime.of(date.year, date.monthValue, date.dayOfMonth, 12, 0))
+        return lunar.yearGanZhi
+    }
+
+    /**
+     * 虚岁分界公历日（对齐 mingyu buildNormalAgeBoundaryDate，normal 口径）：
+     * - 1 岁 = 出生公历日
+     * - N 岁 = 「出生农历年 + (N-1)」那一年的正月初一公历日
+     * 视频/截图中童限2岁=02/19、大限6-15=02/05 均由此口径得出。
+     */
+    fun ageBoundaryDate(birthSolarDate: String, age: Int): String {
+        if (age <= 1) return birthSolarDate
+        val p = birthSolarDate.split("-")
+        val birth = fromDateTime(LocalDateTime.of(p[0].toInt(), p[1].toInt(), p[2].toInt(), 12, 0))
+        val targetLunarYear = birth.year + age - 1
+        val firstDay = lunarToSolar(targetLunarYear, 1, 1)
+        return "%04d-%02d-%02d".format(firstDay.year, firstDay.monthValue, firstDay.dayOfMonth)
+    }
 }

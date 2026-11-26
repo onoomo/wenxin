@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fortune.stall.data.FortuneDb
 import com.fortune.stall.engine.jishiyu.Ziwei
+import com.fortune.stall.engine.jishiyu.ZiweiFortune
 import com.fortune.stall.util.LunarCalendar
 import java.time.Year
 import java.time.format.DateTimeFormatter
@@ -566,19 +567,23 @@ private fun ZwCell(
                     annos.forEach { Text(it.text, color = it.color, fontSize = 8.sp, fontWeight = FontWeight.Bold) }
                 }
             }
-            // 宫底 badge：宫位名 + 长生 + 博士（mingyu）
+            // 宫底 badge（对齐 ziweiTraditionalBoard footerBadges）：长生 / 博士 / 将前 / 岁前
             Spacer(Modifier.weight(1f))
-            Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(p.changsheng.takeIf { it.isNotBlank() }?.let {
-                    Modifier.clip(RoundedCornerShape(5.dp)).background(Color(0x22FFFFFF)).padding(horizontal = 4.dp, vertical = 1.dp)
-                } ?: Modifier) {
-                    Text(listOfNotNull(p.name, p.changsheng.takeIf { it.isNotBlank() }).joinToString(" "),
-                        color = if (isMing) PINK else ZW_T0, fontSize = 8.sp, lineHeight = 10.sp)
+            val footBadges = listOfNotNull(
+                p.changsheng.takeIf { it.isNotBlank() }?.let { "长生 $it" },
+                p.boshi.takeIf { it.isNotBlank() }?.let { "博士 $it" },
+                p.jiangqian.takeIf { it.isNotBlank() }?.let { "将前 $it" },
+                p.suiqian.takeIf { it.isNotBlank() }?.let { "岁前 $it" }
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.clip(RoundedCornerShape(5.dp)).background(Color(0x22FFFFFF))
+                    .padding(horizontal = 4.dp, vertical = 1.dp)) {
+                    Text(p.name, color = if (isMing) PINK else ZW_T0, fontSize = 8.sp, lineHeight = 10.sp)
                 }
-                if (p.boshi.isNotBlank()) {
-                    Box(Modifier.clip(RoundedCornerShape(5.dp)).background(Color(0x22FFFFFF))
-                        .padding(horizontal = 4.dp, vertical = 1.dp)) {
-                        Text("博士 ${p.boshi}", color = ZW_T2, fontSize = 7.5.sp, lineHeight = 10.sp)
+                footBadges.take(3).forEach { b ->
+                    Box(Modifier.clip(RoundedCornerShape(5.dp)).background(Color(0x18FFFFFF))
+                        .padding(horizontal = 3.dp, vertical = 1.dp)) {
+                        Text(b, color = ZW_T2, fontSize = 7.sp, lineHeight = 9.sp, maxLines = 1)
                     }
                 }
             }
@@ -719,131 +724,125 @@ private fun ZwTab(text: String, active: Boolean, modifier: Modifier, onClick: ()
             .clickable(onClick = onClick).padding(vertical = 5.dp))
 }
 
-// ===== 底部多维联动表（严格对照 mingyu 排版）=====
-// 结构：竖排维度标签+竖线 | 大限卡片(标题+胶囊日期)横排 | 流年单个(年份/岁数/竖排干支)
-//       | 流月格子(月+小字日期+竖排干支) | 流日格子(日+小字日期+竖排干支)
+// ===== 底部四级联动运限表（严格对照 mingyu ZiweiFortuneSelector.tsx）=====
+// 大限 → 流年 → 流月 → 流日 每级选中都会重算下级选项（对齐 useZiweiFortuneOptionsWorker）。
+// 四行结构：竖排维度标签+竖线 | 横排格子(可滚) | 选中高亮。
 @Composable
 private fun ZwBottomTable(
     r: Ziwei.Result, sel: ZwSel?, birthYear: Int, limitLabel: String, onSelect: (ZwSel) -> Unit
 ) {
-    val parts = r.solarDate.split("-")
-    val bY = parts.getOrNull(0)?.toIntOrNull() ?: birthYear
-    val bM = parts.getOrNull(1)?.toIntOrNull() ?: 1
-    val bD = parts.getOrNull(2)?.toIntOrNull() ?: 1
-    val birthDate = java.time.LocalDate.of(bY, bM, bD)
-    val gzList: List<String> = Regex("[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]")
-        .findAll(r.chineseDate).map { m: MatchResult -> m.value }.toList()
-    val firstLimit = r.palaces.minOfOrNull { it.decadal.first } ?: 6
-    val dxList = r.palaces.sortedBy { it.decadal.first }
+    val nowYear = java.time.Year.now().value
+    val periods: List<ZiweiFortune.Period> = remember(r) { ZiweiFortune.buildPeriods(r) }
+    // 默认选中「当前虚岁」所在的大限/童限
+    val birthY = r.solarDate.substringBefore("-").toIntOrNull() ?: nowYear
+    val curAge = (nowYear - birthY + 1).coerceAtLeast(1)
+    val initialPeriod = periods.indexOfFirst { curAge in it.startAge..it.endAge }.coerceAtLeast(0)
 
-    // 当前展示流年：点击流年/流月格时从 label 提取年份，缺省=出生年
-    val shownYear = Regex("(\\d{4})").find(sel?.label ?: "")?.groupValues?.get(1)?.toIntOrNull() ?: bY
-    val shownAge = (shownYear - bY + 1).coerceAtLeast(1)
-    val shownYearGz = ganZhiOfYear(shownYear)
-    val yearGanIdx = GAN_CN.indexOf(shownYearGz[0].toString()).coerceAtLeast(0)
-    val yinGanStart = (yearGanIdx % 5) * 2 + 2            // 五虎遁：寅月天干序号
-    fun monthGzOf(m: Int) = GAN_CN[(yinGanStart + m - 1) % 10] + ZHI_CN[(m + 1) % 12]
+    var pIdx by remember(r) { mutableStateOf(initialPeriod) }
+    val period: ZiweiFortune.Period? = periods.getOrNull(pIdx) ?: periods.firstOrNull()
 
-    // 运限交接日期近似：出生年用生日，其后用立春前后(2月)确定性波动（iztro 以节气交接为准）
-    var dateSeq = 0
-    fun limitDate(): String {
-        val s = if (dateSeq == 0) "%02d/%02d".format(bM, bD)
-                else "02/%02d".format(4 + (dateSeq * 7) % 16)
-        dateSeq++
-        return s
+    val years: List<ZiweiFortune.Option> = remember(r, period) {
+        if (period != null) ZiweiFortune.buildYears(r, period) else emptyList()
     }
+    // 默认流年 = 当前虚岁所在项
+    var yDate by remember(r, period) {
+        mutableStateOf(years.firstOrNull { it.age == curAge }?.dateStr ?: years.firstOrNull()?.dateStr ?: "")
+    }
+    val year: ZiweiFortune.Option? = years.firstOrNull { it.dateStr == yDate } ?: years.firstOrNull()
 
-    val tagW = 22.dp
-    val cardW = 46.dp
-    val dxRowH = 90.dp
-    val yrRowH = 78.dp
-    val mRowH = 76.dp
-    val dRowH = 76.dp
-    val dxScroll = rememberScrollState()
-    val mScroll = rememberScrollState()
-    val dScroll = rememberScrollState()
+    val months: List<ZiweiFortune.Option> = remember(r, year) {
+        if (year != null) ZiweiFortune.buildMonths(r, year) else emptyList()
+    }
+    var mDate by remember(r, year) { mutableStateOf(months.firstOrNull()?.dateStr ?: "") }
+    val month: ZiweiFortune.Option? = months.firstOrNull { it.dateStr == mDate } ?: months.firstOrNull()
+
+    val days: List<ZiweiFortune.Option> = remember(r, month) {
+        if (month != null) ZiweiFortune.buildDays(r, month) else emptyList()
+    }
+    var dDate by remember(r, month) { mutableStateOf(days.firstOrNull()?.dateStr ?: "") }
+
+    val tagW = 24.dp
+    val cardW = 52.dp
+    val rowH = 72.dp
+    val pScroll = rememberScrollState(); val yScroll = rememberScrollState()
+    val mScroll = rememberScrollState(); val dScroll = rememberScrollState()
 
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
         .border(1.dp, ZW_BORDER, RoundedCornerShape(12.dp)).background(ZW_SURFACE)) {
 
-        // —— 大限行：童限(每年一张) + 大限(每宫十年)，标题 + 胶囊日期 ——
+        // —— 大限行：童限(每年) + 大限(每宫十年)，title + age + MM/DD 胶囊 ——
         Row(Modifier.fillMaxWidth()) {
-            ZwRowTagV("大限", dxRowH, tagW)
-            Row(Modifier.weight(1f).height(dxRowH).horizontalScroll(dxScroll),
+            ZwRowTagV("大限", rowH, tagW)
+            Row(Modifier.weight(1f).height(rowH).horizontalScroll(pScroll),
                 verticalAlignment = Alignment.CenterVertically) {
-                var cardIdx = 0
-                for (age in 1 until firstLimit) {
-                    val dt = limitDate()
-                    val active = if (sel == null) cardIdx == 0 else (sel.type == ZwSelType.DECADAL && sel.label.contains("童限 ${age}岁"))
-                    ZwLimitCard("童限", "${age}岁", dt, active, cardW, dxRowH) {
-                        onSelect(ZwSel(ziToIdx(r.ebSoul), "童限 ${age}岁 · $dt", ZwSelType.DECADAL, shownYearGz[0].toString()))
+                periods.forEachIndexed { i, p ->
+                    val active = i == pIdx
+                    ZwLimitCard(p.label,
+                        if (p.startAge == p.endAge) "${p.startAge}岁" else "${p.startAge}-${p.endAge}岁",
+                        p.dateStr.substring(5), active, cardW, rowH) {
+                        pIdx = i
+                        // 选大限 → 流年重置为该项首年（对齐 setSelectedYearDateStr）
+                        val newYears = ZiweiFortune.buildYears(r, p)
+                        yDate = newYears.firstOrNull()?.dateStr ?: ""
+                        mDate = ""; dDate = ""
+                        onSelect(ZwSel(ziToIdx(r.ebSoul), "${p.label} ${p.startAge}-${p.endAge}岁 · ${p.palaceName}", ZwSelType.DECADAL, r.yearGan))
                     }
-                    Spacer(Modifier.width(3.dp))
-                    cardIdx++
-                }
-                dxList.filter { it.decadal.first >= firstLimit }.forEachIndexed { di, p ->
-                    val z = ziToIdx(p.zhi)
-                    val dt = limitDate()
-                    val active = if (sel == null) (di == 0 && firstLimit <= 1) else (sel.type == ZwSelType.DECADAL && sel.zhi == z)
-                    // 参考图：大限的"6-15岁"拆为两行
-                    ZwLimitCard("大限", "${p.decadal.first}-${p.decadal.second}\n岁", dt, active, cardW, dxRowH) {
-                        onSelect(ZwSel(z, "大限 ${p.decadal.first}-${p.decadal.second} · ${p.gan}${p.zhi}", ZwSelType.DECADAL, p.gan))
-                    }
-                    Spacer(Modifier.width(3.dp))
+                    Spacer(Modifier.width(2.dp))
                 }
             }
         }
         ZwThinDivider()
-        // —— 流年行：只显示当前一个（年份 + 岁数 + 竖排干支）——
+        // —— 流年行：年份 + N岁 + 竖排干支（横排，选中该大限覆盖的整段）——
         Row(Modifier.fillMaxWidth()) {
-            ZwRowTagV("流年", yrRowH, tagW)
-            Row(Modifier.weight(1f).height(yrRowH).padding(start = 10.dp),
+            ZwRowTagV("流年", rowH, tagW)
+            Row(Modifier.weight(1f).height(rowH).horizontalScroll(yScroll),
                 verticalAlignment = Alignment.CenterVertically) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("$shownYear", color = ZW_T0, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                    Text("${shownAge}岁", color = ZW_FAINT, fontSize = 9.sp)
-                }
-                Spacer(Modifier.width(18.dp))
-                Text(shownYearGz[0].toString(), color = ZW_T1, fontSize = 20.sp, fontWeight = FontWeight.Medium)
-                Spacer(Modifier.width(2.dp))
-                Text(shownYearGz[1].toString(), color = ZW_T1, fontSize = 20.sp, fontWeight = FontWeight.Medium)
-            }
-        }
-        ZwThinDivider()
-        // —— 流月行：月 + 小字日期 + 竖排干支 ——
-        Row(Modifier.fillMaxWidth()) {
-            ZwRowTagV("流月", mRowH, tagW)
-            Row(Modifier.weight(1f).height(mRowH).horizontalScroll(mScroll),
-                verticalAlignment = Alignment.CenterVertically) {
-                for (i in 0 until 12) {
-                    val m = (bM - 1 + i) % 12 + 1
-                    val d = birthDate.plusMonths(i.toLong())
-                    val gz = monthGzOf(m)
-                    val active = m == bM
-                    ZwGzCell("${m}月", "%02d/%02d".format(d.monthValue, d.dayOfMonth), gz, active, cardW, mRowH) {
-                        onSelect(ZwSel(ziToIdx(gz[1].toString()), "流年 $shownYear ${m}月 · $gz", ZwSelType.YEARLY, gz[0].toString()))
+                years.forEach { o ->
+                    val active = o.dateStr == yDate
+                    ZwGzCell(o.head, o.sub, o.ganZhi, active, cardW, rowH) {
+                        yDate = o.dateStr
+                        // 选流年 → 流月重置为该年首月
+                        val newMonths = ZiweiFortune.buildMonths(r, o)
+                        mDate = newMonths.firstOrNull()?.dateStr ?: ""
+                        dDate = ""
+                        onSelect(ZwSel(ziToIdx(o.ganZhi[1].toString()), "流年 ${o.head} · ${o.ganZhi}（${o.sub}）", ZwSelType.YEARLY, o.ganZhi[0].toString()))
                     }
-                    Spacer(Modifier.width(3.dp))
+                    Spacer(Modifier.width(2.dp))
                 }
             }
         }
         ZwThinDivider()
-        // —— 流日行：日 + 小字日期 + 竖排干支 ——
+        // —— 流月行：N月 + MM/DD + 竖排干支 ——
         Row(Modifier.fillMaxWidth()) {
-            ZwRowTagV("流日", dRowH, tagW)
-            Row(Modifier.weight(1f).height(dRowH).horizontalScroll(dScroll),
+            ZwRowTagV("流月", rowH, tagW)
+            Row(Modifier.weight(1f).height(rowH).horizontalScroll(mScroll),
                 verticalAlignment = Alignment.CenterVertically) {
-                val baseM = (if (sel?.type == ZwSelType.YEARLY)
-                    Regex("(\\d+)月").find(sel.label)?.groupValues?.get(1)?.toIntOrNull() else null) ?: bM
-                val base = birthDate.plusMonths((baseM - 1).toLong())
-                for (i in 0 until 12) {
-                    val d = base.plusDays(i.toLong())
-                    val gz = LunarCalendar.dayGanZhi(d)
-                    val active = d.dayOfMonth == bD
-                    ZwGzCell("${bD + i}", "%02d/%02d".format(d.monthValue, d.dayOfMonth), gz, active, cardW, dRowH) {
-                        onSelect(ZwSel(ziToIdx(gz[1].toString()), "流日 ${d.monthValue}/${d.dayOfMonth} · $gz", ZwSelType.YEARLY, gz[0].toString()))
+                months.forEach { o ->
+                    val active = o.dateStr == mDate
+                    ZwGzCell(o.head, o.sub, o.ganZhi, active, cardW, rowH) {
+                        mDate = o.dateStr
+                        // 选流月 → 流日重置为该月首日
+                        val newDays = ZiweiFortune.buildDays(r, o)
+                        dDate = newDays.firstOrNull()?.dateStr ?: ""
+                        onSelect(ZwSel(ziToIdx(o.ganZhi[1].toString()), "${o.head} · ${o.sub} · ${o.ganZhi}", ZwSelType.YEARLY, o.ganZhi[0].toString()))
                     }
-                    Spacer(Modifier.width(3.dp))
+                    Spacer(Modifier.width(2.dp))
+                }
+            }
+        }
+        ZwThinDivider()
+        // —— 流日行：日 + MM/DD + 竖排干支 ——
+        Row(Modifier.fillMaxWidth()) {
+            ZwRowTagV("流日", rowH, tagW)
+            Row(Modifier.weight(1f).height(rowH).horizontalScroll(dScroll),
+                verticalAlignment = Alignment.CenterVertically) {
+                days.forEach { o ->
+                    val active = o.dateStr == dDate
+                    ZwGzCell(o.head, o.sub, o.ganZhi, active, cardW, rowH) {
+                        dDate = o.dateStr
+                        onSelect(ZwSel(ziToIdx(o.ganZhi[1].toString()), "流日 ${o.sub} · ${o.ganZhi}", ZwSelType.YEARLY, o.ganZhi[0].toString()))
+                    }
+                    Spacer(Modifier.width(2.dp))
                 }
             }
         }
