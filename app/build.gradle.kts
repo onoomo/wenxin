@@ -11,8 +11,8 @@ android {
         applicationId = "com.fortune.stall"
         minSdk = 24
         targetSdk = 36
-        versionCode = 77
-        versionName = "1.6.0 · 新增雷诺曼独立模块(36牌8牌阵+组合+九宫)"
+        versionCode = 78
+        versionName = "1.6.1 · 雷诺曼补齐逐张点抽+修复抽牌按钮锁死"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

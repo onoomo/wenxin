@@ -235,6 +235,55 @@ object Lenormand {
         return out
     }
 
+    /** 由逐张抽取的 [0,1) 样本序列还原取牌（对应 mingyu resolveInteractiveLenormandCards + secureRandomIndexSample）。
+     * 每个样本从当前剩余牌中按 floor(sample * remaining.size) 取一张并移除，保证不重复。 */
+    fun revealSamples(spreadKey: String, samples: List<Double>): List<Card> {
+        val spread = spreadOf(spreadKey)
+        if (samples.size > spread.positions.size)
+            throw IllegalArgumentException("${spread.name}最多抽取${spread.positions.size}张牌")
+        val remaining = DECK.toMutableList()
+        return samples.map { s ->
+            if (!s.isFinite() || s < 0.0 || s >= 1.0)
+                throw IllegalArgumentException("抽牌随机样本无效")
+            val idx = (s * remaining.size).toInt().coerceIn(0, remaining.size - 1)
+            remaining.removeAt(idx)
+        }
+    }
+
+    /** 生成一张逐张抽取的样本（对应 mingyu secureRandomIndexSample，无偏索引转 [0,1)）。 */
+    fun nextSample(remainingCount: Int, random: Random = Random): Double {
+        val n = remainingCount.coerceAtLeast(1)
+        return (random.nextInt(n) + 0.5) / n
+    }
+
+    /** 逐张点抽完成后，按样本还原完整牌阵结果。 */
+    fun drawFromSamples(spreadKey: String, samples: List<Double>): Result {
+        val spread = spreadOf(spreadKey)
+        if (samples.size != spread.positions.size)
+            throw IllegalArgumentException("${spread.name}需要逐张抽取${spread.positions.size}张牌")
+        return assemble(spread, revealSamples(spreadKey, samples))
+    }
+
+    /** 组装牌阵结果（随机 / 手录 / 逐张点抽共用） */
+    private fun assemble(spread: Spread, picked: List<Card>): Result {
+        val key = spread.key
+        val columns = if (key == "grandTableau") 9 else if (key == "nine") 3 else 0
+        val cards = picked.mapIndexed { i, card ->
+            Drawn(
+                card = card,
+                position = spread.positions[i],
+                house = if (key == "grandTableau") DECK[i].name else null,
+                row = if (columns > 0) i / columns + 1 else null,
+                column = if (columns > 0) i % columns + 1 else null
+            )
+        }
+        return Result(
+            key, spread.name, cards,
+            buildCombinations(key, cards),
+            buildLayoutEvidence(key, cards)
+        )
+    }
+
     /** 抽牌主入口：random=随机洗牌，manualIds=按牌号手录 */
     fun draw(spreadKey: String, random: Random = Random, manualIds: List<Int>? = null): Result {
         val spread = spreadOf(spreadKey)
@@ -243,21 +292,7 @@ object Lenormand {
         else shuffleDraw(spread.positions.size, random)
         if (picked.size != spread.positions.size)
             throw IllegalArgumentException("${spread.name}需要${spread.positions.size}张牌")
-        val columns = if (spreadKey == "grandTableau") 9 else if (spreadKey == "nine") 3 else 0
-        val cards = picked.mapIndexed { i, card ->
-            Drawn(
-                card = card,
-                position = spread.positions[i],
-                house = if (spreadKey == "grandTableau") DECK[i].name else null,
-                row = if (columns > 0) i / columns + 1 else null,
-                column = if (columns > 0) i % columns + 1 else null
-            )
-        }
-        return Result(
-            spreadKey, spread.name, cards,
-            buildCombinations(spreadKey, cards),
-            buildLayoutEvidence(spreadKey, cards)
-        )
+        return assemble(spread, picked)
     }
 
     /** 九宫十字距离分析（3x3，中心为第 5 张） */

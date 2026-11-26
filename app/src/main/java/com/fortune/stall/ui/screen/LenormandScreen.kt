@@ -58,20 +58,36 @@ fun LenormandScreen(db: com.fortune.stall.data.FortuneDb, onBack: () -> Unit) {
     val context = LocalContext.current
     var spreadKey by remember { mutableStateOf("three") }
     var question by remember { mutableStateOf("") }
-    var manualMode by remember { mutableStateOf(false) }
+    // 抽牌方式：auto=随机一键 / interactive=逐张点抽 / manual=手录牌号
+    var drawMethod by remember { mutableStateOf("auto") }
     var manualText by remember { mutableStateOf("") } // 手录牌号：空格/逗号分隔 1-36
+    var samples by remember { mutableStateOf<List<Double>>(emptyList()) } // 逐张点抽的样本序列
     var result by remember { mutableStateOf<Lenormand.Result?>(null) }
     var faceText by remember { mutableStateOf("") }
-    var casting by remember { mutableStateOf(false) }
 
     val spread = Lenormand.spreadOf(spreadKey)
+    val revealed = try { Lenormand.revealSamples(spreadKey, samples) } catch (e: Exception) { emptyList() }
+
+    fun resetDraw() { result = null; samples = emptyList(); manualText = "" }
+
+    fun drawOne() {
+        if (samples.size >= spread.positions.size) return
+        samples = samples + Lenormand.nextSample(Lenormand.DECK.size - samples.size)
+        result = null
+    }
 
     fun doDraw() {
         when {
             question.isBlank() -> {
                 Toast.makeText(context, "无事不占——先把事说清", Toast.LENGTH_SHORT).show(); return
             }
-            manualMode -> {
+            drawMethod == "interactive" -> {
+                if (samples.size != spread.positions.size) {
+                    Toast.makeText(context, "请先逐张抽满 ${spread.positions.size} 张牌", Toast.LENGTH_SHORT).show(); return
+                }
+                result = Lenormand.drawFromSamples(spreadKey, samples)
+            }
+            drawMethod == "manual" -> {
                 val ids = manualText.split(Regex("[\\s,，]+")).filter { it.isNotBlank() }
                     .mapNotNull { it.toIntOrNull() }
                 if (ids.size != spread.positions.size || ids.any { it !in 1..36 } || ids.distinct().size != ids.size) {
@@ -82,7 +98,6 @@ fun LenormandScreen(db: com.fortune.stall.data.FortuneDb, onBack: () -> Unit) {
             else -> result = Lenormand.draw(spreadKey, Random)
         }
         result?.let { faceText = Lenormand.render(it, question) }
-        casting = false
     }
 
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF0E0D0B), Color(0xFF16120C))))) {
@@ -119,7 +134,7 @@ fun LenormandScreen(db: com.fortune.stall.data.FortuneDb, onBack: () -> Unit) {
                         Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
                             .background(if (sel) Color(0x17D9A441) else Color(0x0AFFFFFF))
                             .then(if (sel) Modifier.border(1.dp, AppColors.GoldLine, RoundedCornerShape(10.dp)) else Modifier)
-                            .clickable { spreadKey = sp.key; result = null; manualText = "" }
+                            .clickable { spreadKey = sp.key; resetDraw() }
                             .padding(horizontal = 6.dp, vertical = 11.dp), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(sp.name, color = if (sel) AppColors.Paper else AppColors.Muted,
@@ -149,19 +164,19 @@ fun LenormandScreen(db: com.fortune.stall.data.FortuneDb, onBack: () -> Unit) {
 
             // 抽牌方式
             LmFieldLabel("抽牌方式")
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(false to "随机抽牌", true to "手动录牌").forEach { (m, label) ->
-                    val sel = m == manualMode
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("auto" to "随机抽牌", "interactive" to "逐张点抽", "manual" to "手录牌号").forEach { (m, label) ->
+                    val sel = m == drawMethod
                     Box(Modifier.weight(1f).clip(RoundedCornerShape(9.dp))
                         .background(if (sel) Color(0x17D9A441) else Color(0x0AFFFFFF))
                         .then(if (sel) Modifier.border(1.dp, AppColors.GoldLine, RoundedCornerShape(9.dp)) else Modifier)
-                        .clickable { manualMode = m; result = null }
+                        .clickable { drawMethod = m; resetDraw() }
                         .padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
-                        Text(label, color = if (sel) AppColors.Paper else AppColors.Muted, fontSize = 12.5.sp)
+                        Text(label, color = if (sel) AppColors.Paper else AppColors.Muted, fontSize = 11.5.sp)
                     }
                 }
             }
-            if (manualMode) {
+            if (drawMethod == "manual") {
                 Spacer(Modifier.height(8.dp))
                 Text("按牌位顺序录入牌号（1-36，英文/中文逗号或空格分隔）", color = AppColors.Dim, fontSize = 10.5.sp)
                 OutlinedTextField(
@@ -177,19 +192,68 @@ fun LenormandScreen(db: com.fortune.stall.data.FortuneDb, onBack: () -> Unit) {
                     )
                 )
             }
+            if (drawMethod == "interactive") {
+                Spacer(Modifier.height(10.dp))
+                // 逐张点抽：点一张翻一张，与 mingyu interactive 模式一致
+                Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                    .background(Color(0x0AFFFFFF)).border(1.dp, AppColors.Line, RoundedCornerShape(10.dp))
+                    .padding(12.dp)) {
+                    Column {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                if (samples.size < spread.positions.size) "当前牌位：${spread.positions[samples.size]}"
+                                else "牌阵已抽完",
+                                color = AppColors.Lantern, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text("${samples.size} / ${spread.positions.size}", color = AppColors.Muted, fontSize = 11.sp)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        if (revealed.isNotEmpty()) {
+                            Text("已揭：${revealed.joinToString(" · ") { it.name }}", color = AppColors.Paper,
+                                fontSize = 11.5.sp, lineHeight = 17.sp)
+                            Spacer(Modifier.height(8.dp))
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (samples.size < spread.positions.size) {
+                                Box(Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
+                                    .background(Brush.verticalGradient(listOf(Color(0x66D9A441), Color(0x44C96442))))
+                                    .clickable { drawOne() }.padding(vertical = 11.dp), contentAlignment = Alignment.Center) {
+                                    Text("抽 一 张", color = AppColors.Paper, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            if (samples.isNotEmpty()) {
+                                Box(Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0x12FFFFFF)).clickable { samples = emptyList(); result = null }
+                                    .padding(vertical = 11.dp), contentAlignment = Alignment.Center) {
+                                    Text("重新抽取", color = AppColors.Muted, fontSize = 12.5.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             Spacer(Modifier.height(8.dp))
             Text("牌位：${spread.positions.joinToString(" · ")}", color = AppColors.Dim, fontSize = 10.5.sp,
                 lineHeight = 16.sp, modifier = Modifier.fillMaxWidth())
 
-            // 抽牌按钮
+            // 解读按钮（逐张点抽时须先抽满）
             Spacer(Modifier.height(14.dp))
+            val canReveal = drawMethod != "interactive" || samples.size == spread.positions.size
             Button(
-                onClick = { casting = true; doDraw() }, enabled = !casting,
+                onClick = { doDraw() }, enabled = canReveal,
                 modifier = Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(12.dp)),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFC96442), contentColor = AppColors.Paper
+                    containerColor = Color(0xFFC96442), contentColor = AppColors.Paper,
+                    disabledContainerColor = Color(0x33C96442), disabledContentColor = AppColors.Dim
                 )
-            ) { Text(if (manualMode) "呈 牌 解 读" else "抽 牌", letterSpacing = 4.sp, fontSize = 15.sp) }
+            ) {
+                Text(
+                    if (drawMethod == "interactive") "解 读 牌 阵"
+                    else if (drawMethod == "manual") "呈 牌 解 读" else "抽 牌",
+                    letterSpacing = 4.sp, fontSize = 15.sp
+                )
+            }
 
             // 结果牌面
             result?.let { res ->
