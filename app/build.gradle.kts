@@ -11,8 +11,8 @@ android {
         applicationId = "com.fortune.stall"
         minSdk = 24
         targetSdk = 36
-        versionCode = 81
-        versionName = "1.6.4 · 设置页右上角按钮垂直排列(图标在动效下方)"
+        versionCode = 82
+        versionName = "1.6.5 · 修复设置按钮点击+卡片两列重排"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

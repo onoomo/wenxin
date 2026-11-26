@@ -57,10 +57,6 @@ private fun MenuShell(
 ) {
     Box(Modifier.fillMaxSize()) {
         Starfield(Modifier.fillMaxSize())
-        // 右上角快捷按钮区（覆盖层，不随内容滚动）
-        Box(Modifier.align(Alignment.TopEnd).padding(end = 16.dp, top = topGap - 12.dp)) {
-            actions()
-        }
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)
         ) {
@@ -72,6 +68,11 @@ private fun MenuShell(
             Spacer(Modifier.height(22.dp))
             content()
             Spacer(Modifier.height(60.dp))
+        }
+        // 右上角快捷按钮区：必须放在 Column 之后(Box 中后绘制在上层)，
+        // 否则 fillMaxSize+verticalScroll 的 Column 会拦截点击导致按钮点不到。
+        Box(Modifier.align(Alignment.TopEnd).padding(end = 16.dp, top = topGap - 12.dp)) {
+            actions()
         }
     }
 }
@@ -174,20 +175,7 @@ fun SettingsScreen(
             }
         }
     ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SettingCard(
-                eyebrow = "术 法", title = "隐藏 / 排序术法",
-                desc = "进入首页编辑态：拖动调整术法顺序，点 × 隐藏不用的术法。",
-                modifier = Modifier.weight(1f), onClick = onManageTiles
-            ) { CardArrow() }
-            SettingCard(
-                eyebrow = "牌 面", title = "显示塔罗牌面",
-                desc = "关闭后牌面只显示文字；开启需先下载牌图。",
-                modifier = Modifier.weight(1f),
-                onClick = { TarotSettings.setShowCardImage(!TarotSettings.showCardImage.value) }
-            ) { SmallSwitch(TarotSettings.showCardImage.value) { TarotSettings.setShowCardImage(it) } }
-        }
-        Spacer(Modifier.height(10.dp))
+        // 固定两列：① 下载塔罗牌 ② 显示塔罗牌面 ③ 技能包 ④ AI设置 ⑤ 术法
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             SettingCard(
                 eyebrow = "牌 图",
@@ -220,19 +208,34 @@ fun SettingsScreen(
                     }
                 }
             ) { CardArrow() }
+            SettingCard(
+                eyebrow = "牌 面", title = "显示塔罗牌面",
+                desc = "关闭后牌面只显示文字；开启需先下载牌图。",
+                modifier = Modifier.weight(1f),
+                onClick = { TarotSettings.setShowCardImage(!TarotSettings.showCardImage.value) }
+            ) { SmallSwitch(TarotSettings.showCardImage.value) { TarotSettings.setShowCardImage(it) } }
         }
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SettingCard(
-                eyebrow = "智 能", title = "AI 设置",
-                desc = "配置 OpenAI 兼容接口的密钥与提示词，卦账里「问 AI」即可解读排盘。",
-                modifier = Modifier.weight(1f), onClick = onOpenAi
-            ) { CardArrow() }
             SettingCard(
                 eyebrow = "心 法", title = "技能包",
                 desc = "小六壬 · 六爻 · 塔罗 的断卦工作流与分册资料。",
                 modifier = Modifier.weight(1f), onClick = onOpenSkills
             ) { CardArrow() }
+            SettingCard(
+                eyebrow = "智 能", title = "AI 设置",
+                desc = "配置 OpenAI 兼容接口的密钥与提示词，卦账里「问 AI」即可解读排盘。",
+                modifier = Modifier.weight(1f), onClick = onOpenAi
+            ) { CardArrow() }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            SettingCard(
+                eyebrow = "术 法", title = "隐藏 / 排序术法",
+                desc = "进入首页编辑态：拖动调整术法顺序，点 × 隐藏不用的术法。",
+                modifier = Modifier.weight(1f), onClick = onManageTiles
+            ) { CardArrow() }
+            Spacer(Modifier.weight(1f))
         }
         Spacer(Modifier.height(18.dp))
         Text(
