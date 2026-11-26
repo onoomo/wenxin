@@ -167,6 +167,15 @@ class FortuneDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_
         db.close()
     }
 
+    /** 批量删除若干卦（多选删除） */
+    fun deleteIds(ids: List<Int>) {
+        if (ids.isEmpty()) return
+        val db = writableDatabase
+        val marks = ids.joinToString(",") { "?" }
+        db.delete("fortune_sessions", "id IN ($marks)", ids.map { it.toString() }.toTypedArray())
+        db.close()
+    }
+
     /** 清空全部卦象记录（收藏页调用时只清收藏） */
     fun clearAll(onlyFavorites: Boolean = false) {
         val db = writableDatabase

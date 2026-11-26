@@ -97,6 +97,9 @@ fun LedgerScreen(
     var category by remember { mutableStateOf("全部") }
     var expanded by remember { mutableStateOf(false) }
     var showClearConfirm by remember { mutableStateOf(false) }
+    var multiSelect by remember { mutableStateOf(false) }
+    var checkedIds by remember { mutableStateOf(setOf<Int>()) }
+    var showDeleteSelectedConfirm by remember { mutableStateOf(false) }
     LaunchedEffect(refreshKey) {
         sessions = if (onlyFavorites) db.favorites() else db.recent()
     }
@@ -114,17 +117,23 @@ fun LedgerScreen(
         Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
             Spacer(Modifier.height(52.dp))
             Spacer(Modifier.height(14.dp))
-            // 标题行：居中标题 + 右上角"清空"
+            // 标题行：居中标题 + 右上角「多选 / 退出多选」
             Box(Modifier.fillMaxWidth()) {
                 Text(if (onlyFavorites) "收 藏" else "卦 账", color = AppColors.Paper, fontSize = 26.sp,
                     fontFamily = FontFamily.Serif,
                     letterSpacing = 3.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-                Text(if (onlyFavorites) "清空" else "清空", color = AppColors.Ember, fontSize = 13.sp,
+                Text(if (multiSelect) "退出多选" else "多选", color = AppColors.Lantern, fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.align(Alignment.CenterEnd).padding(end = 2.dp)
-                        .clickable { showClearConfirm = true })
+                        .clickable {
+                            multiSelect = !multiSelect
+                            checkedIds = emptySet()
+                        })
             }
-            Text(if (onlyFavorites) "左滑取消收藏 · 星标都在这里" else "左滑一卦：收藏 · 复制排盘 · 删除",
+            Text(
+                if (multiSelect) "点选要删除的卦 · 可多选"
+                else if (onlyFavorites) "左滑取消收藏 · 星标都在这里"
+                else "左滑一卦：收藏 · 复制排盘 · 删除",
                 color = AppColors.Muted, fontSize = 11.sp,
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp), textAlign = TextAlign.Center)
             Spacer(Modifier.height(14.dp))
@@ -169,16 +178,70 @@ fun LedgerScreen(
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     items(visible, key = { it.id }) { s ->
-                        SwipeLedgerRow(
-                            s = s,
-                            onClick = { selected = db.get(s.id) },
-                            onFavorite = { db.setFavorite(s.id, !s.favorite); reload() },
-                            onCopy = {
-                                copyText(context, s.face)
-                                Toast.makeText(context, "排盘已复制——拿去给你的 AI 断吧", Toast.LENGTH_SHORT).show()
-                            },
-                            onDelete = { db.delete(s.id); reload() }
-                        )
+                        if (multiSelect) {
+                            val checked = s.id in checkedIds
+                            Box(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                                    .background(if (checked) Color(0x22326B5A) else Color(0xFF1C1C22))
+                                    .border(1.dp, if (checked) AppColors.Jade else Color.Transparent, RoundedCornerShape(10.dp))
+                                    .clickable {
+                                        checkedIds = if (checked) checkedIds - s.id else checkedIds + s.id
+                                    }
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        Modifier.size(22.dp).clip(RoundedCornerShape(6.dp))
+                                            .background(if (checked) AppColors.Jade else Color(0x1AF4F3EF))
+                                            .border(1.dp, if (checked) AppColors.Jade else AppColors.GoldLine.copy(alpha = 0.4f), RoundedCornerShape(6.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (checked) Text("✓", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                    Box(Modifier.weight(1f)) { LedgerRowContent(s) }
+                                }
+                            }
+                        } else {
+                            SwipeLedgerRow(
+                                s = s,
+                                onClick = { selected = db.get(s.id) },
+                                onFavorite = { db.setFavorite(s.id, !s.favorite); reload() },
+                                onCopy = {
+                                    copyText(context, s.face)
+                                    Toast.makeText(context, "排盘已复制——拿去给你的 AI 断吧", Toast.LENGTH_SHORT).show()
+                                },
+                                onDelete = { db.delete(s.id); reload() }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 多选操作栏：全选/取消 + 已选数 + 删除
+            if (multiSelect) {
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                        .background(Color(0x14F4F3EF)).border(1.dp, AppColors.GoldLine.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        if (checkedIds.size == visible.size && visible.isNotEmpty()) "取消全选" else "全选",
+                        color = AppColors.Lantern, fontSize = 13.sp,
+                        modifier = Modifier.clickable {
+                            checkedIds = if (checkedIds.size == visible.size) emptySet() else visible.map { it.id }.toSet()
+                        }
+                    )
+                    Text("已选 ${checkedIds.size} 卦", color = AppColors.Muted, fontSize = 12.sp,
+                        modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                    Box(
+                        Modifier.clip(RoundedCornerShape(16.dp))
+                            .background(if (checkedIds.isEmpty()) Color(0x33FFFFFF) else AppColors.Ember)
+                            .clickable(enabled = checkedIds.isNotEmpty()) { showDeleteSelectedConfirm = true }
+                            .padding(horizontal = 16.dp, vertical = 7.dp)
+                    ) {
+                        Text("删除", color = if (checkedIds.isEmpty()) AppColors.Dim else Color.White,
+                            fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -226,6 +289,45 @@ fun LedgerScreen(
                                 Toast.makeText(context, if (onlyFavorites) "收藏已清空" else "卦象已清空", Toast.LENGTH_SHORT).show()
                             }, contentAlignment = Alignment.Center) {
                             Text("清空", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
+        if (showDeleteSelectedConfirm) {
+            Box(
+                Modifier.fillMaxSize().background(Color(0x99000000)).clickable { showDeleteSelectedConfirm = false },
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    Modifier.fillMaxWidth(0.78f).clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF1C1B22)).padding(22.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("删除选中卦象", color = AppColors.Paper, fontSize = 18.sp,
+                        fontFamily = FontFamily.Serif, letterSpacing = 2.sp)
+                    Spacer(Modifier.height(12.dp))
+                    Text("确定删除选中的 ${checkedIds.size} 条记录吗？此操作不可恢复。",
+                        color = AppColors.Muted, fontSize = 13.sp, textAlign = TextAlign.Center)
+                    Spacer(Modifier.height(20.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Box(Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(21.dp))
+                            .border(1.dp, AppColors.GoldLine.copy(alpha = 0.4f), RoundedCornerShape(21.dp))
+                            .clickable { showDeleteSelectedConfirm = false }, contentAlignment = Alignment.Center) {
+                            Text("取消", color = AppColors.Muted, fontSize = 14.sp)
+                        }
+                        Box(Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(21.dp))
+                            .background(AppColors.Ember).clickable {
+                                val n = checkedIds.size
+                                db.deleteIds(checkedIds.toList())
+                                checkedIds = emptySet()
+                                multiSelect = false
+                                showDeleteSelectedConfirm = false
+                                reload()
+                                Toast.makeText(context, "已删除 $n 条记录", Toast.LENGTH_SHORT).show()
+                            }, contentAlignment = Alignment.Center) {
+                            Text("删除", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
