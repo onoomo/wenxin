@@ -97,8 +97,11 @@ fun ZiweiCastForm(onBack: () -> Unit, onCast: (JiMingpanFormResult) -> Unit) {
             Column(Modifier.fillMaxWidth()) {
                 // 标题栏
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("紫 微 斗 数", color = C.GOLD, fontSize = 18.sp, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Text("紫 微 斗 数", color = C.GOLD, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.width(6.dp))
+                        Text("（文墨天机）", color = C.SUB, fontSize = 11.sp)
+                    }
                     Box(Modifier.size(30.dp).clickable { onBack() }, contentAlignment = Alignment.Center) {
                         Text("×", color = C.SUB, fontSize = 24.sp)
                     }
