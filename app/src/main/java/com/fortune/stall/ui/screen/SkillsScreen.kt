@@ -16,10 +16,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,7 +63,7 @@ fun SkillsScreen(repo: SkillRepository, onBack: () -> Unit) {
                 Spacer(Modifier.height(60.dp))
             }
         } else {
-            DocReader(doc = viewing!!, onBack = { viewing = null })
+            DocReader(doc = viewing!!, repo = repo, onBack = { viewing = null })
         }
     }
 }
@@ -79,7 +82,12 @@ private fun DocRow(title: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun DocReader(doc: SkillRepository.Doc, onBack: () -> Unit) {
+private fun DocReader(doc: SkillRepository.Doc, repo: SkillRepository, onBack: () -> Unit) {
+    // 正文按需读取：进入时才加载这一篇，后台线程读取，不阻塞主线程
+    var content by remember(doc.path) { mutableStateOf("") }
+    LaunchedEffect(doc.path) {
+        content = withContext(Dispatchers.IO) { doc.readContent(repo) }
+    }
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Spacer(Modifier.height(52.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -91,7 +99,7 @@ private fun DocReader(doc: SkillRepository.Doc, onBack: () -> Unit) {
         Text(doc.title, color = AppColors.Lantern, fontSize = 18.sp, fontFamily = FontFamily.Serif,
             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp))
         Text(
-            doc.content, color = AppColors.Paper, fontSize = 12.5.sp, lineHeight = 21.sp,
+            content, color = AppColors.Paper, fontSize = 12.5.sp, lineHeight = 21.sp,
             fontFamily = FontFamily.Monospace,
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 40.dp)
         )
