@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -32,27 +31,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fortune.stall.data.FortuneDb
 import com.fortune.stall.engine.FortuneEngine
 import com.fortune.stall.engine.LiuYao
-import com.fortune.stall.ui.components.Coin
-import com.fortune.stall.ui.components.Die
-import com.fortune.stall.ui.components.ResultCard
 import com.fortune.stall.ui.components.Starfield
-import com.fortune.stall.ui.components.YaoGlyph
 import com.fortune.stall.ui.theme.AppColors
 import com.fortune.stall.util.LunarCalendar
 import kotlinx.coroutines.delay
@@ -299,7 +291,7 @@ fun CastScreen(methodKey: String, lineageName: String? = null, db: FortuneDb, on
                     when {
                         casting -> "落 印 中 …"
                         btnLocked -> "已 落 印 · 点此依仪重摇"
-                        mode.btn != null -> mode.btn!!
+                        mode.btn != null -> mode.btn
                         methodKey == "tarot" -> "抽 牌"
                         else -> "起 卦"
                     }, letterSpacing = 4.sp, fontSize = 15.sp

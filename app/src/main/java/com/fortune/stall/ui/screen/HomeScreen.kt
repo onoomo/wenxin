@@ -63,15 +63,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.graphicsLayer
-import com.fortune.stall.R
 import com.fortune.stall.ui.components.Starfield
 import com.fortune.stall.ui.theme.AppColors
-import com.fortune.stall.engine.jishiyu.JishiyuRegistry
 import com.fortune.stall.util.DisplaySettings
 import com.fortune.stall.util.HomeTilesSettings
 

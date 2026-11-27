@@ -34,7 +34,6 @@ import com.fortune.stall.ui.screen.JishiyuCastScreen
 import com.fortune.stall.ui.screen.JishiyuHubScreen
 import com.fortune.stall.ui.screen.LedgerScreen
 import com.fortune.stall.ui.screen.LineageScreen
-import com.fortune.stall.ui.screen.Lineage
 import com.fortune.stall.ui.screen.LiuyaoCastScreen
 import com.fortune.stall.ui.screen.ShanxiangCastScreen
 import com.fortune.stall.ui.screen.FeixingCastScreen

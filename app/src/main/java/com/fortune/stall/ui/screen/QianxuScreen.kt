@@ -17,13 +17,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -431,18 +429,18 @@ private fun QianxuDivineTab(
 
     // 不占卡（元/餘/齊）
     if (showStop && state != null) {
-        QxStopCard(state!!, onAgain)
+        QxStopCard(state, onAgain)
         return
     }
 
     // 定名卡
     if (showMingCard && state != null) {
-        MingCard(state!!, onBian, onSheet)
+        MingCard(state, onBian, onSheet)
     }
     // 求变卡
     if (showBianCard && state != null) {
         Spacer(Modifier.height(16.dp))
-        BianCard(state!!, onResult, onAgain)
+        BianCard(state, onResult, onAgain)
     }
 }
 
@@ -754,33 +752,6 @@ private fun QianxuMapTab(onOpen: (QianxuData.Ming) -> Unit) {
                 }
             }
             Spacer(Modifier.height(6.dp))
-        }
-    }
-}
-
-// ============ 记录 Tab ============
-@Composable
-private fun QianxuHistTab(db: FortuneDb) {
-    val records = remember { db.recent(100).filter { it.method == "qianxu" } }
-    Text("潜 虚 记 录", color = QX.INK, fontSize = 22.sp, fontWeight = FontWeight.Black,
-        modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-    Spacer(Modifier.height(4.dp))
-    Text("起卦自动留存 · 历史最多保留 100 条", color = QX.INK2, fontSize = 12.sp,
-        modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-    Spacer(Modifier.height(16.dp))
-    if (records.isEmpty()) {
-        Text("暂无记录", color = QX.INK3, fontSize = 13.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-    } else {
-        records.take(100).forEach { rec ->
-            Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).background(QX.PAPER3)
-                .border(1.dp, QX.LINE, RoundedCornerShape(4.dp)).padding(12.dp)) {
-                Column {
-                    Text("${rec.createdAt} · ${rec.question}", color = QX.INK3, fontSize = 11.sp)
-                    Spacer(Modifier.height(4.dp))
-                    Text(rec.face, color = QX.INK, fontSize = 12.sp, maxLines = 3, lineHeight = 19.sp)
-                }
-            }
-            Spacer(Modifier.height(8.dp))
         }
     }
 }

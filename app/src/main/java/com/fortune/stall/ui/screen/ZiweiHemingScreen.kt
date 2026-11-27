@@ -1,6 +1,5 @@
 package com.fortune.stall.ui.screen
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,7 +31,6 @@ import androidx.compose.ui.unit.sp
 import com.fortune.stall.engine.jishiyu.Ziwei
 import com.fortune.stall.engine.jishiyu.ZiweiHeming
 import com.fortune.stall.ui.theme.AppColors
-import java.time.format.DateTimeFormatter
 
 /**
  * 紫微合盘页（借鉴 ziwei-ds /heming）：依次排甲方、乙方两张盘，

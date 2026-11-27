@@ -40,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fortune.stall.data.FortuneDb
 import com.fortune.stall.engine.jishiyu.Qimen
-import com.fortune.stall.engine.jishiyu.QimenData
 import com.fortune.stall.engine.jishiyu.QimenJu
 import com.fortune.stall.ui.components.Starfield
 import com.fortune.stall.ui.theme.AppColors
@@ -245,7 +244,7 @@ private fun QimenDetailScreen(
             Text("排盘数据异常", color = Color(0xFF333333), fontSize = 14.sp, modifier = Modifier.padding(20.dp))
             return@Column
         }
-        val r = result!!
+        val r = result
 
         // 信息表（紧凑）
         Column(Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 14.dp, vertical = 2.dp)) {

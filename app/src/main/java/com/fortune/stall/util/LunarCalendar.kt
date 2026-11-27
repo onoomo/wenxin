@@ -2,7 +2,6 @@ package com.fortune.stall.util
 
 import java.time.LocalDate
 import java.time.LocalDateTime
-import kotlin.math.roundToInt
 
 /**
  * 农历 / 干支换算工具（自实现，零第三方依赖，适配 Android API 24+）。

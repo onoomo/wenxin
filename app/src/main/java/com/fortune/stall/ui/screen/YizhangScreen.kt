@@ -38,7 +38,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.fortune.stall.data.FortuneDb
 import com.fortune.stall.engine.jishiyu.YiZhangJing
-import com.fortune.stall.ui.components.Starfield
 import com.fortune.stall.ui.theme.AppColors
 import java.time.LocalDate
 import java.time.LocalDateTime

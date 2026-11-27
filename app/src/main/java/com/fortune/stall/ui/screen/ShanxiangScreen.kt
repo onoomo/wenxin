@@ -41,10 +41,8 @@ import androidx.compose.ui.window.Dialog
 import com.fortune.stall.data.FortuneDb
 import com.fortune.stall.engine.jishiyu.Qimen
 import com.fortune.stall.engine.jishiyu.ShanxiangQimen
-import com.fortune.stall.ui.components.Starfield
 import com.fortune.stall.ui.theme.AppColors
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
 private val SX_RED = Color(0xFFB0392E)
 private val SX_GOLD = Color(0xFFD9A441)
@@ -168,7 +166,7 @@ private fun ShanxiangDetailScreen(year: Int, degree: Int, question: String, onBa
             Text("排盘数据异常", color = Color(0xFF333333), fontSize = 14.sp, modifier = Modifier.padding(20.dp))
             return@Column
         }
-        val r = result!!
+        val r = result
 
         // 信息表
         Column(Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 14.dp, vertical = 6.dp)) {

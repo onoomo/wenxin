@@ -39,9 +39,7 @@ import com.fortune.stall.data.FortuneDb
 import com.fortune.stall.engine.jishiyu.Qiduweng
 import com.fortune.stall.engine.jishiyu.QiduwengData
 import com.fortune.stall.ui.theme.AppColors
-import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 /** 戚都翁专用起卦页：日期时间 → 体用五星盘 + 占断口诀 */

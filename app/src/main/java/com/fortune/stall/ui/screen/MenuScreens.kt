@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -240,54 +238,6 @@ fun SettingsScreen(
     }
 }
 
-/** 开关条：与 MenuRow 同款外观，右侧一个 Switch */
-@Composable
-private fun ToggleRow(
-    glyph: String,
-    eyebrow: String,
-    title: String,
-    desc: String,
-    checked: Boolean,
-    onChecked: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .border(BorderStroke(1.dp, AppColors.GoldLine), RoundedCornerShape(14.dp))
-            .background(androidx.compose.ui.graphics.Brush.verticalGradient(
-                listOf(androidx.compose.ui.graphics.Color(0xB8232330), androidx.compose.ui.graphics.Color(0xB81C1C22))
-            ))
-            .clickable { onChecked(!checked) }
-            .padding(15.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            Modifier.padding(end = 13.dp).clip(RoundedCornerShape(9.dp))
-                .border(BorderStroke(1.dp, AppColors.GoldLine), RoundedCornerShape(9.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(glyph, color = AppColors.Lantern, fontSize = 16.sp, fontFamily = FontFamily.Serif,
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp))
-        }
-        Column(Modifier.weight(1f)) {
-            Text(eyebrow, color = AppColors.Lantern, fontSize = 10.sp, letterSpacing = 3.sp)
-            Text(title, color = AppColors.Paper, fontSize = 17.sp, fontFamily = FontFamily.Serif,
-                modifier = Modifier.padding(top = 4.dp))
-            Text(desc, color = AppColors.Muted, fontSize = 11.5.sp, modifier = Modifier.padding(top = 4.dp))
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onChecked,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = AppColors.Ink,
-                checkedTrackColor = AppColors.Lantern,
-                uncheckedThumbColor = AppColors.Muted,
-                uncheckedTrackColor = AppColors.Shop2
-            )
-        )
-    }
-    Spacer(Modifier.height(12.dp))
-}
 
 /** 两列紧凑设置卡片：无左侧图标，眉标在上、标题、说明，尾部放开关或箭头 */
 @Composable
