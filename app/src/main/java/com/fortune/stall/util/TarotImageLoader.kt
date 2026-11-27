@@ -27,7 +27,13 @@ object TarotImageLoader {
     private const val BASE = "https://gitee.com/ricky-ai/tarot/raw/master/assets/tarot/pkt/"
     private const val CACHE_DIR = "tarot_cards"
 
-    private val mem = LruCache<String, ImageBitmap>(24)
+    // 缓存全部 78 张牌：一次解码后翻牌/返回不再重复解码。
+    // 按进程可用内存的 1/8 折算成张数，下限 80（覆盖全牌组），上限 160，避免低配机 OOM。
+    private val mem: LruCache<String, ImageBitmap> = run {
+        val maxKb = (Runtime.getRuntime().maxMemory() / 1024 / 8).toInt()
+        val count = (maxKb / 900).coerceIn(80, 160) // 单张约 900KB（RGB_565 解码后）
+        LruCache(count)
+    }
 
     /** 牌 -> Gitee 文件名（不含扩展名） */
     private fun giteeName(card: Tarot.Card): String? = if (card.type == "Major") {
@@ -66,7 +72,12 @@ object TarotImageLoader {
         val file = File(cacheDir(context), "$name.jpg")
         if (!file.exists() || file.length() == 0L) return null
         return try {
-            BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()?.also { mem.put(name, it) }
+            // 用 inSampleSize 采样 + RGB_565 解码：显存/解码耗时减半，牌面视觉差异极小。
+            val opts = BitmapFactory.Options().apply {
+                inPreferredConfig = android.graphics.Bitmap.Config.RGB_565 // 显存/解码耗时减半
+                inSampleSize = 2 // 原图通常 500~1000px，屏幕显示无需全分辨率
+            }
+            BitmapFactory.decodeFile(file.absolutePath, opts)?.asImageBitmap()?.also { mem.put(name, it) }
         } catch (e: Exception) {
             null
         }

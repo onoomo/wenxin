@@ -103,7 +103,9 @@ fun AiChatScreen(
     var tab by remember { mutableStateOf(0) } // 0=对话解读 1=API配置
     var selected by remember { mutableStateOf(initialSession) }
     var showPicker by remember { mutableStateOf(false) }
-    val sessions = remember { db.recent() }
+    // 排盘列表异步加载，避免进入本页时主线程查库拖慢首帧
+    var sessions by remember { mutableStateOf(emptyList<com.fortune.stall.data.Session>()) }
+    LaunchedEffect(Unit) { sessions = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { db.recent() } }
     // 对话状态提升到 Tab 之外：切到 API 配置再切回不丢，只有退出本界面（组合销毁）才清空
     val messages = remember { mutableStateListOf<ChatMessage>() }
     val inputState = remember { mutableStateOf("") }

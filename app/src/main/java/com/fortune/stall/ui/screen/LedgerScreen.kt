@@ -91,7 +91,8 @@ fun LedgerScreen(
     onAskAi: (Session) -> Unit = {}
 ) {
     val context = LocalContext.current
-    var sessions by remember { mutableStateOf(if (onlyFavorites) db.favorites() else db.recent()) }
+    // 首帧用空列表，查询放到 LaunchedEffect 里执行，避免组合期同步查库拖慢进入动画
+    var sessions by remember { mutableStateOf(emptyList<Session>()) }
     var selected by remember { mutableStateOf<Session?>(null) }
     var refreshKey by remember { mutableStateOf(0) }
     var category by remember { mutableStateOf("全部") }
@@ -391,8 +392,9 @@ private fun SwipeLedgerRow(
                         }
                     ) { change, dragAmount ->
                         change.consume()
+                        // 拖动中用 snapTo 同步跟手：每个事件 launch 一个 animateTo 会累积协程导致卡顿
                         scope.launch {
-                            offsetX.animateTo((offsetX.value + dragAmount).coerceIn(-totalPx, 0f))
+                            offsetX.snapTo((offsetX.value + dragAmount).coerceIn(-totalPx, 0f))
                         }
                     }
                 }

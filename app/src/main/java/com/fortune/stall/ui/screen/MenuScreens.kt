@@ -21,6 +21,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -147,7 +148,9 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     var downloading by remember { mutableStateOf(false) }
     var progress by remember { mutableStateOf(0 to 78) }
-    var cachedCount by remember { mutableStateOf(TarotImageLoader.downloadedCount(context)) }
+    var cachedCount by remember { mutableStateOf(0) }
+    // 扫目录移到 IO 线程，避免进入设置页时主线程阻塞
+    LaunchedEffect(Unit) { cachedCount = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { TarotImageLoader.downloadedCount(context) } }
 
     MenuShell(
         title = "设 置", subtitle = "摊面上用具与心法", onBack = onBack, topGap = 28.dp,
